@@ -1,0 +1,8 @@
+# M08 authorization and integrity review
+
+- Requests authenticate using the established demo bearer roles. The backend checks exact patient grants before returning content, including direct IDs and derived document excerpts. Coordinator-created synthetic patients receive a coordinator grant. The canonical Amira fixture also grants the reviewer and viewer. Existing workspace reads and bundle export observe the grants.
+- Coordinator-only event and identity writes run in serialized transactions. Claims use an exact namespace and external ID. Multiple canonical claims make resolution ambiguous and prevent event ingestion through that identity.
+- Literal references must resolve within the granted patient collection. Nested foreign targets, contained resources and logical-only references are rejected. Supported type-specific references are checked.
+- Ingestion bounds document and resource size. Only inline UTF-8 text and Markdown are extracted. Document URLs, filesystem access, executable content and external document fetching are outside the ingest contract. Excerpt integrity is checked against the original attachment before serving.
+- Audit records operation, patient scope, role, outcome and receipt time. Search terms and document bodies stay outside the access audit. Structured validation errors avoid reflecting submitted input. Source version fingerprints, receipts and notices persist together.
+- Production identity, per-user patient entitlements, row-level database security and independent audit protection remain deployment work. These boundaries are for the local synthetic demonstration.

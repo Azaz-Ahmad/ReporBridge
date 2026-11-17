@@ -7,6 +7,8 @@ from sqlalchemy import select
 
 from app import db
 from app.agent import graph
+from app.clinical.access import authorize, provision
+from app.clinical.events import workflow_corrections
 from app.fhir import check_references, validate_import
 from app.rules import DEPENDENCY_RULES, PATHS, PRE, PREG, RULES, RULE_PRESENTATION, code_matches, matches, observation, seed_records
 
@@ -48,6 +50,7 @@ def import_records(connection, actor, resources):
         if not existing_patient and not any(record["resourceType"] == "Patient" for record in records):
             raise HTTPException(404, "Patient record not found.")
         if existing_patient:
+            authorize(connection, actor, patient_id)
             records.extend([existing_patient["resource"], *evidence_for(connection, patient_id)])
         check_references(records)
 
@@ -69,6 +72,7 @@ def import_records(connection, actor, resources):
         connection.execute(table.insert().values(id=identifier, resource=resource, **fields))
         audit(connection, actor, "resource_imported", patient_id, refs=[ref(resource)])
         if table is db.patients:
+            provision(connection, patient_id)
             connection.execute(db.events.insert().values(
                 id=uuid4().hex, patient_id=patient_id, stage="preconception", recorded=now()))
         else:
@@ -107,6 +111,12 @@ def clinical_presentation(connection, obligation):
 
 def evidence_for(connection, patient_id):
     return [row["resource"] for row in rows(connection, db.evidence, db.evidence.c.patient_id == patient_id)]
+
+
+def decision_evidence_for(connection, patient_id):
+    corrections = workflow_corrections(connection, patient_id)
+    return [{**record, "status": "entered-in-error"} if record["id"] in corrections else record
+            for record in evidence_for(connection, patient_id)]
 
 
 def link_dependency(connection, actor, obligation, prior, kind):
@@ -156,7 +166,7 @@ def prerequisite_blocked(connection, obligation, visited=()):
 
 
 def qualifying_source(connection, obligation, rule):
-    records = [resource for resource in evidence_for(connection, obligation["patient_id"])
+    records = [resource for resource in decision_evidence_for(connection, obligation["patient_id"])
                if code_matches(resource, rule["trigger"])]
     return (any(resource["id"] == obligation["source_id"] for resource in records)
             and all(matches(resource, rule["trigger"], rule["value"]) for resource in records))
@@ -186,7 +196,7 @@ def reconsider_closures(connection, actor, patient_id, imported):
 
 def evaluate(connection, actor, patient_id):
     patient = find(connection, db.patients, patient_id, required=True)
-    records = evidence_for(connection, patient_id)
+    records = decision_evidence_for(connection, patient_id)
     existing = rows(connection, db.obligations, db.obligations.c.patient_id == patient_id)
     for rule_key, rule in RULES.items():
         if patient["stage"] != rule["pathway"]:
@@ -243,12 +253,12 @@ def register_pregnancy(connection, actor, patient_id):
 
 def closure_candidates(connection, obligation):
     rule = find(connection, db.rules, obligation["rule_key"], required=True)["definition"]
-    return [r for r in evidence_for(connection, obligation["patient_id"]) if code_matches(r, rule["closure"])]
+    return [r for r in decision_evidence_for(connection, obligation["patient_id"]) if code_matches(r, rule["closure"])]
 
 
 def authorized_records(connection, obligation):
     rule = find(connection, db.rules, obligation["rule_key"], required=True)["definition"]
-    return [record for record in evidence_for(connection, obligation["patient_id"])
+    return [record for record in decision_evidence_for(connection, obligation["patient_id"])
             if record["id"] == obligation["source_id"] or code_matches(record, rule["trigger"])
             or code_matches(record, rule["closure"])]
 
@@ -319,6 +329,7 @@ def execute_agent(connection, actor, obligation_id):
 def review(connection, actor, task_id, decision, note, expected_evidence_refs):
     task = find(connection, db.tasks, task_id, required=True)
     obligation = find(connection, db.obligations, task["obligation_id"], required=True)
+    authorize(connection, actor, obligation["patient_id"])
     if task["status"] != "pending" or obligation["status"] == "closed":
         raise HTTPException(409, "Review is no longer pending")
     candidates = closure_candidates(connection, obligation)
@@ -373,10 +384,16 @@ def close(connection, actor, obligation_id):
     return {"status": "closed"}
 
 
-def snapshot(connection):
-    tables = (db.patients, db.evidence, db.events, db.rules, db.obligations, db.dependencies,
-              db.executions, db.tasks, db.approvals, db.closures)
-    result = {table.name: rows(connection, table) for table in tables}
-    result[db.audit.name] = [dict(row) for row in connection.execute(
-        select(db.audit).order_by(db.audit.c.sequence.desc())).mappings()]
+def snapshot(connection, patient_ids):
+    result = {db.patients.name: rows(connection, db.patients, db.patients.c.id.in_(patient_ids)),
+              db.rules.name: rows(connection, db.rules)}
+    for table in (db.evidence, db.events, db.obligations):
+        result[table.name] = rows(connection, table, table.c.patient_id.in_(patient_ids))
+    ids = [item["id"] for item in result[db.obligations.name]]
+    for table in (db.executions, db.tasks, db.approvals, db.closures):
+        result[table.name] = rows(connection, table, table.c.obligation_id.in_(ids))
+    result[db.dependencies.name] = rows(connection, db.dependencies, db.dependencies.c.obligation_id.in_(ids),
+                                        db.dependencies.c.depends_on.in_(ids))
+    result[db.audit.name] = [dict(row) for row in connection.execute(select(db.audit).where(
+        db.audit.c.patient_id.in_(patient_ids)).order_by(db.audit.c.sequence.desc())).mappings()]
     return result

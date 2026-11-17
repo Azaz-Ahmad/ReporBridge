@@ -58,6 +58,10 @@ The browser test uses ports 8013 and 5183. In the default suite it uses an isola
 
 For the database and API restart check on the local Compose service, run `.\.venv\Scripts\python.exe scripts\verify_postgres.py restart test-reports\restart.json` from the repository root.
 
+## v0.5 Sprint 1 clinical foundation
+
+Open Amira’s **Clinical evidence explorer** in the patient workspace. A coordinator can **Load Amira’s synthetic dataset** from that panel. See the [API contracts](docs/V05_S1_DATA_CONTRACTS.md), [module matrix](docs/V05_S1_ARCHITECTURE.md) and [security review](docs/V05_S1_SECURITY_REVIEW.md).
+
 ## v0.4 judge demo
 
 Open the [v0.4 judge walkthrough](docs/V04_JUDGE_WALKTHROUGH.md) for Amira’s metabolic-assessment story, review flow, and reset procedure. See the [clinical scenario](docs/V04_CLINICAL_SCENARIO.md) and [verification](docs/V04_TEST_REPORT.md).

@@ -1,0 +1,9 @@
+# FHIR R4 mapping
+
+Patient and original workflow evidence remain in the existing persisted store. Source corrections and supplemental data use the append-only registry. Resources support Patient, Observation, Condition, Encounter, DiagnosticReport, DocumentReference, MedicationRequest, MedicationStatement, ServiceRequest and CarePlan. The synthetic dataset exercises each type alongside the original patient.
+
+The bundled HL7 R4 JSON schema validates the resource shape. Additional checks enforce the exact canonical subject, compatible local literal references, configured status values and document metadata. Original resource IDs and values are preserved. The envelope carries an ascending integer source version. Supplied FHIR `meta.versionId` must agree. The read view preserves original clinical time and normalizes selected instants to UTC. Date-only clinical values use UTC midnight with the original date retained. Document reference indexing time and attachment creation time remain distinct from the clinical context period. Unknown codes and units remain unresolved.
+
+DocumentReference carries one inline text or Markdown attachment and metadata for type, author display, creation and clinical context. Content digests are represented by SHA-256 URNs. Clinical notes, assessment summaries, referral notes, discharge summaries and diagnostic reports use synthetic type codes. [HL7 R4 DocumentReference](https://hl7.org/fhir/R4/documentreference.html) · [HL7 R4 references](https://hl7.org/fhir/R4/references.html)
+
+The existing patient-scoped FHIR bundle still includes the workflow Task and Provenance. A corrected workflow Observation is rendered as entered in error for that workflow while the registry preserves source versions. Full profiles, terminology validation, source-specific reconciliation and live adapters remain future work.

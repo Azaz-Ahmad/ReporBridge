@@ -5,6 +5,6 @@ export async function api<T>(token: string, path: string, method = 'GET', body?:
     body: body ? JSON.stringify(body) : undefined,
   });
   const content = await response.json();
-  if (!response.ok) throw new Error(content.reason || (typeof content.detail === 'string' ? content.detail : 'The request could not be completed.'));
+  if (!response.ok) throw new Error(content.reason || (typeof content.detail === 'string' ? content.detail : content.detail?.message || 'The request could not be completed.'));
   return content as T;
 }

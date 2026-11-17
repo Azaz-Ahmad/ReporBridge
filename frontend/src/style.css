@@ -231,3 +231,12 @@ a.record-link:hover { background: #f0f7f8; }
 .coordination-case { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
 @media (max-width: 760px) { .workflow-roles, .workflow-steps { grid-template-columns: repeat(2,minmax(0,1fr)); } }
 @media (max-width: 420px) { .workflow-roles { grid-template-columns: 1fr; } }
+.clinical-search { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; }
+.clinical-search label { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; font-size: .84rem; min-width: 0; }
+.clinical-history input { min-height: auto; }
+.clinical-results { display: grid; gap: 8px; margin-top: 10px; }
+.clinical-results li { border: 1px solid var(--stroke); border-radius: 8px; min-width: 0; }
+.clinical-results summary { cursor: pointer; padding: 9px 12px; overflow-wrap: anywhere; }
+.clinical-results summary small { color: var(--muted); margin-inline: 8px; }
+.clinical-results p, .clinical-results blockquote { font-size: .84rem; overflow-wrap: anywhere; margin: 3px 0; }
+.clinical-results blockquote { border-left: 3px solid #0b7479; padding-left: 10px; white-space: pre-wrap; }

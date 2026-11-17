@@ -4,6 +4,8 @@ from typing import Annotated, Literal
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from fastapi.exception_handlers import http_exception_handler, request_validation_exception_handler
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 from sqlalchemy import text
@@ -12,9 +14,11 @@ from sqlalchemy.exc import SQLAlchemyError
 from app import db, demo, service
 from app.fhir import check_references, structure_errors
 from app.agent import NODES
+from app.clinical.access import audit_access, authorize, permitted
+from app.clinical.api import router as clinical_router
 from app.rules import DEMO_TAG, observation
 
-app = FastAPI(title="Ajyra AI — ReproBridge", version="0.4.0",
+app = FastAPI(title="Ajyra AI — ReproBridge", version="0.5.0",
               description="Synthetic illustration of care coordination across a life-stage transition.")
 bearer = HTTPBearer(auto_error=False)
 
@@ -53,6 +57,38 @@ def write(operation, *args):
         return operation(connection, *args)
 
 
+app.include_router(clinical_router(Reader, Coordinator, write))
+
+
+@app.exception_handler(HTTPException)
+async def clinical_http_error(request, error):
+    if request.url.path.startswith("/api/v1/clinical/") and isinstance(error.detail, str):
+        code = {401: "authentication_required", 403: "forbidden", 404: "not_found"}.get(
+            error.status_code, "clinical_request_failed")
+        return JSONResponse(status_code=error.status_code, headers=error.headers,
+                            content={"detail": {"code": code, "message": error.detail}})
+    return await http_exception_handler(request, error)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error(request, error):
+    if request.url.path.startswith("/api/v1/clinical/"):
+        return JSONResponse(status_code=422, content={"detail": {
+            "code": "invalid_request", "message": "Clinical request failed validation."}})
+    return await request_validation_exception_handler(request, error)
+
+
+def authorized_patient_action(connection, actor, patient_id, operation):
+    authorize(connection, actor, patient_id)
+    return operation(connection, actor, patient_id)
+
+
+def authorized_obligation_action(connection, actor, obligation_id, operation, *args):
+    obligation = service.find(connection, db.obligations, obligation_id, required=True)
+    authorize(connection, actor, obligation["patient_id"])
+    return operation(connection, actor, obligation_id, *args)
+
+
 class ImportedResources(BaseModel):
     resources: list[dict] = Field(min_length=1, max_length=50)
 
@@ -72,8 +108,8 @@ def health():
     try:
         with db.engine.connect() as connection:
             revision = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-            if revision != "0003":
-                raise HTTPException(503, "Run the v0.3 database migration.")
+            if revision != "0004":
+                raise HTTPException(503, "Run the clinical foundation database migration.")
     except SQLAlchemyError as error:
         raise HTTPException(503, "Database or migrations unavailable") from error
     return {"status": "ready", "database": db.engine.dialect.name}
@@ -94,12 +130,13 @@ def read_snapshot(operation, *args):
 
 
 @app.get("/api/snapshot")
-def snapshot(_: Reader):
-    return read_snapshot(workspace_snapshot)
+def snapshot(role: Reader):
+    return read_snapshot(workspace_snapshot, role)
 
 
-def workspace_snapshot(connection):
-    result = service.snapshot(connection)
+def workspace_snapshot(connection, role):
+    patients = permitted(connection, role)
+    result = service.snapshot(connection, patients)
     result["case_context"] = {
         item["id"]: context for item in result["clinical_obligations"]
         if (context := service.clinical_presentation(connection, item))
@@ -109,7 +146,8 @@ def workspace_snapshot(connection):
         item["id"]: service.assess_closure(connection, item)[0]
         for item in result["clinical_obligations"] if item["status"] == "open"
     }
-    result["demo_run_archive"] = demo.archive_summaries(connection)
+    result["demo_run_archive"] = [item for item in demo.archive_summaries(connection)
+                                  if item["patient_id"] in patients]
     return result
 
 
@@ -120,7 +158,10 @@ def seed(actor: Coordinator):
 
 @app.post("/api/demo/reset-amira")
 def reset_amira(actor: Coordinator):
-    return write(demo.reset_amira, actor)
+    def reset_granted_fixture(connection, actor):
+        authorize(connection, actor, "demo-amira")
+        return demo.reset_amira(connection, actor)
+    return write(reset_granted_fixture, actor)
 
 
 @app.post("/api/fhir/import")
@@ -130,18 +171,18 @@ def import_fhir(body: ImportedResources, actor: Coordinator):
 
 @app.post("/api/patients/{patient_id}/evaluate")
 def evaluate(patient_id: str, actor: Coordinator):
-    return write(service.evaluate, actor, patient_id)
+    return write(authorized_patient_action, actor, patient_id, service.evaluate)
 
 
 @app.post("/api/patients/{patient_id}/pregnancy")
 def pregnancy(patient_id: str, actor: Coordinator):
-    write(service.register_pregnancy, actor, patient_id)
+    write(authorized_patient_action, actor, patient_id, service.register_pregnancy)
     return {"stage": "pregnancy"}
 
 
 @app.post("/api/obligations/{obligation_id}/agent")
 def agent(obligation_id: str, actor: Coordinator):
-    result = write(service.execute_agent, actor, obligation_id)
+    result = write(authorized_obligation_action, actor, obligation_id, service.execute_agent)
     return JSONResponse(result, status_code=503 if result["status"] == "failed" else 200)
 
 
@@ -164,12 +205,12 @@ def record_completion(connection, actor, obligation_id, scenario):
 
 @app.post("/api/obligations/{obligation_id}/demo-completion")
 def completion(obligation_id: str, body: Completion, actor: Coordinator):
-    return write(record_completion, actor, obligation_id, body.scenario)
+    return write(authorized_obligation_action, actor, obligation_id, record_completion, body.scenario)
 
 
 @app.post("/api/obligations/{obligation_id}/close", responses={409: {"description": "Evidence or approval gate blocked closure"}})
 def close(obligation_id: str, actor: Coordinator):
-    result = write(service.close, actor, obligation_id)
+    result = write(authorized_obligation_action, actor, obligation_id, service.close)
     return JSONResponse(result, status_code=409 if result["status"] == "blocked" else 200)
 
 
@@ -178,13 +219,18 @@ class FHIRResponse(JSONResponse):
 
 
 @app.get("/api/fhir/patients/{patient_id}", response_class=FHIRResponse)
-def export_fhir(patient_id: str, _: Reader):
-    return read_snapshot(patient_bundle, patient_id)
+def export_fhir(patient_id: str, role: Reader):
+    def scoped_export(connection, actor, patient_id):
+        context = authorize(connection, actor, patient_id)
+        bundle = patient_bundle(connection, patient_id)
+        audit_access(connection, context, "fhir_bundle")
+        return bundle
+    return write(scoped_export, role, patient_id)
 
 
 def patient_bundle(connection, patient_id):
     patient = service.find(connection, db.patients, patient_id, required=True)
-    resources = [patient["resource"], *service.evidence_for(connection, patient_id)]
+    resources = [patient["resource"], *service.decision_evidence_for(connection, patient_id)]
     for obligation in service.rows(connection, db.obligations, db.obligations.c.patient_id == patient_id):
         source = service.find(connection, db.evidence, obligation["source_id"])["resource"]
         rule = service.find(connection, db.rules, obligation["rule_key"])["definition"]
@@ -214,6 +260,8 @@ def patient_bundle(connection, patient_id):
     for resource in resources:
         if resource.get("entity") == []:
             del resource["entity"]
+    if len(resources) > 250:
+        raise HTTPException(413, "Bundle exceeds the demo export limit. Use paginated clinical retrieval.")
     check_references(resources)
     bundle = {"resourceType": "Bundle", "type": "collection", "entry": [
         {"fullUrl": f"https://reprobridge.example/fhir/{service.ref(resource)}", "resource": resource}

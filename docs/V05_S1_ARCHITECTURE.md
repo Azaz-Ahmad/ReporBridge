@@ -1,0 +1,16 @@
+# M08 clinical data foundation
+
+FastAPI authenticates the existing demo role and resolves a patient grant before retrieval. The local provider combines the persisted workflow originals with the append-only clinical feed. Its provider contract separates scope-bound catalog and document lookups from normalization, quality, pagination and authorization. A future EMR adapter can implement that boundary using its own authorized transport.
+
+Writes reuse the existing serialized database transaction. An accepted event appends a version, optional document chunks, receipt and durable notice. A workflow observation correction also invokes the established reopening mechanism. PostgreSQL full-text search uses the simple dictionary and a GIN expression index. SQLite supports a supplementary keyword fallback. No new agent or LLM executes.
+
+| Module | Required fields and source | FHIR resources | Owner and trigger | Authorization | Quality controls | Status and tests |
+| --- | --- | --- | --- | --- | --- | --- |
+| M08.01 gateway | Canonical patient, type, logical ID, version and local references from workflow or synthetic feed | Patient and all nine supported clinical types | Clinical data service on scoped read | Patient grant | R4 structure and same-patient targets | Implemented, retrieval and nested-reference tests |
+| M08.02 documents | Subject, ID, type, status, date, inline UTF-8 and source envelope | DocumentReference | Coordinator submits an event | Ingestion role and patient grant | Size, encoding, content digest, sections and metadata validation | Implemented, ingestion and tamper tests |
+| M08.03 identity | Source namespace, exact external ID and canonical patient | Patient and subject references | Coordinator records a claim | Scoped coordinator | Exact match, ambiguity fails closed | Implemented, duplicate and ambiguity tests |
+| M08.04 normalization | Raw resource, status, timestamps, coding and units | Supported types | Clinical service on receipt | Inherits ingest scope | UTC instant, original values, unresolved terminology and units | Implemented, source preservation tests |
+| M08.05 registry | Source IDs and version, SHA-256, authorization role, predecessor and receipt | Supported types and workflow references | Clinical service on accepted event | Scoped write and read | Unique chain and immutable versions | Implemented, lineage and integrity tests |
+| M08.06 hybrid | Scope, bounded search, citations and sections | Structured types and DocumentReference | Clinical service on request | Patient grant | Same-scope structured and FTS queries | Implemented, combined, empty and isolation tests |
+| M08.07 quality | Source availability, state, warnings and optional approved policy | Supported types | Clinical service on retrieval | Inherits evidence scope | No universal age assumptions, explicit conflicting and superseded outcomes | Implemented, conflict, unknown unit and freshness tests |
+| M08.08 corrections | Patient, source, event ID, version, time, payload and action | Supported feed types and workflow Observations | Coordinator submits versioned event | Exact scope and optional source identity resolution | Serialized replay, lineage, durable notice and reopening | Implemented, concurrency and closure regression tests |

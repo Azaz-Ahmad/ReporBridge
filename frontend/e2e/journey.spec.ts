@@ -163,7 +163,20 @@ test('completes the patient journey through all five screens', async ({ page }, 
   await page.getByRole('combobox', { name: 'Patient' }).selectOption('demo-amira');
   await expect(page.getByRole('heading', { name: 'Amira Haddad' })).toBeVisible();
 
+  await page.getByText('Clinical evidence explorer', { exact: true }).click();
+  await page.getByRole('button', { name: 'Load Amira’s synthetic dataset' }).click();
+  await expect(page.getByText('Synthetic dataset available.')).toBeVisible();
+  await page.getByLabel('Search evidence').fill('reconciliation');
+  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  const clinicalNote = page.locator('.clinical-results li')
+    .filter({ has: page.getByText('DocumentReference/demo-m08-note', { exact: true }) });
+  await clinicalNote.locator('summary').click();
+  await expect(clinicalNote.getByText('Source excerpt · untrusted clinical text')).toBeVisible();
+  await expect(clinicalNote.getByText('Clinician reconciliation remains outstanding.', { exact: true })).toBeVisible();
+
   await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    'Expanded clinical explorer fits at 390 px').toBe(true);
   await expect(stages.locator('[aria-current="step"]')).toContainText('Pregnancy');
   for (const route of ['/workspace?patient=demo-amira', '/passport', '/resolution', '/audit', '/']) {
     await page.goto(route);

@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { ArrowDownToLine, ArrowRight, ArrowUpRight, CalendarDays, CircleAlert, ClipboardList, GitBranch, HeartPulse, Plus, RotateCcw, ShieldCheck, Users, Workflow } from 'lucide-react';
 import { api } from './api';
+import { ClinicalExplorer } from './ClinicalExplorer';
 import { Button, Empty, Feedback, Panel, Status } from './ui';
 import { closureMessage, completionEvidence, DependencyMap, Evaluation, Innovations, Interoperability, Journey, Lifecycle, obligationTitle as titleFor, populationCounts, RunTrace, WorkflowSteps, workflowStatus } from './showcase';
 import { label, moment, patientName, type Audit, type Role, type Snapshot } from './types';
@@ -66,7 +67,7 @@ export function Dashboard({ data, role, busy, action }: ScreenProps) {
   </>;
 }
 
-export function Workspace({ data, role, busy, action }: ScreenProps) {
+export function Workspace({ data, role, token, busy, action }: ScreenProps) {
   const [params, setParams] = useSearchParams();
   const patientId = params.get('patient');
   const patient = patientId ? data.patients.find((item) => item.id === patientId) : data.patients[0];
@@ -116,6 +117,7 @@ export function Workspace({ data, role, busy, action }: ScreenProps) {
         </Panel>
       </div>
       <div id="dependencies"><DependencyMap data={data} patientId={patient.id} /></div>
+      <ClinicalExplorer key={patient.id} patientId={patient.id} token={token} coordinator={role === 'coordinator'} />
       <Panel title="Clinical evidence">
         <div className="table-wrap clinical-table"><table role="table"><thead><tr><th>Resource</th><th>Finding</th><th>Value</th><th>Status</th></tr></thead>
           <tbody role="rowgroup">{data.clinical_evidence.filter((row) => row.patient_id === patient.id).map(({ resource }) => <tr role="row" key={resource.id}>
