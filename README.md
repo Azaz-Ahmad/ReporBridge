@@ -54,7 +54,9 @@ $env:E2E_BROWSER_CHANNEL = 'msedge'
 npm.cmd run test:e2e
 ```
 
-The browser test uses the separate ports 8013 and 5183 and an isolated file-backed database under `frontend/test-results-db`. With Edge unavailable, run `npx.cmd playwright install chromium` and unset `E2E_BROWSER_CHANNEL` in that terminal.
+The browser test uses ports 8013 and 5183. In the default suite it uses an isolated SQLite file. With `-PostgreSQL`, the runner executes the journey twice in separate, freshly migrated PostgreSQL schemas and validates both downloaded bundles. With Edge unavailable, run `npx.cmd playwright install chromium` and unset `E2E_BROWSER_CHANNEL` in that terminal.
+
+For the database and API restart check on the local Compose service, run `.\.venv\Scripts\python.exe scripts\verify_postgres.py restart test-reports\restart.json` from the repository root.
 
 ## Documentation
 
@@ -64,6 +66,8 @@ The browser test uses the separate ports 8013 and 5183 and an isolated file-back
 - [Clinical rules](docs/CLINICAL_RULES.md)
 - [Security and governance](docs/SECURITY_AND_GOVERNANCE.md)
 - [Implementation backlog](docs/IMPLEMENTATION_BACKLOG.md)
-- [Test report](docs/TEST_REPORT.md)
+- [v0.2 test report](docs/V02_TEST_REPORT.md)
+- [v0.1 test report](docs/TEST_REPORT.md)
 - [Demo script](docs/DEMO_SCRIPT.md)
 - [Known limitations](docs/KNOWN_LIMITATIONS.md)
+- [v0.2 release assessment](docs/V02_DEMO_READINESS.md)

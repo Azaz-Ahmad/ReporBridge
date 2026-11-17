@@ -23,8 +23,8 @@ export function Dashboard({ data, role, busy, action }: ScreenProps) {
     { title: 'Synthetic patients', value: data.patients.length, icon: Users, path: '/workspace', tone: 'violet' },
     { title: 'Open obligations', value: data.clinical_obligations.filter((item) => item.status === 'open').length, icon: ClipboardList, path: '/passport', tone: 'amber' },
     { title: 'Pending reviews', value: data.care_coordination_tasks.filter((task) => task.status === 'pending').length, icon: Workflow, path: '/resolution', tone: 'blue' },
-    { title: 'Pregnancy transitions', value: data.life_stage_events.length, icon: GitBranch, path: '/workspace', tone: 'violet' },
-    { title: 'Verified closures', value: new Set(data.closure_evidence.map((record) => record.obligation_id)).size, icon: ShieldCheck, path: '/audit', tone: 'green' },
+    { title: 'Pregnancy transitions', value: data.life_stage_events.filter((event) => event.stage === 'pregnancy').length, icon: GitBranch, path: '/workspace', tone: 'violet' },
+    { title: 'Verified closures', value: data.clinical_obligations.filter((item) => item.status === 'closed').length, icon: ShieldCheck, path: '/audit', tone: 'green' },
   ];
   return <>
     <div className="hero"><div><div className="eyebrow"><HeartPulse size={16} /> CARE CONTINUITY</div>
@@ -72,9 +72,10 @@ export function Workspace({ data, role, busy, action }: ScreenProps) {
       </Panel>
       <div className="two-columns">
         <Panel title="Life-stage timeline"><ul className="timeline">
-          <li><strong>Preconception</strong><small>Initial synthetic record</small></li>
-          {data.life_stage_events.filter((event) => event.patient_id === patient.id).map((event) => <li key={event.id}>
-            <strong>{label(event.stage)}</strong><small>{moment(event.recorded)} · Observation/{event.evidence_id}</small></li>)}
+          {data.life_stage_events.filter((event) => event.patient_id === patient.id)
+            .sort((first, later) => first.recorded.localeCompare(later.recorded)).map((event) => <li key={event.id}>
+              <strong>{label(event.stage)}</strong><small>{moment(event.recorded)} · {event.evidence_id
+                ? 'Observation/' + event.evidence_id : 'Patient/' + patient.id}</small></li>)}
         </ul></Panel>
         <Panel title="Obligations">
           {data.clinical_obligations.filter((item) => item.patient_id === patient.id).map((item) =>
@@ -127,7 +128,7 @@ export function Passport({ data, role, busy, action }: ScreenProps) {
           return <div className="dependency" key={edge.id}><Link2 size={18} />
             <div><Link to={'/passport?obligation=' + predecessor.id}>{titleFor(data, predecessor)}</Link>
               {' must close before '}<Link to={'/passport?obligation=' + successor.id}>{titleFor(data, successor)}</Link>
-              <small>{edge.rule_key}</small></div><Status value={predecessor.status} /></div>;
+              <small>{label(edge.kind)} · {edge.rule_key}</small></div><Status value={predecessor.status} /></div>;
         }) : <Empty>No dependency recorded for this obligation.</Empty>}
       </Panel>
       <Panel title="Obligation history"><AuditTable events={data.audit_events.filter((event) => event.obligation_id === item.id)} /></Panel>
@@ -139,6 +140,11 @@ export function Resolution({ data, role, busy, action }: ScreenProps) {
   const [notes, setNotes] = useState<Record<string, string>>({});
   return <>
     <Heading title="Care-resolution center" subtitle="Review the agent’s evidence reconciliation and proposed coordination actions." />
+    {data.agent_executions.filter((execution) => execution.result.finding === 'failed').map((execution) =>
+      <Panel key={execution.id} title="Coordination run failed" action={<Status value="failed" />}>
+        <p className="inset">{moment(execution.recorded)} · {execution.result.action}
+          {' '}<Link className="text-link" to={'/passport?obligation=' + execution.obligation_id}>Open passport</Link></p>
+      </Panel>)}
     {!data.care_coordination_tasks.length && <Empty>Run the care-resolution agent from an open obligation passport.</Empty>}
     {[...data.care_coordination_tasks].reverse().map((task) => {
       const item = data.clinical_obligations.find((entry) => entry.id === task.obligation_id)!;
@@ -150,6 +156,13 @@ export function Resolution({ data, role, busy, action }: ScreenProps) {
           coding.system === 'https://reprobridge.example/fhir/CodeSystem/demo' && coding.code === rule?.definition.closure,
         ),
       );
+      const evidenceRefs = currentEvidence.map((row) => row.resource.resourceType + '/' + row.id);
+      const sourceRefs = data.clinical_evidence.filter((row) => row.patient_id === item.patient_id &&
+        (row.id === item.source_id || row.resource.resourceType === 'Observation' && row.resource.code?.coding?.some(
+          (coding) => coding.system === 'https://reprobridge.example/fhir/CodeSystem/demo' && coding.code === rule?.definition.trigger,
+        ))).map((row) => row.resource.resourceType + '/' + row.id);
+      const expectedRefs = [...new Set([...evidenceRefs, ...sourceRefs])].sort();
+      const stale = JSON.stringify([...execution.result.evidence_refs].sort()) !== JSON.stringify(expectedRefs);
       return <Panel key={task.id} title={titleFor(data, item)} action={<Status value={task.status} />}>
         <div className="inset"><p className="proposal">{task.action}</p></div>
         <dl className="details"><div><dt>Reconciliation</dt><dd><Status value={execution.result.finding} /></dd></div>
@@ -159,6 +172,11 @@ export function Resolution({ data, role, busy, action }: ScreenProps) {
           {review && <div><dt>Reviewer decision</dt><dd>{label(review.decision)}{review.note && ' · ' + review.note}
             <small>{review.evidence_refs.join(', ') || 'No completion evidence at decision time'}</small></dd></div>}
         </dl>
+        {task.status === 'pending' && stale && <div className="inset">
+          <Feedback message="Evidence changed. Run coordination again before approving this proposal." error />
+          {role === 'coordinator' && <Button disabled={busy} onClick={() =>
+            action('/obligations/' + item.id + '/agent', 'Updated proposal sent for review.')}>Run coordination again</Button>}
+        </div>}
         {role === 'reviewer' && task.status === 'pending' && <div className="inset review-controls">
           <strong>Current completion evidence</strong>
           {currentEvidence.length ? <ul>{currentEvidence.map((row) =>
@@ -167,7 +185,9 @@ export function Resolution({ data, role, busy, action }: ScreenProps) {
           <label>Review note <input value={notes[task.id] || ''} maxLength={300} onChange={(event) => setNotes({ ...notes, [task.id]: event.target.value })} /></label>
           <div className="actions">{(['approve', 'reject', 'request_evidence'] as const).map((decision) =>
             <Button key={decision} variant={decision === 'approve' ? 'primary' : decision === 'reject' ? 'danger' : 'outline'}
-              disabled={busy} onClick={() => action('/tasks/' + task.id + '/review', 'Reviewer decision recorded.', { decision, note: notes[task.id] || '', evidence_refs: currentEvidence.map((row) => row.resource.resourceType + '/' + row.id) })}>
+              disabled={busy || (decision === 'approve' && stale)}
+              onClick={() => action('/tasks/' + task.id + '/review', 'Reviewer decision recorded.',
+                { decision, note: notes[task.id] || '', evidence_refs: evidenceRefs })}>
               {decision === 'request_evidence' ? 'Request additional evidence' : label(decision)}</Button>)}</div>
         </div>}
       </Panel>;
@@ -207,7 +227,7 @@ export function AuditScreen({ data, role, token, busy, action }: ScreenProps) {
       </div>
     </Panel>}
     <Panel title="Verification results">
-      <AuditTable events={data.audit_events.filter((event) => ['closure_verified', 'closure_blocked'].includes(event.action))} />
+      <AuditTable events={data.audit_events.filter((event) => ['closure_verified', 'closure_blocked', 'closure_reopened'].includes(event.action))} />
     </Panel>
     <Panel title="FHIR R4 export">
       {data.patients.length ? data.patients.map((patient) => <div className="record-link" key={patient.id}>

@@ -33,8 +33,15 @@ try {
         $results['React components'] = $LASTEXITCODE
         $env:E2E_BROWSER_CHANNEL = if ($Browser -eq 'msedge') { 'msedge' } else { $null }
         $env:PLAYWRIGHT_JSON_OUTPUT_FILE = Join-Path $reportDir 'browser.json'
-        npm.cmd run test:e2e -- --reporter=line,json
-        $results['Browser journey'] = $LASTEXITCODE
+        if ($PostgreSQL) {
+            & $python (Join-Path $root 'scripts\verify_postgres.py') browser (Join-Path $reportDir 'browser.json')
+            $results['PostgreSQL browser journey'] = $LASTEXITCODE
+            & $python (Join-Path $root 'scripts\verify_postgres.py') browser (Join-Path $reportDir 'browser-replay.json')
+            $results['PostgreSQL browser replay'] = $LASTEXITCODE
+        } else {
+            npm.cmd run test:e2e -- --reporter=line,json
+            $results['SQLite browser journey'] = $LASTEXITCODE
+        }
     } finally { Pop-Location }
 } finally {
     $env:TEST_POSTGRES_URL = $previousPostgres

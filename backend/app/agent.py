@@ -6,7 +6,7 @@ from app.rules import code_matches, matches
 class Resolution(TypedDict, total=False):
     authorized_records: list[dict]
     closure_code: str
-    source_ref: str
+    source_qualified: bool
     evidence_refs: list[str]
     finding: str
     action: str
@@ -19,7 +19,8 @@ def retrieve(state: Resolution):
 
 def reconcile(state: Resolution):
     candidates = [record for record in state["authorized_records"] if code_matches(record, state["closure_code"])]
-    if any(not matches(record, state["closure_code"], "verified") for record in candidates):
+    if not state["source_qualified"] or any(not matches(record, state["closure_code"], "verified")
+                                            for record in candidates):
         return {"finding": "conflicting_or_unqualified_evidence"}
     return {"finding": "evidence_available" if candidates else "missing_closure_evidence"}
 

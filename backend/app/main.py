@@ -10,18 +10,22 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from app import db, service
+from app.fhir import check_references, structure_errors
 from app.rules import DEMO_TAG, observation
 
-app = FastAPI(title="Ajyra AI — ReproBridge", version="0.1.0",
+app = FastAPI(title="Ajyra AI — ReproBridge", version="0.2.0",
               description="Synthetic illustration of care coordination across a life-stage transition.")
 bearer = HTTPBearer(auto_error=False)
 
 
 def identify(credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)]):
+    roles = []
     for role in ("coordinator", "reviewer", "viewer"):
         token = os.getenv(f"{role.upper()}_TOKEN")
         if credentials and token and compare_digest(credentials.credentials.encode(), token.encode()):
-            return role
+            roles.append(role)
+    if len(roles) == 1:
+        return roles[0]
     raise HTTPException(401, "A valid demo access token is required", headers={"WWW-Authenticate": "Bearer"})
 
 
@@ -66,7 +70,9 @@ class Completion(BaseModel):
 def health():
     try:
         with db.engine.connect() as connection:
-            connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
+            revision = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
+            if revision != "0002":
+                raise HTTPException(503, "Run the v0.2 database migration.")
     except SQLAlchemyError as error:
         raise HTTPException(503, "Database or migrations unavailable") from error
     return {"status": "ready", "database": db.engine.dialect.name}
@@ -77,12 +83,18 @@ def session(role: Reader):
     return {"role": role}
 
 
-@app.get("/api/snapshot")
-def snapshot(_: Reader):
+def read_snapshot(operation, *args):
     with db.engine.begin() as connection:
         if connection.dialect.name == "postgresql":
             connection.exec_driver_sql("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
-        return service.snapshot(connection)
+        elif connection.dialect.name == "sqlite":
+            connection.exec_driver_sql("BEGIN")
+        return operation(connection, *args)
+
+
+@app.get("/api/snapshot")
+def snapshot(_: Reader):
+    return read_snapshot(service.snapshot)
 
 
 @app.post("/api/demo/seed")
@@ -108,7 +120,8 @@ def pregnancy(patient_id: str, actor: Coordinator):
 
 @app.post("/api/obligations/{obligation_id}/agent")
 def agent(obligation_id: str, actor: Coordinator):
-    return write(service.execute_agent, actor, obligation_id)
+    result = write(service.execute_agent, actor, obligation_id)
+    return JSONResponse(result, status_code=503 if result["status"] == "failed" else 200)
 
 
 @app.post("/api/tasks/{task_id}/review")
@@ -139,39 +152,51 @@ def close(obligation_id: str, actor: Coordinator):
     return JSONResponse(result, status_code=409 if result["status"] == "blocked" else 200)
 
 
-@app.get("/api/fhir/patients/{patient_id}")
+class FHIRResponse(JSONResponse):
+    media_type = "application/fhir+json"
+
+
+@app.get("/api/fhir/patients/{patient_id}", response_class=FHIRResponse)
 def export_fhir(patient_id: str, _: Reader):
-    with db.engine.connect() as connection:
-        patient = service.find(connection, db.patients, patient_id, required=True)
-        resources = [patient["resource"], *service.evidence_for(connection, patient_id)]
-        for obligation in service.rows(connection, db.obligations, db.obligations.c.patient_id == patient_id):
-            source = service.find(connection, db.evidence, obligation["source_id"])["resource"]
-            rule = service.find(connection, db.rules, obligation["rule_key"])["definition"]
-            identifier = obligation["id"]
-            task = {
-                "resourceType": "Task", "id": identifier, "meta": {"tag": [DEMO_TAG]},
-                "status": "completed" if obligation["status"] == "closed" else "requested",
-                "intent": "proposal", "for": {"reference": f"Patient/{patient_id}"},
-                "owner": {"display": obligation["owner"]}, "authoredOn": obligation["created"],
-                "description": rule["description"], "focus": {"reference": service.ref(source)},
-                "identifier": [{"system": "https://reprobridge.example/obligations", "value": identifier}],
-                "input": [{"type": {"text": "Illustrative rule version"}, "valueString": obligation["rule_key"]}],
-            }
-            for action in service.rows(connection, db.audit, db.audit.c.obligation_id == identifier):
-                if action["action"] == "closure_verified":
-                    task["output"] = [{"type": {"text": "Verified completion evidence"},
-                                       "valueReference": {"reference": reference}} for reference in action["evidence_refs"]]
-                resources.append({
-                    "resourceType": "Provenance", "id": f"demo-audit-{action['sequence']}", "meta": {"tag": [DEMO_TAG]},
-                    "target": [{"reference": f"Task/{identifier}"}], "recorded": action["recorded"],
-                    "activity": {"text": action["action"]}, "agent": [{"who": {"display": action["actor"]}}],
-                    "entity": [{"role": "source", "what": {"reference": reference}} for reference in action["evidence_refs"]],
-                })
-            resources.append(task)
-        for resource in resources:
-            if resource.get("entity") == []:
-                del resource["entity"]
-        return {"resourceType": "Bundle", "type": "collection", "entry": [
-            {"fullUrl": f"https://reprobridge.example/fhir/{service.ref(resource)}", "resource": resource}
-            for resource in resources
-        ]}
+    return read_snapshot(patient_bundle, patient_id)
+
+
+def patient_bundle(connection, patient_id):
+    patient = service.find(connection, db.patients, patient_id, required=True)
+    resources = [patient["resource"], *service.evidence_for(connection, patient_id)]
+    for obligation in service.rows(connection, db.obligations, db.obligations.c.patient_id == patient_id):
+        source = service.find(connection, db.evidence, obligation["source_id"])["resource"]
+        rule = service.find(connection, db.rules, obligation["rule_key"])["definition"]
+        identifier = obligation["id"]
+        task = {
+            "resourceType": "Task", "id": identifier, "meta": {"tag": [DEMO_TAG]},
+            "status": "completed" if obligation["status"] == "closed" else "requested",
+            "intent": "proposal", "for": {"reference": f"Patient/{patient_id}"},
+            "owner": {"display": obligation["owner"]}, "authoredOn": obligation["created"],
+            "description": rule["description"], "focus": {"reference": service.ref(source)},
+            "identifier": [{"system": "https://reprobridge.example/obligations", "value": identifier}],
+            "input": [{"type": {"text": "Illustrative rule version"}, "valueString": obligation["rule_key"]}],
+        }
+        actions = service.rows(connection, db.audit, db.audit.c.obligation_id == identifier)
+        for action in sorted(actions, key=lambda entry: entry["sequence"]):
+            if obligation["status"] == "closed" and action["action"] == "closure_verified":
+                task["output"] = [{"type": {"text": "Verified completion evidence"},
+                                   "valueReference": {"reference": reference}} for reference in action["evidence_refs"]]
+            resources.append({
+                "resourceType": "Provenance", "id": f"demo-audit-{action['sequence']}", "meta": {"tag": [DEMO_TAG]},
+                "target": [{"reference": f"Task/{identifier}"}], "recorded": action["recorded"],
+                "activity": {"text": action["action"]}, "agent": [{"who": {"display": action["actor"]}}],
+                "entity": [{"role": "source", "what": {"reference": reference}} for reference in action["evidence_refs"]],
+            })
+        resources.append(task)
+    for resource in resources:
+        if resource.get("entity") == []:
+            del resource["entity"]
+    check_references(resources)
+    bundle = {"resourceType": "Bundle", "type": "collection", "entry": [
+        {"fullUrl": f"https://reprobridge.example/fhir/{service.ref(resource)}", "resource": resource}
+        for resource in resources
+    ]}
+    if structure_errors(bundle):
+        raise HTTPException(409, "The stored patient record cannot be exported as this FHIR R4 bundle.")
+    return bundle

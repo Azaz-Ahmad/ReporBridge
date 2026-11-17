@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event
 from sqlalchemy.engine import make_url
 
-from app import db
+from app import db, service
 from app.fhir import structure_errors
 from app.main import app
 from app.rules import PRE, PREG, observation, seed_records
@@ -21,7 +21,7 @@ ROLES = ("coordinator", "reviewer", "viewer")
 
 
 @pytest.fixture
-def client(tmp_path, monkeypatch):
+def client(tmp_path, monkeypatch, request):
     database = os.getenv("TEST_POSTGRES_URL")
     admin = schema = None
     if database:
@@ -43,7 +43,7 @@ def client(tmp_path, monkeypatch):
         monkeypatch.setenv(f"{role.upper()}_TOKEN", token)
     config = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
     try:
-        command.upgrade(config, "head")
+        command.upgrade(config, getattr(request, "param", "head"))
         with TestClient(app) as api:
             def request(path, role="coordinator", method="POST", body=None):
                 headers = {"Authorization": "Bearer " + tokens[role]} if role else {}
@@ -121,7 +121,8 @@ def test_transition_concurrent_retry_and_dependency(client):
         attempts = list(pool.map(lambda _: client(f"/patients/{PATIENT}/pregnancy"), range(2)))
     assert all(result.status_code == 200 for result in attempts)
     state = snapshot(client)
-    assert len(state["life_stage_events"]) == 1 and len(state["clinical_obligations"]) == 2
+    assert {event["stage"] for event in state["life_stage_events"]} == {"preconception", "pregnancy"}
+    assert len(state["life_stage_events"]) == len(state["clinical_obligations"]) == 2
     child = next(item for item in state["clinical_obligations"] if item["rule_key"] == PREG)
     edge, = state["obligation_dependencies"]
     assert (edge["obligation_id"], edge["depends_on"], edge["rule_key"]) == (child["id"], previous, PREG)
@@ -153,8 +154,11 @@ def test_authorization_approval_and_success(client):
     evidence = verified(client, obligation)
     assert review(client, task, "approve", []).status_code == 409
     assert "approval" in close(client, obligation).json()["reason"]
-    assert review(client, task, "approve", [evidence]).status_code == 200
-    assert review(client, task, "reject", [evidence]).status_code == 409
+    assert review(client, task, "approve", [evidence]).status_code == 409
+    updated_task = agent(client, obligation)
+    assert updated_task != task
+    assert review(client, updated_task, "approve", [evidence]).status_code == 200
+    assert review(client, updated_task, "reject", [evidence]).status_code == 409
     assert client(route + "/close", role="reviewer").status_code == 403
     assert close(client, obligation).json() == {"status": "closed"}
     assert close(client, obligation).json() == {"status": "closed"}
@@ -200,6 +204,7 @@ def test_fhir_validation_and_export(client):
     assert close(client, obligation).status_code == 200
     result = client(f"/fhir/patients/{PATIENT}", "viewer", "GET")
     assert result.status_code == 200, result.text
+    assert result.headers["content-type"] == "application/fhir+json"
     bundle = result.json()
     assert not structure_errors(bundle)
     resources = [entry["resource"] for entry in bundle["entry"]]
@@ -234,3 +239,186 @@ def test_imported_supporting_resources_round_trip(client):
     assert {entry["resource"]["resourceType"] for entry in bundle["entry"]} == {
         "Patient", "Condition", "DiagnosticReport", "Encounter", "ServiceRequest", "CarePlan",
     }
+
+
+def test_coordination_approval_is_not_completion_authorization(client):
+    obligation = seed(client)
+    prior = agent(client, obligation)
+    assert review(client, prior, "approve", []).status_code == 200
+    assert close(client, obligation).status_code == 409
+    evidence = verified(client, obligation)
+    assert close(client, obligation).status_code == 409
+    task = agent(client, obligation)
+    assert task != prior
+    assert review(client, task, "approve", [evidence]).status_code == 200
+    assert close(client, obligation).status_code == 200
+
+
+@pytest.mark.parametrize("failure", ["error", "interrupt"])
+def test_agent_failure_records_no_review_and_allows_retry(client, monkeypatch, failure):
+    obligation = seed(client)
+    with monkeypatch.context() as interrupted:
+        def fail(_):
+            if failure == "error":
+                raise TimeoutError("injected tool failure")
+            return {"__interrupt__": ["injected interruption"]}
+        interrupted.setattr(service.graph, "invoke", fail)
+        assert client(f"/obligations/{obligation}/agent").status_code == 503
+    state = snapshot(client)
+    assert state["care_coordination_tasks"] == []
+    assert state["agent_executions"][0]["result"]["finding"] == "failed"
+    assert state["audit_events"][0]["action"] == "agent_execution_failed"
+    task = agent(client, obligation)
+    assert agent(client, obligation) == task
+    assert len(snapshot(client)["agent_executions"]) == 2
+
+
+@pytest.mark.parametrize("invalid_status", ["entered-in-error", "cancelled", "corrected", "amended"])
+def test_nonfinal_completion_cannot_close(client, invalid_status):
+    obligation = seed(client)
+    candidate = observation(PATIENT, "demo-invalid-completion", "follow-up-reconciled", "verified")
+    assert client("/fhir/import", body={"resources": [{**candidate, "status": invalid_status}]}).status_code == 200
+    assert review(client, agent(client, obligation), "approve", ["Observation/demo-invalid-completion"]).status_code == 200
+    assert close(client, obligation).status_code == 409
+
+
+def test_new_evidence_reopens_completed_dependency_chain(client):
+    prior = seed(client)
+    assert client(f"/patients/{PATIENT}/pregnancy").status_code == 200
+    later = next(x["id"] for x in snapshot(client)["clinical_obligations"] if x["rule_key"] == PREG)
+    for identifier in (prior, later):
+        evidence = verified(client, identifier)
+        assert review(client, agent(client, identifier), "approve", [evidence]).status_code == 200
+        assert close(client, identifier).status_code == 200
+    new = observation(PATIENT, "demo-late-completion", "follow-up-reconciled", "verified")
+    assert client("/fhir/import", body={"resources": [new]}).status_code == 200
+    state = snapshot(client)
+    assert all(item["status"] == "open" for item in state["clinical_obligations"])
+    assert len(state["closure_evidence"]) == 2
+    assert sum(event["action"] == "closure_reopened" for event in state["audit_events"]) == 2
+    bundle = client(f"/fhir/patients/{PATIENT}", method="GET").json()
+    tasks = [item["resource"] for item in bundle["entry"] if item["resource"]["resourceType"] == "Task"]
+    assert all(task["status"] == "requested" and "output" not in task for task in tasks)
+    assert close(client, prior).status_code == 409
+    refs = [verified(client, prior), "Observation/demo-late-completion"]
+    assert review(client, agent(client, prior), "approve", refs).status_code == 200
+    assert close(client, prior).status_code == 200
+    assert close(client, later).status_code == 409
+    assert review(client, agent(client, later), "approve", [verified(client, later)]).status_code == 200
+    assert close(client, later).status_code == 200
+    assert len(snapshot(client)["closure_evidence"]) == 5
+
+
+def test_late_source_conflict_reopens_and_prevents_closure(client):
+    obligation = seed(client)
+    evidence = verified(client, obligation)
+    assert review(client, agent(client, obligation), "approve", [evidence]).status_code == 200
+    assert close(client, obligation).status_code == 200
+    conflict = observation(PATIENT, "demo-late-trigger", "follow-up-flag", "cleared")
+    assert client("/fhir/import", body={"resources": [conflict]}).status_code == 200
+    assert "Source evidence conflicts" in close(client, obligation).json()["reason"]
+
+
+def test_fhir_references_stay_in_patient_scope(client):
+    obligation = seed(client)
+    other = {**seed_records()[0], "id": "demo-other"}
+    candidate = observation("demo-other", "demo-unrelated-completion", "follow-up-reconciled", "verified")
+    assert client("/fhir/import", body={"resources": [other, candidate]}).status_code == 200
+    assert close(client, obligation).status_code == 409
+    amira = observation(PATIENT, "demo-foreign-reference", "finding", "documented")
+    amira["derivedFrom"] = [{"reference": "Observation/demo-unrelated-completion"}]
+    assert client("/fhir/import", body={"resources": [amira]}).status_code == 422
+    amira.pop("derivedFrom")
+    amira["encounter"] = {"reference": "Patient/demo-amira"}
+    assert client("/fhir/import", body={"resources": [amira]}).status_code == 422
+    amira["encounter"] = {"reference": "Encounter/demo-visit"}
+    assert client("/fhir/import", body={"resources": [amira]}).status_code == 422
+    encounter = {"resourceType": "Encounter", "id": "demo-visit", "meta": amira["meta"],
+                 "subject": amira["subject"], "status": "finished",
+                 "class": {"system": "http://terminology.hl7.org/CodeSystem/v3-ActCode", "code": "AMB"}}
+    assert client("/fhir/import", body={"resources": [amira, encounter]}).status_code == 200
+    bundle = client(f"/fhir/patients/{PATIENT}", method="GET").json()
+    assert any(entry["fullUrl"].endswith("/Encounter/demo-visit") for entry in bundle["entry"])
+    assert not any(entry["fullUrl"].endswith("/Patient/demo-other") for entry in bundle["entry"])
+
+
+def test_duplicate_role_token_fails_closed(client, monkeypatch):
+    token = token_urlsafe()
+    monkeypatch.setenv("COORDINATOR_TOKEN", token)
+    monkeypatch.setenv("REVIEWER_TOKEN", token)
+    with TestClient(app) as api:
+        for headers in ({}, {"Authorization": "Bearer invalid"}, {"Authorization": "Bearer " + token}):
+            assert api.get("/api/session", headers=headers).status_code == 401
+
+
+def test_configured_rule_cannot_drift_without_version(client, monkeypatch):
+    existing = seed(client)
+    monkeypatch.setitem(service.RULES, PRE, {**service.RULES[PRE], "closure": "changed-without-version"})
+    assert client(f"/patients/{PATIENT}/evaluate").status_code == 409
+    assert snapshot(client)["clinical_obligations"][0]["id"] == existing
+    assert client(f"/patients/{PATIENT}/pregnancy").status_code == 409
+    assert snapshot(client)["patients"][0]["stage"] == "preconception"
+
+
+def test_invalid_stage_does_not_mutate_timeline(client):
+    seed(client)
+    with db.engine.begin() as connection:
+        connection.execute(db.patients.update().values(stage="unsupported"))
+    assert client(f"/patients/{PATIENT}/pregnancy").status_code == 409
+    assert len(snapshot(client)["life_stage_events"]) == 1
+
+
+def test_dependency_constraints_and_corruption_fail_closed(client):
+    from sqlalchemy.exc import IntegrityError
+
+    prior = seed(client)
+    assert client(f"/patients/{PATIENT}/pregnancy").status_code == 200
+    later = next(row["id"] for row in snapshot(client)["clinical_obligations"] if row["rule_key"] == PREG)
+    kind = "requires_verified_closure"
+    for target in (prior, "missing-parent"):
+        with pytest.raises(IntegrityError), db.engine.begin() as connection:
+            connection.execute(db.dependencies.insert().values(
+                id=uuid4().hex, obligation_id=later, depends_on=target, rule_key=PREG, kind=kind))
+    with db.engine.begin() as connection:
+        # Simulate an out-of-band reverse edge, outside any API.
+        connection.execute(db.dependencies.insert().values(
+            id=uuid4().hex, obligation_id=prior, depends_on=later, rule_key=PRE, kind=kind))
+    evidence = verified(client, prior)
+    assert review(client, agent(client, prior), "approve", [evidence]).status_code == 200
+    assert close(client, prior).status_code == 409
+
+
+@pytest.mark.parametrize("client", ["0001"], indirect=True)
+def test_migrate_legacy_patient_reopens_closed_obligation(client):
+    from app.rules import RULES
+
+    patient, flag = seed_records()
+    timestamp = service.now()
+    assert client("/health", role=None, method="GET").status_code == 503
+    with db.engine.begin() as connection:
+        connection.execute(db.patients.insert().values(id=PATIENT, resource=patient, stage="preconception"))
+        connection.execute(db.evidence.insert().values(id=flag["id"], resource=flag, patient_id=PATIENT))
+        connection.execute(db.pathways.insert().values(id="preconception", label="Preconception"))
+        connection.execute(db.rules.insert().values(id=PRE, rule_id=PRE.split("@")[0], version="1.0.0",
+                                                    pathway_id="preconception", definition=RULES[PRE]))
+        connection.execute(db.obligations.insert().values(id="legacy", patient_id=PATIENT, rule_key=PRE,
+            source_id=flag["id"], owner="Demo care coordination", status="closed", created=timestamp))
+        service.audit(connection, "coordinator", "resource_imported", PATIENT, refs=[f"Patient/{PATIENT}"])
+    command.upgrade(Config(str(Path(__file__).resolve().parents[1] / "alembic.ini")), "head")
+    assert client("/health", role=None, method="GET").status_code == 200
+    state = snapshot(client)
+    assert state["clinical_obligations"][0]["status"] == "open"
+    assert state["life_stage_events"][0]["stage"] == "preconception"
+    assert [event["action"] for event in state["audit_events"]] == ["closure_reopened", "resource_imported"]
+
+
+def test_late_revocation_marker_blocks_completed_evidence(client):
+    obligation = seed(client)
+    evidence = verified(client, obligation)
+    assert review(client, agent(client, obligation), "approve", [evidence]).status_code == 200
+    assert close(client, obligation).status_code == 200
+    revocation = observation(PATIENT, "demo-revocation", "follow-up-reconciled", "revoked")
+    revocation.update(status="entered-in-error", derivedFrom=[{"reference": evidence}])
+    assert client("/fhir/import", body={"resources": [revocation]}).status_code == 200
+    assert snapshot(client)["clinical_obligations"][0]["status"] == "open"
+    assert "conflict" in close(client, obligation).json()["reason"]

@@ -6,7 +6,7 @@ export type Resource = {
 };
 export type Patient = { id: string; stage: string; resource: Resource };
 export type Rule = { id: string; rule_id: string; version: string; pathway_id: string;
-  definition: { description: string; closure: string; source: string } };
+  definition: { description: string; closure: string; trigger: string; source: string } };
 export type Obligation = { id: string; patient_id: string; rule_key: string; source_id: string;
   owner: string; status: 'open' | 'closed'; created: string };
 export type Audit = { sequence: number; recorded: string; actor: string; action: string; patient_id: string;
@@ -15,10 +15,10 @@ export type Task = { id: string; obligation_id: string; execution_id: string; ac
 export type Snapshot = {
   patients: Patient[];
   clinical_evidence: { id: string; patient_id: string; resource: Resource }[];
-  life_stage_events: { id: string; patient_id: string; stage: string; recorded: string; evidence_id: string }[];
+  life_stage_events: { id: string; patient_id: string; stage: string; recorded: string; evidence_id: string | null }[];
   rule_versions: Rule[];
   clinical_obligations: Obligation[];
-  obligation_dependencies: { id: string; obligation_id: string; depends_on: string; rule_key: string }[];
+  obligation_dependencies: { id: string; obligation_id: string; depends_on: string; rule_key: string; kind: string }[];
   agent_executions: { id: string; obligation_id: string; actor: string; recorded: string;
     result: { evidence_refs: string[]; finding: string; route: string; action: string } }[];
   care_coordination_tasks: Task[];

@@ -2,7 +2,7 @@
 
 The API uses a bounded application contract built on HL7 FHIR 4.0.1. The checked-in archive is the [official HL7 FHIR R4 JSON schema](https://hl7.org/fhir/R4/fhir.schema.json.zip). The import path validates resource structure with JSON Schema Draft 6 and applies additional demo validation.
 
-`POST /api/fhir/import` accepts a JSON object with a `resources` array of 1–50 resources. The coordinator supplies `demo-` IDs and the `synthetic` tag in the `https://reprobridge.example/fhir/CodeSystem/demo` system. Resources are immutable by ID within each storage group. Submit the patient in the same batch or import it first.
+`POST /api/fhir/import` accepts a JSON object with a `resources` array of 1–50 resources. The coordinator supplies `demo-` IDs and the `synthetic` tag in the `https://reprobridge.example/fhir/CodeSystem/demo` system. Resources are immutable by ID within each storage group. Submit the patient in the same batch or import it first. Reference strings must resolve to a supported resource in the same patient collection. The collection endpoint returns application/fhir+json.
 
 | Resource | Demo contract |
 | --- | --- |

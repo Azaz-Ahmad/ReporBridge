@@ -5,6 +5,7 @@ from zipfile import ZipFile
 
 from jsonschema import Draft6Validator
 from datetime import date
+from functools import lru_cache
 
 from fastapi import HTTPException
 
@@ -24,15 +25,61 @@ with ZipFile(Path(__file__).with_name("schema") / "fhir-r4-schema.zip") as archi
     SCHEMA = json.loads(archive.read("fhir.schema.json"))
 
 
+@lru_cache(maxsize=20)
+def validator(kind):
+    return Draft6Validator({"definitions": SCHEMA["definitions"], "$ref": f"#/definitions/{kind}"})
+
+
 def structure_errors(resource):
-    kind = resource.get("resourceType")
-    validator = Draft6Validator({"definitions": SCHEMA["definitions"], "$ref": f"#/definitions/{kind}"})
-    return list(validator.iter_errors(resource))
+    return list(validator(resource["resourceType"]).iter_errors(resource))
 
 
 def demand(condition, detail):
     if not condition:
         raise HTTPException(422, detail)
+
+
+TARGET_TYPES = {
+    ("Condition", "encounter"): {"Encounter"},
+    ("Observation", "encounter"): {"Encounter"},
+    ("Observation", "derivedFrom"): {"Observation"},
+    ("Observation", "hasMember"): {"Observation"},
+    ("DiagnosticReport", "encounter"): {"Encounter"},
+    ("DiagnosticReport", "result"): {"Observation"},
+    ("Encounter", "partOf"): {"Encounter"},
+    ("ServiceRequest", "encounter"): {"Encounter"},
+    ("CarePlan", "encounter"): {"Encounter"},
+    ("Task", "for"): {"Patient"},
+    ("Task", "focus"): {"Observation"},
+    ("Provenance", "target"): {"Task"},
+}
+
+
+def references(value):
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if key == "reference" and isinstance(child, str):
+                declared = value.get("type")
+                demand(not declared or declared.rsplit("/", 1)[-1] == child.split("/", 1)[0],
+                       "FHIR Reference.type conflicts with its target.")
+                yield child
+            elif key != "text":
+                yield from references(child)
+    elif isinstance(value, list):
+        for child in value:
+            yield from references(child)
+
+
+def check_references(resources):
+    available = {f"{resource['resourceType']}/{resource['id']}" for resource in resources}
+    for resource in resources:
+        demand(not resource.get("contained"), "Contained resources are outside the demo exchange contract.")
+        missing = set(references(resource)) - available
+        demand(not missing, "FHIR references must resolve inside the same synthetic patient collection.")
+        for (kind, field), types in TARGET_TYPES.items():
+            if resource["resourceType"] == kind and field in resource:
+                demand(all(target.split("/", 1)[0] in types for target in references(resource[field])),
+                       f"{kind}.{field} references an unsupported target type.")
 
 
 def validate_import(resource):

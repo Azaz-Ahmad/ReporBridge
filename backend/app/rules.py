@@ -2,6 +2,7 @@ SYSTEM = "https://reprobridge.example/fhir/CodeSystem/demo"
 DEMO_TAG = {"system": SYSTEM, "code": "synthetic"}
 PRE = "preconception-follow-up@1.0.0"
 PREG = "pregnancy-coordination@1.0.0"
+DEPENDENCY_RULES = {PREG: (PRE, "requires_verified_closure")}
 PATHS = {"preconception": "Preconception", "pregnancy": "Pregnancy"}
 RULES = {
     PRE: {
