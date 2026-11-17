@@ -58,6 +58,10 @@ The browser test uses ports 8013 and 5183. In the default suite it uses an isola
 
 For the database and API restart check on the local Compose service, run `.\.venv\Scripts\python.exe scripts\verify_postgres.py restart test-reports\restart.json` from the repository root.
 
+## v0.4 judge demo
+
+Open the [v0.4 judge walkthrough](docs/V04_JUDGE_WALKTHROUGH.md) for Amira’s metabolic-assessment story, review flow, and reset procedure. See the [clinical scenario](docs/V04_CLINICAL_SCENARIO.md) and [verification](docs/V04_TEST_REPORT.md).
+
 ## v0.3 judge demo
 
 Start with the [judge walkthrough](docs/V03_JUDGE_WALKTHROUGH.md). The coordinator can expand **Reset Amira demo** on Population Intelligence to archive the fixture run and restore preconception. Its scope guards preserve unrelated patient records and refuse nonfixture data attached to Amira.

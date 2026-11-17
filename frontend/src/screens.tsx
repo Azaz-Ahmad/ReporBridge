@@ -3,20 +3,16 @@ import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { ArrowDownToLine, ArrowRight, ArrowUpRight, CalendarDays, CircleAlert, ClipboardList, GitBranch, HeartPulse, Plus, RotateCcw, ShieldCheck, Users, Workflow } from 'lucide-react';
 import { api } from './api';
 import { Button, Empty, Feedback, Panel, Status } from './ui';
-import { completionEvidence, DependencyMap, Evaluation, Innovations, Interoperability, Journey, Lifecycle, populationCounts, RunTrace } from './showcase';
-import { label, moment, patientName, type Audit, type Obligation, type Role, type Snapshot } from './types';
+import { closureMessage, completionEvidence, DependencyMap, Evaluation, Innovations, Interoperability, Journey, Lifecycle, obligationTitle as titleFor, populationCounts, RunTrace, WorkflowSteps, workflowStatus } from './showcase';
+import { label, moment, patientName, type Audit, type Role, type Snapshot } from './types';
 
 export type ScreenProps = {
-  data: Snapshot; role: Role; token: string; busy: boolean;
+  data: Snapshot; role: Role; token: string; busy: boolean; busyPath?: string;
   action: (path: string, success: string, body?: unknown) => void;
 };
 
 function Heading({ title, subtitle, children }: { title: string; subtitle: string; children?: ReactNode }) {
   return <div className="page-heading"><div><h1>{title}</h1><p>{subtitle}</p></div>{children}</div>;
-}
-
-function titleFor(data: Snapshot, item: Obligation) {
-  return label(data.rule_versions.find((rule) => rule.id === item.rule_key)?.rule_id || item.rule_key);
 }
 
 export function Dashboard({ data, role, busy, action }: ScreenProps) {
@@ -35,7 +31,7 @@ export function Dashboard({ data, role, busy, action }: ScreenProps) {
       <p className="eyebrow"><HeartPulse size={16} /> AJYRA AI — REPROBRIDGE</p>
       <h1>Population intelligence</h1>
       <p className="product-subtitle">Women's Lifelong Reproductive, Maternal &amp; Preventive Care Intelligence</p>
-      <p className="hero-copy">Important care obligations can be lost when patients move between healthcare pathways. ReproBridge tracks these obligations until they are appropriately resolved.</p>
+      <p className="hero-copy">ReproBridge identifies unresolved reproductive-care obligations, preserves them across life-stage transitions, and coordinates evidence-verified follow-up.</p>
     </div><div className="hero-case">
       <span className="field-kicker">Demonstration journey</span>
       <strong>{amira ? patientName(amira) : 'Amira’s synthetic case'}</strong>
@@ -74,6 +70,10 @@ export function Workspace({ data, role, busy, action }: ScreenProps) {
   const [params, setParams] = useSearchParams();
   const patientId = params.get('patient');
   const patient = patientId ? data.patients.find((item) => item.id === patientId) : data.patients[0];
+  const obligations = data.clinical_obligations.filter((item) => item.patient_id === patient?.id);
+  const assessment = obligations.find((item) => data.rule_versions.some((rule) =>
+    rule.id === item.rule_key && rule.pathway_id === 'preconception'));
+  const scenario = assessment && data.case_context?.[assessment.id];
   return <>
     <Heading title="Women’s health workspace" subtitle="Patient record, life-stage timeline, and source findings.">
       {patient && <label className="field-inline">Patient <select value={patient.id} onChange={(e) => setParams({ patient: e.target.value })}>
@@ -84,6 +84,15 @@ export function Workspace({ data, role, busy, action }: ScreenProps) {
       <Link className="text-link" to="/">Open population dashboard</Link></Empty> : <>
       <Panel title={patientName(patient)} action={<Status value={patient.stage} />}>
         <Journey stage={patient.stage} />
+        {assessment && scenario && <div className="clinical-context">
+          <p className="field-kicker">Documented clinical context</p>
+          <strong>{scenario.finding}</strong>
+          <p>{assessment.status === 'closed' ? closureMessage(data, assessment)
+            : patient.stage === 'pregnancy' && data.obligation_dependencies.some((edge) => edge.depends_on === assessment.id)
+              ? 'Pregnancy is registered and this assessment is still open. The linked handoff review keeps it visible to the receiving care team.'
+              : scenario.rationale}</p>
+          <Link className="text-link" to={'/passport?obligation=' + assessment.id}>Open assessment passport <ArrowRight size={15} /></Link>
+        </div>}
         <dl className="details"><div><dt>Patient ID</dt><dd>{patient.id}</dd></div>
           <div><dt>Birth date</dt><dd>{patient.resource.birthDate}</dd></div><div><dt>Current pathway</dt><dd>{label(patient.stage)}</dd></div>
           <div><dt>Administrative gender</dt><dd>{label(patient.resource.gender || 'unknown')}</dd></div></dl>
@@ -100,10 +109,10 @@ export function Workspace({ data, role, busy, action }: ScreenProps) {
                 ? 'Observation/' + event.evidence_id : 'Patient/' + patient.id}</small></li>)}
         </ul></Panel>
         <Panel title="Obligations">
-          {data.clinical_obligations.filter((item) => item.patient_id === patient.id).map((item) =>
+          {obligations.map((item) =>
             <Link key={item.id} className="record-link" to={'/passport?obligation=' + item.id}><strong>{titleFor(data, item)}</strong><Status value={item.status} /><ArrowRight size={16} /></Link>,
           )}
-          {!data.clinical_obligations.some((item) => item.patient_id === patient.id) && <Empty>No obligations recorded.</Empty>}
+          {!obligations.length && <Empty>No obligations recorded.</Empty>}
         </Panel>
       </div>
       <div id="dependencies"><DependencyMap data={data} patientId={patient.id} /></div>
@@ -111,7 +120,7 @@ export function Workspace({ data, role, busy, action }: ScreenProps) {
         <div className="table-wrap clinical-table"><table role="table"><thead><tr><th>Resource</th><th>Finding</th><th>Value</th><th>Status</th></tr></thead>
           <tbody role="rowgroup">{data.clinical_evidence.filter((row) => row.patient_id === patient.id).map(({ resource }) => <tr role="row" key={resource.id}>
             <td role="cell"><span className="mobile-cell-label" aria-hidden="true">Resource</span>{resource.resourceType}/{resource.id}</td>
-            <td role="cell"><span className="mobile-cell-label" aria-hidden="true">Finding</span>{label(resource.code?.coding?.[0]?.code || '—')}</td>
+            <td role="cell"><span className="mobile-cell-label" aria-hidden="true">Finding</span>{resource.code?.text || label(resource.code?.coding?.[0]?.code || '—')}</td>
             <td role="cell"><span className="mobile-cell-label" aria-hidden="true">Value</span>{resource.valueString || '—'}</td>
             <td role="cell"><span className="mobile-cell-label" aria-hidden="true">Status</span>{label(resource.status || '—')}</td></tr>)}</tbody></table></div>
       </Panel>
@@ -125,6 +134,7 @@ export function Passport({ data, role, busy, action }: ScreenProps) {
   const item = obligationId ? data.clinical_obligations.find((entry) => entry.id === obligationId) : data.clinical_obligations[0];
   const rule = data.rule_versions.find((entry) => entry.id === item?.rule_key);
   const source = data.clinical_evidence.find((entry) => entry.id === item?.source_id)?.resource;
+  const scenario = item && data.case_context?.[item.id];
   const { hash } = useLocation();
   const history = data.audit_events.filter((event) => event.obligation_id === item?.id);
   const patient = data.patients.find((entry) => entry.id === item?.patient_id);
@@ -143,24 +153,33 @@ export function Passport({ data, role, busy, action }: ScreenProps) {
         <Status value={item.status} />
       </section>
       <Panel title="Obligation checkpoints"><Lifecycle data={data} item={item} /></Panel>
-      <Panel title="Care requirements" action={<span className="pill amber">Illustrative rule · unapproved</span>}>
-        <dl className="details"><div><dt>Obligation ID</dt><dd>{item.id}</dd></div><div><dt>Patient ID</dt><dd>{item.patient_id}</dd></div>
-          <div><dt>Pathway</dt><dd>{label(rule.pathway_id)}</dd></div><div><dt>Rule ID and version</dt><dd>{item.rule_key}</dd></div>
-          <div><dt>Assigned owner</dt><dd>{item.owner}</dd></div><div><dt>Source evidence</dt><dd>{source.resourceType}/{source.id}</dd></div>
-          <div><dt>Clinical rationale and next action</dt><dd>{rule.definition.description}</dd></div>
-          <div><dt>Closure requirements</dt><dd>Final {rule.definition.closure} evidence, reviewer approval, and resolution of required dependencies.</dd></div>
+      <Panel title="Care requirements" action={<span className="pill amber">Illustrative — Not Clinically Approved</span>}>
+        <div className="clinical-context">
+          <strong>{scenario?.finding || 'Documented source evidence'}</strong>
+          <p>{scenario?.rationale || rule.definition.description}</p>
+          {patient?.stage === 'pregnancy' && item.status === 'open' &&
+            scenario && data.obligation_dependencies.some((edge) => edge.depends_on === item.id) &&
+            <p>The assessment remains open after pregnancy registration and is linked to the pregnancy handoff review.</p>}
+        </div>
+        <dl className="details"><div><dt>Assigned owner</dt><dd>{item.owner}</dd></div>
+          <div><dt>Next action</dt><dd>{item.status === 'closed' ? 'No follow-up remains on this obligation.' : scenario?.next_action || rule.definition.description}</dd></div>
+          <div><dt>What is needed for closure</dt><dd>{scenario?.completion || 'A qualifying final completion record.'} Reviewer approval must cover the current evidence and any configured prerequisite must be satisfied.</dd></div>
+          <div><dt>Current closure check</dt><dd>{closureMessage(data, item)}</dd></div>
           <div><dt>Last updated</dt><dd>{moment(history[0]?.recorded ?? item.created)}</dd></div></dl>
         {role === 'coordinator' && item.status === 'open' && <div className="actions inset">
           <Button disabled={busy} onClick={() => action('/obligations/' + item.id + '/agent', 'Coordination action routed for review.')}>
             <Workflow size={17} /> Run care-resolution agent</Button>
           <Button variant="outline" disabled={busy} onClick={() => action('/obligations/' + item.id + '/close', 'Closure verified.')}>Verify closure</Button>
-          <Link className="text-link" to="/resolution">Open review queue <ArrowRight size={15} /></Link>
+          <Link className="text-link" to={'/resolution?obligation=' + item.id}>Open review queue <ArrowRight size={15} /></Link>
         </div>}
       </Panel>
       <details className="panel expandable" id="provenance" open={hash === '#provenance' || undefined}>
         <summary>Source evidence and provenance</summary>
         <dl className="details"><div><dt>Source resource</dt><dd>{source.resourceType}/{source.id}</dd></div>
-          <div><dt>Recorded finding</dt><dd>{label(source.code?.coding?.[0]?.code ?? 'Unavailable')} · {source.valueString || '—'}</dd></div>
+          <div><dt>Obligation ID</dt><dd>{item.id}</dd></div><div><dt>Patient ID</dt><dd>{item.patient_id}</dd></div>
+          <div><dt>Rule ID and version</dt><dd>{item.rule_key}</dd></div>
+          <div><dt>Recorded finding</dt><dd>{source.code?.text || scenario?.finding || label(source.code?.coding?.[0]?.code ?? 'Unavailable')} · {source.valueString || '—'}</dd></div>
+          <div><dt>Configured evidence codes</dt><dd>{rule.definition.trigger} → {rule.definition.closure}</dd></div>
           <div><dt>Evidence status</dt><dd>{label(source.status ?? 'Unavailable')}</dd></div>
           <div><dt>Rule documentation</dt><dd>{rule.definition.source}</dd></div></dl>
         <div className="inset"><Link className="text-link" to={'/workspace?patient=' + item.patient_id}>Open patient evidence <ArrowRight size={15} /></Link></div>
@@ -171,25 +190,62 @@ export function Passport({ data, role, busy, action }: ScreenProps) {
   </>;
 }
 
-export function Resolution({ data, role, busy, action }: ScreenProps) {
+export function Resolution({ data, role, busy, busyPath, action }: ScreenProps) {
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const [params, setParams] = useSearchParams();
+  const ordered = [...data.clinical_obligations].sort((a, b) => a.created.localeCompare(b.created));
+  const requested = params.get('obligation');
+  const selected = requested ? ordered.find((item) => item.id === requested) :
+    ordered.find((item) => item.status === 'open') || ordered[0];
+  const patient = data.patients.find((item) => item.id === selected?.patient_id);
+  const runs = data.agent_executions.filter((run) => run.obligation_id === selected?.id)
+    .sort((a, b) => b.recorded.localeCompare(a.recorded));
+  const current = runs[0];
+  const currentTask = data.care_coordination_tasks.find((task) => task.execution_id === current?.id);
+  const agentPath = selected ? '/obligations/' + selected.id + '/agent' : undefined;
+  const status = workflowStatus(current, currentTask?.status, !!agentPath && agentPath === busyPath);
   return <>
-    <Heading title="Care-resolution center" subtitle="AI coordinates reviewable care actions. Clinicians retain clinical authority." />
-    <div className="info-strip"><Workflow size={18} /><div><strong>Deterministic LangGraph workflow</strong>
-      <p>The demo runs evidence checks and proposal templates locally. No external LLM or outbound dispatch is configured.</p></div></div>
-    {data.agent_executions.filter((execution) => execution.result.finding === 'failed').map((execution) =>
+    <Heading title="Care-resolution center" subtitle="Coordinate reviewable care actions while clinicians retain decision authority." />
+    <Panel title="Workflow overview" action={<Status value={status} />}>
+      <div className="workflow-roles inset">
+        <div><strong>Deterministic clinical rules</strong><p>Generate obligations and check the requirements for closure.</p></div>
+        <div><strong>LangGraph orchestration</strong><p>Reconciles evidence and prepares a proposal using local deterministic logic. No external LLM is configured.</p></div>
+        <div><strong>Human clinician</strong><p>Reviews the proposal and authorizes action against the current evidence.</p></div>
+      </div>
+      <div className="inset">
+        <WorkflowSteps nodes={data.workflow_nodes} />
+        <p className="muted workflow-note">The API authorizes the request before execution and persists the result and audit. Human review takes place after routing.</p>
+      </div>
+    </Panel>
+    <Panel title="Coordination case" action={ordered.length ? <label className="field-inline">Coordination obligation <select
+      aria-label="Coordination obligation" value={selected?.id || ''} onChange={(event) => setParams({ obligation: event.target.value })}>
+      {!selected && <option value="" disabled>Choose an obligation</option>}
+      {ordered.map((item) => <option key={item.id} value={item.id}>{titleFor(data, item)} · {item.patient_id}</option>)}
+    </select></label> : undefined}>
+      {selected ? <div className="inset coordination-case">
+        <div><strong>{patient ? patientName(patient) : selected.patient_id} · {titleFor(data, selected)}</strong>
+          <p>{selected.status === 'closed' ? 'Verified closure has been recorded.' : !current
+            ? 'A coordinator can run the workflow to prepare a proposal for human review.'
+            : status === 'completed' ? 'A reviewer decision is recorded. Review completion and verified closure are separate.'
+              : status === 'escalated' ? 'The case requires reviewer or evidence follow-up.' : 'Use the recorded execution below to see the current proposal and its evidence.'}</p></div>
+        <div className="actions">
+          {role === 'coordinator' && selected.status === 'open' && agentPath && <Button disabled={busy}
+            onClick={() => action(agentPath, 'Coordination action routed for review.')}><Workflow size={16} /> Run care-resolution agent</Button>}
+          <Button asChild variant="outline"><Link to={'/passport?obligation=' + selected.id}>Open selected passport <ArrowRight size={15} /></Link></Button>
+        </div>
+      </div> : <Empty>Select an obligation or <Link className="text-link" to="/">open the patient registry</Link>.</Empty>}
+    </Panel>
+    {runs.filter((execution) => execution.result.finding === 'failed').map((execution) =>
       <Panel key={execution.id} title="Coordination run failed" action={<Status value="failed" />}>
         <div className="inset"><p>{moment(execution.recorded)} · {execution.result.action}</p>
           <p>Evidence references: {execution.result.evidence_refs.join(', ') || 'None recorded'}.</p>
           <RunTrace trace={execution.result.trace} />
           <Link className="text-link" to={'/passport?obligation=' + execution.obligation_id}>Open passport</Link></div>
       </Panel>)}
-    {!data.care_coordination_tasks.length && <Empty>Run the care-resolution agent from an open obligation passport.</Empty>}
-    {[...data.care_coordination_tasks].sort((a, b) =>
-      data.agent_executions.find((run) => run.id === b.execution_id)!.recorded.localeCompare(
-        data.agent_executions.find((run) => run.id === a.execution_id)!.recorded)).map((task) => {
-      const item = data.clinical_obligations.find((entry) => entry.id === task.obligation_id)!;
-      const execution = data.agent_executions.find((entry) => entry.id === task.execution_id)!;
+    {selected && runs.map((execution) => {
+      const task = data.care_coordination_tasks.find((entry) => entry.execution_id === execution.id);
+      if (!task) return null;
+      const item = selected;
       const review = data.clinical_approvals.find((entry) => entry.task_id === task.id);
       const rule = data.rule_versions.find((entry) => entry.id === item.rule_key);
       const currentEvidence = completionEvidence(data, item);
@@ -204,7 +260,8 @@ export function Resolution({ data, role, busy, action }: ScreenProps) {
         <div className="inset"><p className="field-kicker">Proposed follow-up</p><p className="proposal">{task.action}</p>
           <RunTrace trace={execution.result.trace} /></div>
         <dl className="details"><div><dt>Reconciliation</dt><dd><Status value={execution.result.finding} /></dd></div>
-          <div><dt>Routing</dt><dd>{label(execution.result.route)}</dd></div>
+          <div><dt>Routing</dt><dd>{label(execution.result.route)} required</dd></div>
+          <div><dt>Authorization</dt><dd>{label(execution.actor)} request accepted by the API.</dd></div>
           <div><dt>Execution</dt><dd>{moment(execution.recorded)} · {label(execution.actor)}</dd></div>
           <div><dt>Evidence reviewed by agent</dt><dd>{execution.result.evidence_refs.join(', ')}</dd></div>
           <div><dt>External tools invoked</dt><dd>None. Nodes use authorized records supplied by the backend.</dd></div>
@@ -247,6 +304,8 @@ export function AuditScreen({ data, role, token, busy, action }: ScreenProps) {
   const reviews = inspected ? data.clinical_approvals.filter((review) =>
     data.care_coordination_tasks.some((task) => task.id === review.task_id && task.obligation_id === inspected.id)) : [];
   const review = reviews.sort((a, b) => b.recorded.localeCompare(a.recorded))[0];
+  const inspectedScenario = inspected && data.case_context?.[inspected.id];
+  const proposed = data.care_coordination_tasks.some((task) => task.obligation_id === inspected?.id);
   async function download(patientId: string) {
     setError('');
     try {
@@ -270,13 +329,15 @@ export function AuditScreen({ data, role, token, busy, action }: ScreenProps) {
     </select></label>}>
       <div className="verification-compare">
         <div><ClipboardList size={20} /><strong>Action initiated</strong>
-          <p>{review ? label(review.decision) + ' · ' + label(review.actor) : 'No reviewer decision recorded'}</p>
-          <small>Reminders and appointments do not verify closure.</small></div>
+          <p>{review ? 'Proposal decision · ' + label(review.decision) + ' by ' + label(review.actor)
+            : proposed ? 'A coordination proposal is recorded for human review.' : 'No coordination proposal recorded.'}</p>
+          <small>Approving a proposal to obtain evidence leaves closure pending.</small></div>
         <div><ShieldCheck size={20} /><strong>Care obligation verified as resolved</strong>
           <Status value={inspected.status} />
-          <p>{lastResult?.detail.reason || (inspected.status === 'closed' ? 'Qualifying evidence and approval recorded.' : 'Verification is pending.')}</p></div>
+          <p>{closureMessage(data, inspected)}</p>
+          {lastResult?.action === 'closure_blocked' && <small>Last closure attempt blocked. {lastResult.detail.reason}</small>}</div>
       </div>
-      <dl className="details"><div><dt>Required evidence</dt><dd>Final {data.rule_versions.find((rule) => rule.id === inspected.rule_key)?.definition.closure} observation, evidence-specific approval, and cleared prerequisites.</dd></div>
+      <dl className="details"><div><dt>Required evidence</dt><dd>{inspectedScenario?.completion || 'A qualifying final completion record.'} Evidence-specific approval and cleared prerequisites are required.</dd></div>
         <div><dt>Supporting records</dt><dd>{completionEvidence(data, inspected).map(({ resource }) =>
           resource.resourceType + '/' + resource.id + ' · ' + resource.status).join(', ') || 'No completion evidence submitted'}</dd></div>
         <div><dt>Reviewer evidence references</dt><dd>{review?.evidence_refs.join(', ') || 'None recorded'}</dd></div></dl>

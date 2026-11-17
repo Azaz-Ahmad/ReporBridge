@@ -464,6 +464,7 @@ def test_amira_reset_archives_completed_work_without_touching_other_patients(cli
     assert archive["records"]["audit_events"] == sorted(
         [row for row in before["audit_events"] if row["patient_id"] == PATIENT], key=lambda event: event["sequence"])
     assert state["demo_run_archive"][0]["audit_count"] == len(archive["records"]["audit_events"])
+    assert set(state["case_context"]) == {initial["id"]}
     assert "records" not in state["demo_run_archive"][0]
     assert client("/demo/reset-amira").json()["status"] == "ready"
     assert snapshot(client) == state
@@ -483,3 +484,28 @@ def test_amira_reset_refuses_unrelated_import_and_preserves_state(client):
     response = client("/demo/reset-amira")
     assert response.status_code == 409
     assert snapshot(client) == before
+
+
+def test_metabolic_narrative_preserves_legacy_fixture_and_decision_rule(client):
+    from app.rules import RULES, RULE_PRESENTATION
+
+    assert client("/fhir/import", body={"resources": seed_records(legacy=True)}).status_code == 200
+    original = seed(client)
+    before = snapshot(client)
+    rule = before["rule_versions"][0]
+    assert rule["id"] == PRE and rule["definition"] == RULES[PRE]
+    assert before["case_context"][original] == RULE_PRESENTATION[PRE]
+    assert before["closure_readiness"][original] == "Required completion evidence is missing."
+    assert before["workflow_nodes"] == ["retrieve", "reconcile", "prepare", "route"]
+    assert client("/demo/reset-amira").json()["status"] == "reset"
+    assert client("/demo/reset-amira").json()["status"] == "ready"
+    state = snapshot(client)
+    item, = state["clinical_obligations"]
+    source, = state["clinical_evidence"]
+    assert item["id"] != original and item["rule_key"] == PRE
+    assert source["resource"]["code"]["text"] == RULE_PRESENTATION[PRE]["finding"]
+    assert state["closure_readiness"][item["id"]] == before["closure_readiness"][original]
+    assert close(client, item["id"]).json()["reason"] == state["closure_readiness"][item["id"]]
+    bundle = client("/fhir/patients/demo-amira", method="GET").json()
+    assert [entry["resource"]["description"] for entry in bundle["entry"]
+            if entry["resource"]["resourceType"] == "Task"] == [RULE_PRESENTATION[PRE]["next_action"]]

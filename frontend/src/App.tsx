@@ -81,6 +81,7 @@ export function App() {
   const role = session.data?.role;
   const props: ScreenProps | undefined = snapshot.data && role ? {
     data: snapshot.data, role, token, busy: change.isPending,
+    busyPath: change.isPending ? change.variables?.path : undefined,
     action: (path, success, body) => {
       setFeedback(undefined);
       change.mutate({ path, success, body });

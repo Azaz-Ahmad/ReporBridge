@@ -39,7 +39,7 @@ p { margin: 0; }
 .role { background: #e3f3f1; color: #12646a; padding: 5px 10px; border-radius: 20px; font-weight: 700; }
 .icon-button { display: grid; place-items: center; height: 36px; width: 36px; border-radius: 8px; }
 .icon-button:hover { background: #e3f3f1; }
-main { display: grid; gap: 20px; padding: clamp(18px, 3vw, 42px); max-width: 1540px; margin: 0 auto; }
+main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; padding: clamp(18px, 3vw, 42px); max-width: 1540px; margin: 0 auto; }
 .page-heading, .hero { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px; }
 .page-heading p, .hero p { margin-top: 10px; }
 .page-heading p { color: var(--muted); }
@@ -95,6 +95,8 @@ td small, dd small, .dependency small, .timeline small { display: block; color: 
 .actions, .field-inline { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .actions { padding-top: 8px; }
 .field-inline, .review-controls > label { font-size: .83rem; font-weight: 700; }
+.field-inline { min-width: 0; max-width: 100%; }
+.field-inline select { min-width: 0; max-width: 100%; text-overflow: ellipsis; }
 select, input { border: 1px solid #c7d8de; background: white; padding: 7px 11px; color: #162d40; border-radius: 7px; min-height: 38px; max-width: 100%; }
 .two-columns { display: grid; gap: 15px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .timeline { padding: 12px 19px 12px 28px; }
@@ -213,3 +215,19 @@ a.record-link:hover { background: #f0f7f8; }
   .clinical-table td { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 7px; border: 0; padding: 5px 14px; }
   .mobile-cell-label { display: block; color: var(--muted); font-weight: 700; }
 }
+.clinical-context { padding: 14px 18px; margin: 14px 19px 2px; border: 1px solid #bddbdc; border-left: 3px solid #0b7479; border-radius: 8px; background: #edf7f6; }
+.clinical-context p { margin-top: 4px; font-size: .88rem; }
+.clinical-context .field-kicker { margin-top: 0; font-size: .72rem; }
+.clinical-context .text-link { margin-top: 7px; }
+.dependency-context { margin-top: 11px; color: var(--muted); font-size: .83rem; }
+.workflow-roles, .workflow-steps { display: grid; gap: 10px; grid-template-columns: repeat(3,minmax(0,1fr)); }
+.workflow-roles > div { border: 1px solid var(--stroke); border-radius: 8px; padding: 10px; background: #f6fafb; }
+.workflow-roles p, .workflow-steps small, .coordination-case p, .workflow-note { color: var(--muted); font-size: .83rem; margin-top: 4px; }
+.workflow-steps { grid-template-columns: repeat(4,minmax(0,1fr)); list-style: none; counter-reset: step; }
+.workflow-steps li { border-top: 2px solid #13757a; padding: 8px 5px 5px 0; counter-increment: step; }
+.workflow-steps strong::before { content: counter(step) ". "; color: var(--brand); }
+.workflow-steps small { display: block; }
+.workflow-note { margin-top: 10px; }
+.coordination-case { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+@media (max-width: 760px) { .workflow-roles, .workflow-steps { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 420px) { .workflow-roles { grid-template-columns: 1fr; } }

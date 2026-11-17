@@ -18,6 +18,25 @@ RULES = {
 }
 
 
+# Presentation is version-keyed but separate from the immutable decision definitions.
+RULE_PRESENTATION = {
+    PRE: {
+        "title": "Preconception metabolic assessment review",
+        "finding": "Documented preconception metabolic assessment requiring clinician reconciliation",
+        "rationale": "A documented assessment remained outstanding at preconception. The rule records a review obligation so the assessment stays visible if care moves into pregnancy.",
+        "next_action": "Ask the responsible clinician to reconcile the documented preconception metabolic assessment.",
+        "completion": "A final synthetic record confirming reconciliation of the metabolic assessment.",
+    },
+    PREG: {
+        "title": "Pregnancy handoff review",
+        "finding": "Pregnancy registration recorded",
+        "rationale": "Pregnancy registration triggers a handoff review in this illustrative workflow. The linked assessment, when present, remains visible to the receiving care team.",
+        "next_action": "Review the pregnancy handoff and the linked preconception assessment.",
+        "completion": "A final synthetic record confirming reconciliation of the pregnancy handoff.",
+    },
+}
+
+
 def observation(patient: str, identifier: str, code: str, value: str):
     return {
         "resourceType": "Observation", "id": identifier, "meta": {"tag": [DEMO_TAG]},
@@ -26,12 +45,15 @@ def observation(patient: str, identifier: str, code: str, value: str):
     }
 
 
-def seed_records():
+def seed_records(*, legacy=False):
     patient = {
         "resourceType": "Patient", "id": "demo-amira", "meta": {"tag": [DEMO_TAG]},
         "name": [{"given": ["Amira"], "family": "Haddad"}], "gender": "female", "birthDate": "1995-04-12",
     }
-    return [patient, observation(patient["id"], "demo-initial-flag", "follow-up-flag", "outstanding")]
+    assessment = observation(patient["id"], "demo-initial-flag", "follow-up-flag", "outstanding")
+    if not legacy:
+        assessment["code"]["text"] = RULE_PRESENTATION[PRE]["finding"]
+    return [patient, assessment]
 
 
 def code_matches(resource, code):

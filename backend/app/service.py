@@ -8,7 +8,7 @@ from sqlalchemy import select
 from app import db
 from app.agent import graph
 from app.fhir import check_references, validate_import
-from app.rules import DEPENDENCY_RULES, PATHS, RULES, code_matches, matches, observation, seed_records
+from app.rules import DEPENDENCY_RULES, PATHS, PRE, PREG, RULES, RULE_PRESENTATION, code_matches, matches, observation, seed_records
 
 logger = logging.getLogger(__name__)
 
@@ -79,9 +79,30 @@ def import_records(connection, actor, resources):
 
 
 def seed(connection, actor):
-    patient_id, = import_records(connection, actor, seed_records())
+    patient, initial = seed_records()
+    existing = find(connection, db.evidence, initial["id"])
+    _, legacy_initial = seed_records(legacy=True)
+    if existing and existing["resource"] == legacy_initial:
+        initial = legacy_initial
+    patient_id, = import_records(connection, actor, [patient, initial])
     evaluate(connection, actor, patient_id)
     return patient_id
+
+
+def clinical_presentation(connection, obligation):
+    patient, assessment = seed_records()
+    if obligation["patient_id"] != patient["id"]:
+        return {}
+    subject = find(connection, db.patients, patient["id"], required=True)
+    if subject["resource"] != patient:
+        return {}
+    source = find(connection, db.evidence, obligation["source_id"], required=True)["resource"]
+    rule_key = obligation["rule_key"]
+    if rule_key == PRE and source in (assessment, seed_records(legacy=True)[1]):
+        return RULE_PRESENTATION[PRE]
+    if rule_key == PREG and source == observation(patient["id"], "demo-amira-pregnancy", "pregnancy-registration", "registered"):
+        return RULE_PRESENTATION[PREG]
+    return {}
 
 
 def evidence_for(connection, patient_id):
@@ -265,7 +286,9 @@ def execute_agent(connection, actor, obligation_id):
         if sorted(execution["result"]["evidence_refs"]) == current_refs:
             return previous
     try:
+        narrative = clinical_presentation(connection, obligation)
         result = graph.invoke({"authorized_records": records, "closure_code": rule["closure"],
+                               "proposal_context": narrative.get("next_action", rule["description"]),
                                "source_qualified": qualifying_source(connection, obligation, rule)})
         result = {field: result[field] for field in ("evidence_refs", "finding", "action", "route", "trace")}
     except Exception:
@@ -313,14 +336,11 @@ def review(connection, actor, task_id, decision, note, expected_evidence_refs):
     return approval
 
 
-def close(connection, actor, obligation_id):
-    obligation = find(connection, db.obligations, obligation_id, required=True)
-    if obligation["status"] == "closed":
-        return {"status": "closed"}
+def assess_closure(connection, obligation):
     candidates = closure_candidates(connection, obligation)
     refs = sorted(ref(resource) for resource in candidates)
     rule = find(connection, db.rules, obligation["rule_key"])["definition"]
-    reviews = rows(connection, db.approvals, db.approvals.c.obligation_id == obligation_id)
+    reviews = rows(connection, db.approvals, db.approvals.c.obligation_id == obligation["id"])
     latest = max(reviews, key=lambda review: (review["recorded"], review["id"]), default=None)
     if not qualifying_source(connection, obligation, rule):
         reason = "Source evidence conflicts or no longer qualifies."
@@ -334,6 +354,14 @@ def close(connection, actor, obligation_id):
         reason = "Reviewer approval covering the current evidence is required."
     else:
         reason = ""
+    return reason, candidates, refs, latest
+
+
+def close(connection, actor, obligation_id):
+    obligation = find(connection, db.obligations, obligation_id, required=True)
+    if obligation["status"] == "closed":
+        return {"status": "closed"}
+    reason, candidates, refs, latest = assess_closure(connection, obligation)
     if reason:
         audit(connection, actor, "closure_blocked", obligation["patient_id"], obligation, refs, reason=reason)
         return {"status": "blocked", "reason": reason}

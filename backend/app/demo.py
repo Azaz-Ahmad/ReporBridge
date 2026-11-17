@@ -38,7 +38,8 @@ def reset_amira(connection, actor):
             allowed[identifier] = observation(patient_id, identifier, code, value)
 
     evidence = service.rows(connection, db.evidence, db.evidence.c.patient_id == patient_id)
-    if any(allowed.get(row["id"]) != row["resource"] for row in evidence):
+    _, legacy_initial = seed_records(legacy=True)
+    if any(allowed.get(row["id"]) != row["resource"] and row["resource"] != legacy_initial for row in evidence):
         raise HTTPException(409, "Amira has imported evidence outside the reset fixture. Her records were preserved.")
 
     edges = service.rows(connection, db.dependencies, or_(
@@ -56,7 +57,7 @@ def reset_amira(connection, actor):
         patient["stage"] == "preconception" and len(events) == 1 and events[0]["stage"] == "preconception"
         and len(obligations) == 1 and obligations[0]["rule_key"] == PRE and obligations[0]["status"] == "open"
         and obligations[0]["source_id"] == initial["id"]
-        and [row["id"] for row in evidence] == [initial["id"]]
+        and [row["resource"] for row in evidence] == [initial]
         and not any(related_rows.values())
         and all(event["action"] in {"resource_imported", "obligation_created", "demo_reset"} for event in audit_events)
     )

@@ -8,6 +8,7 @@ class Resolution(TypedDict, total=False):
     authorized_records: list[dict]
     closure_code: str
     source_qualified: bool
+    proposal_context: str
     evidence_refs: list[str]
     finding: str
     action: str
@@ -33,7 +34,10 @@ def prepare(state: Resolution):
         "missing_closure_evidence": "Ask the demo coordinator to obtain a synthetic follow-up completion record.",
         "evidence_available": "Ask the demo reviewer to verify the submitted completion record.",
     }
-    return {"action": actions[state["finding"]], "trace": ["prepare"]}
+    action = actions[state["finding"]]
+    if context := state.get("proposal_context"):
+        action = f"{context} {action}"
+    return {"action": action, "trace": ["prepare"]}
 
 
 def route(_: Resolution):
@@ -41,7 +45,8 @@ def route(_: Resolution):
 
 
 workflow = StateGraph(Resolution)
-for node in (retrieve, reconcile, prepare, route):
+NODES = (retrieve, reconcile, prepare, route)
+for node in NODES:
     workflow.add_node(node.__name__, node)
 workflow.add_edge(START, "retrieve")
 workflow.add_edge("retrieve", "reconcile")

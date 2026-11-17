@@ -1,5 +1,7 @@
 # Hackathon demonstration
 
+For the current clinical narrative and workflow overview, use the [v0.4 judge walkthrough](V04_JUDGE_WALKTHROUGH.md). The steps below document the earlier generic fixture.
+
 Start with Amira Haddad at preconception with one open obligation. On an empty demo database, sign in with the coordinator token and select **Load demo patient**. Keep the separate reviewer token available locally.
 
 1. Open Amira’s workspace. Show the preconception event and the synthetic follow-up flag. Open the obligation passport and identify its owner, source Observation, and illustrative rule version.

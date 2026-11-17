@@ -8,6 +8,17 @@ const evaluation: { run: string; automated: { label: string; result: string }[];
 
 const system = 'https://reprobridge.example/fhir/CodeSystem/demo';
 
+export function obligationTitle(data: Snapshot, item: Obligation) {
+  const rule = data.rule_versions.find((entry) => entry.id === item.rule_key);
+  return data.case_context?.[item.id]?.title || label(rule?.rule_id || item.rule_key);
+}
+
+export function closureMessage(data: Snapshot, item: Obligation) {
+  if (item.status === 'closed') return 'Qualifying evidence, required approval and any prerequisite were recorded at closure.';
+  const reason = data.closure_readiness?.[item.id];
+  return reason === undefined ? 'Current closure check is unavailable.' : reason || 'Requirements met. A coordinator can verify closure.';
+}
+
 export function completionEvidence(data: Snapshot, item: Obligation) {
   const code = data.rule_versions.find((rule) => rule.id === item.rule_key)?.definition.closure;
   return data.clinical_evidence.filter(({ patient_id, resource }) => patient_id === item.patient_id &&
@@ -61,7 +72,7 @@ export function DependencyMap({ data, patientId, obligationId }: { data: Snapsho
     const source = data.clinical_evidence.find((entry) => entry.id === item.source_id)?.resource;
     return <Link className="dependency-node" to={'/passport?obligation=' + item.id + '#provenance'}>
       <span className="field-kicker">{label(rule?.pathway_id || '')}</span>
-      <strong>{label(rule?.rule_id || item.rule_key)}</strong>
+      <strong>{obligationTitle(data, item)}</strong>
       <small>{source ? source.resourceType + '/' + source.id : 'Source unavailable'}</small>
       <Status value={item.status} />
     </Link>;
@@ -74,8 +85,12 @@ export function DependencyMap({ data, patientId, obligationId }: { data: Snapsho
         <div className="dependency-grid">
           {node(predecessor)}
           <div className="dependency-edge"><ArrowRight size={21} /><strong>must close before</strong><small>{label(edge.kind)}</small></div>
+
           {node(successor)}
         </div>
+        {edge.kind === 'requires_verified_closure' && <p className="dependency-context">
+          The preconception obligation stays visible to the receiving team. This prerequisite applies to closing the linked review. Pregnancy care can proceed.
+        </p>}
       </div>;
     }) : <Empty>No dependency recorded for this case yet.</Empty>}
   </Panel>;
@@ -101,6 +116,31 @@ export function Lifecycle({ data, item }: { data: Snapshot; item: Obligation }) 
 const nodeLabels: Record<string, string> = {
   retrieve: 'Retrieve evidence', reconcile: 'Reconcile evidence', prepare: 'Prepare proposal', route: 'Route to human review',
 };
+
+const nodeDetail: Record<string, string> = {
+  retrieve: 'Collects references from the patient evidence supplied by the API.',
+  reconcile: 'Checks the available records for missing or conflicting evidence.',
+  prepare: 'Builds a coordination proposal based on the evidence finding.',
+  route: 'Returns the proposal for human review.',
+};
+
+export function WorkflowSteps({ nodes }: { nodes?: string[] }) {
+  if (!nodes?.length) return <p className="muted">The workflow definition is unavailable.</p>;
+  return <ol className="workflow-steps" aria-label="Configured LangGraph steps">
+    {nodes.map((node) => <li key={node}><strong>{nodeLabels[node] || label(node)}</strong><small>{nodeDetail[node]}</small></li>)}
+  </ol>;
+}
+
+export function workflowStatus(run: Snapshot['agent_executions'][number] | undefined, taskStatus?: string, running = false) {
+  if (running) return 'running';
+  if (!run) return 'not_started';
+  if (run.result.finding === 'failed') return 'failed';
+  if (taskStatus === 'request_evidence' ||
+      (taskStatus === 'pending' && run.result.finding === 'conflicting_or_unqualified_evidence')) return 'escalated';
+  if (taskStatus === 'pending') return 'waiting_for_review';
+  if (taskStatus === 'approve' || taskStatus === 'reject') return 'completed';
+  return taskStatus || 'recorded';
+}
 
 export function RunTrace({ trace }: { trace?: string[] }) {
   if (!trace?.length) return <p className="muted">This execution has no persisted node trace.</p>;

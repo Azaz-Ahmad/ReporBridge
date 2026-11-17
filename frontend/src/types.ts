@@ -2,11 +2,12 @@ export type Role = 'coordinator' | 'reviewer' | 'viewer';
 export type Resource = {
   resourceType: string; id: string; name?: { given: string[]; family: string }[];
   birthDate?: string; gender?: string; status?: string; valueString?: string;
-  code?: { coding?: { code: string; system: string }[] };
+  code?: { text?: string; coding?: { code: string; system: string }[] };
 };
 export type Patient = { id: string; stage: string; resource: Resource };
 export type Rule = { id: string; rule_id: string; version: string; pathway_id: string;
   definition: { description: string; closure: string; trigger: string; source: string } };
+export type CaseContext = { title: string; finding: string; rationale: string; next_action: string; completion: string };
 export type Obligation = { id: string; patient_id: string; rule_key: string; source_id: string;
   owner: string; status: 'open' | 'closed'; created: string };
 export type Audit = { sequence: number; recorded: string; actor: string; action: string; patient_id: string;
@@ -25,6 +26,9 @@ export type Snapshot = {
   clinical_approvals: { id: string; task_id: string; decision: string; actor: string; recorded: string; note: string; evidence_refs: string[] }[];
   closure_evidence: { id: string; obligation_id: string; evidence_id: string; approval_id: string; recorded: string }[];
   audit_events: Audit[];
+  workflow_nodes?: string[];
+  closure_readiness?: Record<string, string>;
+  case_context?: Record<string, CaseContext>;
   demo_run_archive: { id: string; patient_id: string; recorded: string; actor: string; audit_count: number }[];
 };
 export const label = (value: string) => value.replace(/[-_]/g, ' ').replace(/^./, (letter) => letter.toUpperCase());

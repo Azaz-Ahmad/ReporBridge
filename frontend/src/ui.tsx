@@ -10,8 +10,8 @@ export function Button({ asChild, variant = 'primary', className = '', ...props 
 }
 
 export function Status({ value }: { value: string }) {
-  const color = ['closed', 'approve', 'available', 'evidence_available', 'verified', 'ready'].includes(value)
-    ? 'green' : ['pending', 'open', 'request_evidence', 'missing_closure_evidence'].includes(value) ? 'amber'
+  const color = ['closed', 'approve', 'available', 'evidence_available', 'verified', 'ready', 'completed'].includes(value)
+    ? 'green' : ['pending', 'open', 'request_evidence', 'missing_closure_evidence', 'waiting_for_review', 'escalated'].includes(value) ? 'amber'
       : ['reject', 'blocked', 'failed', 'conflicting_or_unqualified_evidence'].includes(value) ? 'rose' : 'neutral';
   return <span className={'pill ' + color}><span />{label(value)}</span>;
 }

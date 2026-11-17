@@ -11,9 +11,10 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app import db, demo, service
 from app.fhir import check_references, structure_errors
+from app.agent import NODES
 from app.rules import DEMO_TAG, observation
 
-app = FastAPI(title="Ajyra AI — ReproBridge", version="0.3.0",
+app = FastAPI(title="Ajyra AI — ReproBridge", version="0.4.0",
               description="Synthetic illustration of care coordination across a life-stage transition.")
 bearer = HTTPBearer(auto_error=False)
 
@@ -98,7 +99,18 @@ def snapshot(_: Reader):
 
 
 def workspace_snapshot(connection):
-    return {**service.snapshot(connection), "demo_run_archive": demo.archive_summaries(connection)}
+    result = service.snapshot(connection)
+    result["case_context"] = {
+        item["id"]: context for item in result["clinical_obligations"]
+        if (context := service.clinical_presentation(connection, item))
+    }
+    result["workflow_nodes"] = [node.__name__ for node in NODES]
+    result["closure_readiness"] = {
+        item["id"]: service.assess_closure(connection, item)[0]
+        for item in result["clinical_obligations"] if item["status"] == "open"
+    }
+    result["demo_run_archive"] = demo.archive_summaries(connection)
+    return result
 
 
 @app.post("/api/demo/seed")
@@ -182,7 +194,8 @@ def patient_bundle(connection, patient_id):
             "status": "completed" if obligation["status"] == "closed" else "requested",
             "intent": "proposal", "for": {"reference": f"Patient/{patient_id}"},
             "owner": {"display": obligation["owner"]}, "authoredOn": obligation["created"],
-            "description": rule["description"], "focus": {"reference": service.ref(source)},
+            "description": service.clinical_presentation(connection, obligation).get("next_action", rule["description"]),
+            "focus": {"reference": service.ref(source)},
             "identifier": [{"system": "https://reprobridge.example/obligations", "value": identifier}],
             "input": [{"type": {"text": "Illustrative rule version"}, "valueString": obligation["rule_key"]}],
         }

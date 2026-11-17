@@ -2,7 +2,7 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it } from 'vitest';
-import { DependencyMap, Journey, populationCounts, RunTrace } from './showcase';
+import { DependencyMap, Journey, populationCounts, RunTrace, WorkflowSteps, workflowStatus } from './showcase';
 import type { Obligation, Snapshot } from './types';
 
 afterEach(cleanup);
@@ -52,4 +52,24 @@ describe('persisted demo readouts', () => {
     expect(screen.queryByRole('listitem')).toBeNull();
     expect(screen.getByText('This execution has no persisted node trace.')).toBeTruthy();
   });
+});
+
+it('shows the configured workflow without creating execution history', () => {
+  render(<WorkflowSteps nodes={['retrieve', 'reconcile', 'prepare', 'route']} />);
+  expect(screen.getAllByRole('listitem')).toHaveLength(4);
+  expect(screen.getByText('Route to human review')).toBeTruthy();
+  expect(screen.queryByRole('list', { name: 'Recorded LangGraph nodes' })).toBeNull();
+});
+
+it('distinguishes request progress, review decisions, escalation and graph failures', () => {
+  const run: Snapshot['agent_executions'][number] = {
+    id: 'run', obligation_id: 'prior', actor: 'coordinator', recorded: initial.created,
+    result: { evidence_refs: ['Observation/flag'], finding: 'missing_closure_evidence', route: 'human_review', action: 'Review' },
+  };
+  expect(workflowStatus(undefined)).toBe('not_started');
+  expect(workflowStatus(undefined, undefined, true)).toBe('running');
+  expect(workflowStatus(run, 'pending')).toBe('waiting_for_review');
+  expect(workflowStatus(run, 'approve')).toBe('completed');
+  expect(workflowStatus(run, 'request_evidence')).toBe('escalated');
+  expect(workflowStatus({ ...run, result: { ...run.result, finding: 'failed' } })).toBe('failed');
 });

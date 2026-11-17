@@ -2,6 +2,8 @@
 
 Both rules are illustrative demonstration rules created solely from the synthetic fixture specification in this document. They have no clinical approval. Follow-up flags encode synthetic coordination state. No external clinical guideline is used.
 
+The v0.4 Amira fixture uses a readable preconception metabolic-assessment label. This narrative does not alter the decision definitions, source codes, matching or closure criteria. See the [v0.4 scenario](V04_CLINICAL_SCENARIO.md).
+
 ## Preconception follow-up
 
 `preconception-follow-up@1.0.0` applies during preconception when a final demo-system Observation has code `follow-up-flag` and value `outstanding`. The obligation preserves its source and owner. Closure requires qualifying `follow-up-reconciled` evidence.
