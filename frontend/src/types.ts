@@ -20,11 +20,12 @@ export type Snapshot = {
   clinical_obligations: Obligation[];
   obligation_dependencies: { id: string; obligation_id: string; depends_on: string; rule_key: string; kind: string }[];
   agent_executions: { id: string; obligation_id: string; actor: string; recorded: string;
-    result: { evidence_refs: string[]; finding: string; route: string; action: string } }[];
+    result: { evidence_refs: string[]; finding: string; route: string; action: string; trace?: string[] } }[];
   care_coordination_tasks: Task[];
-  clinical_approvals: { id: string; task_id: string; decision: string; actor: string; note: string; evidence_refs: string[] }[];
+  clinical_approvals: { id: string; task_id: string; decision: string; actor: string; recorded: string; note: string; evidence_refs: string[] }[];
   closure_evidence: { id: string; obligation_id: string; evidence_id: string; approval_id: string; recorded: string }[];
   audit_events: Audit[];
+  demo_run_archive: { id: string; patient_id: string; recorded: string; actor: string; audit_count: number }[];
 };
 export const label = (value: string) => value.replace(/[-_]/g, ' ').replace(/^./, (letter) => letter.toUpperCase());
 export const patientName = (patient: Patient) => {

@@ -267,7 +267,7 @@ def execute_agent(connection, actor, obligation_id):
     try:
         result = graph.invoke({"authorized_records": records, "closure_code": rule["closure"],
                                "source_qualified": qualifying_source(connection, obligation, rule)})
-        result = {field: result[field] for field in ("evidence_refs", "finding", "action", "route")}
+        result = {field: result[field] for field in ("evidence_refs", "finding", "action", "route", "trace")}
     except Exception:
         logger.warning("Care-resolution graph failed for obligation %s", obligation_id)
         execution_id = uuid4().hex

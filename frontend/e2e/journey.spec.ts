@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
-import { readFile } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
 
 async function signIn(page: Page, role: 'coordinator' | 'reviewer') {
@@ -12,48 +13,79 @@ const preconception = 'Preconception follow up · demo-amira';
 
 test('completes the patient journey through all five screens', async ({ page }, testInfo) => {
   const timings: Record<string, number> = {};
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const captureDir = process.env.REPROBRIDGE_CAPTURE_DIR;
+  async function capture(name: string) {
+    if (!captureDir) return;
+    await mkdir(captureDir, { recursive: true });
+    await page.evaluate(() => document.fonts.ready.then(() => undefined));
+    await page.screenshot({ path: join(captureDir, name + '.png'), fullPage: true, animations: 'disabled' });
+  }
   const started = performance.now();
   await page.goto('/');
   await signIn(page, 'coordinator');
   await expect(page.getByRole('heading', { name: 'Population intelligence' })).toBeVisible();
   timings.dashboardLoadAndSignInMs = Math.round(performance.now() - started);
   await page.getByRole('button', { name: 'Load demo patient' }).click();
-  await expect(page.getByText('Amira Haddad')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Open Amira’s journey' })).toBeVisible();
+  await expect(page.getByRole('link', { name: /1 Open obligations/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /0 Blocked or escalated/ })).toBeVisible();
+  if (captureDir) {
+    await page.getByText('Six innovations', { exact: true }).click();
+    await page.getByText('Technical evaluation', { exact: true }).click();
+    await capture('01-population');
+  }
   const navigating = performance.now();
   await page.getByRole('link', { name: 'Open workspace' }).click();
   await expect(page.getByRole('heading', { name: 'Amira Haddad' })).toBeVisible();
   timings.workspaceNavigationMs = Math.round(performance.now() - navigating);
   await expect(page.getByText('Patient/demo-amira')).toBeVisible();
-  await page.getByRole('link', { name: /Preconception follow up/ }).click();
+  await page.getByRole('link', { name: /Preconception follow up/ }).first().click();
   await expect(page.getByText('Observation/demo-initial-flag', { exact: true }).first()).toBeVisible();
   await page.getByRole('link', { name: 'Women’s health workspace' }).click();
   await page.getByRole('button', { name: 'Register pregnancy' }).click();
   await expect(page.getByText('Pregnancy coordination').first()).toBeVisible();
-  await page.getByRole('link', { name: /Preconception follow up/ }).click();
+  const stages = page.getByRole('list', { name: 'Reproductive life stages' });
+  await expect(stages.locator('[aria-current="step"]')).toContainText('Pregnancy');
+  await expect(stages).toContainText('Planned');
+  await expect(page.getByText('must close before')).toBeVisible();
+  await capture('02-patient-workspace');
+  await page.getByRole('link', { name: /Pregnancy coordination.*Observation\/demo-amira-pregnancy/ }).click();
+  await expect(page.locator('#provenance')).toHaveAttribute('open', '');
+  await expect(page.locator('#provenance')).toContainText('Observation/demo-amira-pregnancy');
+  await page.getByRole('link', { name: 'Women’s health workspace' }).click();
+  await page.getByRole('link', { name: /Preconception follow up/ }).first().click();
   await expect(page.getByRole('heading', { name: 'Clinical obligation passport' })).toBeVisible();
   await expect(page.getByText('must close before')).toBeVisible();
+  await expect(page.getByText('Illustrative rule · unapproved')).toBeVisible();
+  await page.getByText('Source evidence and provenance', { exact: true }).click();
+  await expect(page.getByText('Recorded finding')).toBeVisible();
+  await capture('03-obligation-passport');
   await page.getByRole('button', { name: 'Run care-resolution agent' }).click();
   await page.getByRole('link', { name: 'Care-resolution center' }).click();
   await expect(page.getByText('Missing closure evidence')).toBeVisible();
+  const trace = page.getByRole('list', { name: 'Recorded LangGraph nodes' });
+  await expect(trace.getByRole('listitem')).toHaveText(['Retrieve evidence', 'Reconcile evidence', 'Prepare proposal', 'Route to human review']);
 
   await page.getByRole('button', { name: 'Sign out' }).click();
   await signIn(page, 'reviewer');
   await expect(page.getByRole('button', { name: 'Request additional evidence' })).toBeVisible();
+  await capture('04-agentic-resolution');
   await page.getByRole('button', { name: 'Approve', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('Reviewer decision recorded');
   await page.getByRole('button', { name: 'Sign out' }).click();
   await signIn(page, 'coordinator');
   await page.getByRole('link', { name: 'Obligation passport', exact: true }).click();
-  await page.getByRole('combobox', { name: 'Obligation' }).selectOption({ label: preconception });
+  await page.getByRole('combobox', { name: 'Passport obligation', exact: true }).selectOption({ label: preconception });
   await page.getByRole('button', { name: 'Verify closure' }).click();
   await expect(page.getByRole('alert')).toContainText('completion evidence is missing');
 
   await page.getByRole('link', { name: 'Evidence & audit', exact: true }).click();
-  await page.getByRole('combobox', { name: 'Obligation' }).selectOption({ label: preconception });
+  await page.getByRole('combobox', { name: 'Completion evidence obligation' }).selectOption({ label: preconception });
   await page.getByRole('button', { name: 'Add verified evidence' }).click();
   await expect(page.getByRole('status')).toContainText('Verified fixture submitted');
   await page.getByRole('link', { name: 'Obligation passport', exact: true }).click();
-  await page.getByRole('combobox', { name: 'Obligation' }).selectOption({ label: preconception });
+  await page.getByRole('combobox', { name: 'Passport obligation', exact: true }).selectOption({ label: preconception });
   await page.getByRole('button', { name: 'Verify closure' }).click();
   await expect(page.getByRole('alert')).toContainText('Reviewer approval');
   await page.getByRole('button', { name: 'Run care-resolution agent' }).click();
@@ -66,7 +98,7 @@ test('completes the patient journey through all five screens', async ({ page }, 
   await page.getByRole('button', { name: 'Sign out' }).click();
   await signIn(page, 'coordinator');
   await page.getByRole('link', { name: 'Obligation passport', exact: true }).click();
-  await page.getByRole('combobox', { name: 'Obligation' }).selectOption({ label: preconception });
+  await page.getByRole('combobox', { name: 'Passport obligation', exact: true }).selectOption({ label: preconception });
   await page.getByRole('button', { name: 'Verify closure' }).click();
   await expect(page.getByRole('status')).toContainText('Closure verified');
 
@@ -74,6 +106,8 @@ test('completes the patient journey through all five screens', async ({ page }, 
   const verification = page.getByRole('heading', { name: 'Verification results' }).locator('../..');
   await expect(verification.getByText('Closure blocked')).toHaveCount(2);
   await expect(verification.getByText('Closure verified')).toBeVisible();
+  await expect(page.getByText('Care obligation verified as resolved')).toBeVisible();
+  await capture('05-evidence-audit');
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download FHIR bundle' }).click();
   const download = await downloadPromise;
@@ -109,4 +143,26 @@ test('completes the patient journey through all five screens', async ({ page }, 
   await expect(page.getByText('Observation/demo-initial-flag', { exact: true })).toHaveCount(0);
   await page.getByRole('combobox', { name: 'Patient' }).selectOption('demo-amira');
   await expect(page.getByRole('heading', { name: 'Amira Haddad' })).toBeVisible();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(stages.locator('[aria-current="step"]')).toContainText('Pregnancy');
+  for (const route of ['/workspace?patient=demo-amira', '/passport', '/resolution', '/audit', '/']) {
+    await page.goto(route);
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    if (route.startsWith('/workspace')) await capture('06-mobile-workspace');
+  }
+
+  await page.getByText('Reset Amira demo', { exact: true }).click();
+  await page.getByRole('button', { name: 'Confirm reset' }).click();
+  await expect(page.getByRole('status')).toContainText('Amira is ready at preconception');
+  await expect(page.getByRole('link', { name: /2 Synthetic patients/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /1 Open obligations/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /0 Verified closures/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /0 Active transitions/ })).toBeVisible();
+  await page.getByRole('link', { name: 'Open Amira’s journey' }).click();
+  await expect(stages.locator('[aria-current="step"]')).toContainText('Preconception');
+  await page.getByRole('link', { name: 'Evidence & audit', exact: true }).click();
+  await page.getByText('Archived Amira demo runs', { exact: true }).click();
+  await expect(page.getByText(/\d+ audit events · Coordinator/)).toBeVisible();
 });

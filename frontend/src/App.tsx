@@ -1,7 +1,7 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Activity, ArrowRight, ClipboardList, HeartPulse, LayoutDashboard, LogOut, Network, ShieldCheck, Users, Workflow } from 'lucide-react';
-import { Link, NavLink, Navigate, Route, Routes } from 'react-router-dom';
+import { Link, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { api } from './api';
 import { AuditScreen, Dashboard, Passport, Resolution, Workspace, type ScreenProps } from './screens';
 import { type Role, type Snapshot, label } from './types';
@@ -25,6 +25,11 @@ export function App() {
   const [draft, setDraft] = useState('');
   const [feedback, setFeedback] = useState<{ message: string; error?: boolean }>();
   const cache = useQueryClient();
+  const { pathname, hash } = useLocation();
+  useEffect(() => {
+    if (hash) document.getElementById(hash.slice(1))?.scrollIntoView({ block: 'start' });
+    else window.scrollTo(0, 0);
+  }, [pathname, hash]);
   const session = useQuery({
     queryKey: ['session', token], queryFn: () => api<{ role: Role }>(token, '/session'), enabled: !!token,
   });
@@ -61,7 +66,7 @@ export function App() {
   };
   if (!session.data && !session.isLoading) {
     return <div className="signin"><div className="signin-card">
-      <Brand /><span className="eyebrow"><HeartPulse size={16} /> SYNTHETIC CARE DEMO</span>
+      <Brand /><span className="eyebrow"><HeartPulse size={16} /> SYNTHETIC DATA — DEMONSTRATION ONLY</span>
       <h1>Care that carries forward.</h1>
       <p>Sign in to follow a synthetic patient from preconception into pregnancy and verify how outstanding care is resolved.</p>
       <form onSubmit={submit}>
@@ -89,10 +94,11 @@ export function App() {
           <Icon size={18} />{text}
         </NavLink>,
       )}</nav>
-      <div className="rail-note"><Network size={18} /><span>Synthetic data only<small>HealthX Ajyal Hackathon</small></span></div>
+      {snapshot.data?.patients.some((patient) => patient.id === 'demo-amira') && <Link className="rail-journey" to="/workspace?patient=demo-amira"><HeartPulse size={17} /> Amira’s journey <ArrowRight size={15} /></Link>}
+      <div className="rail-note"><Network size={18} /><span>HealthX Ajyal Hackathon<small>22 November 2026</small></span></div>
     </aside>
     <div className="content">
-      <header className="topbar"><span><HeartPulse size={17} /> Care coordination workspace</span>
+      <header className="topbar"><span className="demo-mark"><ShieldCheck size={17} /> SYNTHETIC DATA — DEMONSTRATION ONLY</span>
         <div><span className="role">{role ? label(role) : 'Connecting'}</span>
           <button className="icon-button" type="button" title="Sign out" aria-label="Sign out" onClick={signOut}><LogOut size={18} /></button></div>
       </header>

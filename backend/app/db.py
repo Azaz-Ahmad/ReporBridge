@@ -62,3 +62,5 @@ audit = Table("audit_events", metadata, Column("sequence", Integer, primary_key=
               string("recorded"), string("actor"), string("action"), fk("patient_id", "patients.id"),
               Column("obligation_id", String(120), ForeignKey("clinical_obligations.id")),
               string("rule_key"), data("evidence_refs"), data("detail"))
+demo_archive = Table("demo_run_archive", metadata, key(), string("patient_id"), string("recorded"),
+                     string("actor"), Column("audit_count", Integer, nullable=False), data("records"))

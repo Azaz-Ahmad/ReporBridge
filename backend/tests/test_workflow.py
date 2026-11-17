@@ -422,3 +422,64 @@ def test_late_revocation_marker_blocks_completed_evidence(client):
     assert client("/fhir/import", body={"resources": [revocation]}).status_code == 200
     assert snapshot(client)["clinical_obligations"][0]["status"] == "open"
     assert "conflict" in close(client, obligation).json()["reason"]
+
+
+def test_amira_reset_archives_completed_work_without_touching_other_patients(client):
+    obligation = seed(client)
+    other, flag = seed_records()
+    other = {**other, "id": "demo-other"}
+    flag = observation("demo-other", "demo-other-flag", "follow-up-flag", "outstanding")
+    assert client("/fhir/import", body={"resources": [other, flag]}).status_code == 200
+    assert client("/patients/demo-other/evaluate").status_code == 200
+    assert client("/demo/reset-amira", role=None).status_code == 401
+    assert client("/demo/reset-amira", role="reviewer").status_code == 403
+    assert client("/demo/reset-amira", role="viewer").status_code == 403
+    assert client("/demo/reset-amira").json()["status"] == "ready"
+    assert client(f"/patients/{PATIENT}/pregnancy").status_code == 200
+    assert close(client, obligation).status_code == 409
+    evidence = verified(client, obligation)
+    task = agent(client, obligation)
+    state = snapshot(client)
+    assert state["agent_executions"][0]["result"]["trace"] == ["retrieve", "reconcile", "prepare", "route"]
+    assert review(client, task, "approve", [evidence]).status_code == 200
+    assert close(client, obligation).status_code == 200
+    before = snapshot(client)
+
+    result = client("/demo/reset-amira")
+    assert result.status_code == 200, result.text
+    assert result.json()["status"] == "reset"
+    state = snapshot(client)
+    amira, = [row for row in state["patients"] if row["id"] == PATIENT]
+    initial, = [item for item in state["clinical_obligations"] if item["patient_id"] == PATIENT]
+    assert amira["stage"] == "preconception"
+    assert initial["id"] != obligation and initial["status"] == "open"
+    assert state["obligation_dependencies"] == []
+    assert state["closure_evidence"] == []
+    for table in ("clinical_evidence", "clinical_obligations", "life_stage_events", "audit_events"):
+        assert [row for row in state[table] if row["patient_id"] == "demo-other"] == [
+            row for row in before[table] if row["patient_id"] == "demo-other"]
+    with db.engine.connect() as connection:
+        archive = service.find(connection, db.demo_archive, result.json()["archive_id"], required=True)
+    assert archive["records"]["closure_evidence"] == before["closure_evidence"]
+    assert archive["records"]["audit_events"] == sorted(
+        [row for row in before["audit_events"] if row["patient_id"] == PATIENT], key=lambda event: event["sequence"])
+    assert state["demo_run_archive"][0]["audit_count"] == len(archive["records"]["audit_events"])
+    assert "records" not in state["demo_run_archive"][0]
+    assert client("/demo/reset-amira").json()["status"] == "ready"
+    assert snapshot(client) == state
+
+
+def test_amira_reset_refuses_unrelated_import_and_preserves_state(client):
+    obligation = seed(client)
+    assert close(client, obligation).status_code == 409
+    # A run with only a blocked attempt still needs a fresh audit.
+    assert client("/demo/reset-amira").json()["status"] == "reset"
+    assert all(event["action"] != "closure_blocked" for event in snapshot(client)["audit_events"])
+    assert client("/demo/reset-amira").json()["status"] == "ready"
+    assert client(f"/patients/{PATIENT}/pregnancy").status_code == 200
+    supplemental = observation(PATIENT, "demo-external-amira", "unrelated-note", "synthetic")
+    assert client("/fhir/import", body={"resources": [supplemental]}).status_code == 200
+    before = snapshot(client)
+    response = client("/demo/reset-amira")
+    assert response.status_code == 409
+    assert snapshot(client) == before

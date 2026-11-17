@@ -9,11 +9,11 @@ from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
-from app import db, service
+from app import db, demo, service
 from app.fhir import check_references, structure_errors
 from app.rules import DEMO_TAG, observation
 
-app = FastAPI(title="Ajyra AI — ReproBridge", version="0.2.0",
+app = FastAPI(title="Ajyra AI — ReproBridge", version="0.3.0",
               description="Synthetic illustration of care coordination across a life-stage transition.")
 bearer = HTTPBearer(auto_error=False)
 
@@ -71,8 +71,8 @@ def health():
     try:
         with db.engine.connect() as connection:
             revision = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-            if revision != "0002":
-                raise HTTPException(503, "Run the v0.2 database migration.")
+            if revision != "0003":
+                raise HTTPException(503, "Run the v0.3 database migration.")
     except SQLAlchemyError as error:
         raise HTTPException(503, "Database or migrations unavailable") from error
     return {"status": "ready", "database": db.engine.dialect.name}
@@ -94,12 +94,21 @@ def read_snapshot(operation, *args):
 
 @app.get("/api/snapshot")
 def snapshot(_: Reader):
-    return read_snapshot(service.snapshot)
+    return read_snapshot(workspace_snapshot)
+
+
+def workspace_snapshot(connection):
+    return {**service.snapshot(connection), "demo_run_archive": demo.archive_summaries(connection)}
 
 
 @app.post("/api/demo/seed")
 def seed(actor: Coordinator):
     return {"patient_id": write(service.seed, actor)}
+
+
+@app.post("/api/demo/reset-amira")
+def reset_amira(actor: Coordinator):
+    return write(demo.reset_amira, actor)
 
 
 @app.post("/api/fhir/import")

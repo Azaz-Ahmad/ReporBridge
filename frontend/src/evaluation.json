@@ -1,0 +1,42 @@
+{
+  "run": "20261117-224751-7d95bc0a",
+  "automated": [
+    {
+      "label": "Python checks on PostgreSQL",
+      "result": "38/38 passed"
+    },
+    {
+      "label": "React checks",
+      "result": "7/7 passed"
+    },
+    {
+      "label": "Duplicate transition prevention",
+      "result": "1/1 passed"
+    },
+    {
+      "label": "Reviewer authorization and verified closure",
+      "result": "1/1 passed"
+    },
+    {
+      "label": "Unsupported closure prevention",
+      "result": "6/6 passed"
+    },
+    {
+      "label": "Audit history and reset isolation",
+      "result": "1/1 passed"
+    },
+    {
+      "label": "Full browser journeys",
+      "result": "2/2 passed"
+    },
+    {
+      "label": "Validated FHIR downloads",
+      "result": "2/2 passed"
+    },
+    {
+      "label": "Production frontend build",
+      "result": "Passed"
+    }
+  ],
+  "synthetic": "4/4 labeled synthetic cases matched the expected detection or abstention."
+}

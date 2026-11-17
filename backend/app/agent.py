@@ -1,4 +1,5 @@
-from typing import TypedDict
+from operator import add
+from typing import Annotated, TypedDict
 from langgraph.graph import END, START, StateGraph
 from app.rules import code_matches, matches
 
@@ -11,18 +12,19 @@ class Resolution(TypedDict, total=False):
     finding: str
     action: str
     route: str
+    trace: Annotated[list[str], add]
 
 
 def retrieve(state: Resolution):
-    return {"evidence_refs": [f"{record['resourceType']}/{record['id']}" for record in state["authorized_records"]]}
+    return {"evidence_refs": [f"{record['resourceType']}/{record['id']}" for record in state["authorized_records"]], "trace": ["retrieve"]}
 
 
 def reconcile(state: Resolution):
     candidates = [record for record in state["authorized_records"] if code_matches(record, state["closure_code"])]
     if not state["source_qualified"] or any(not matches(record, state["closure_code"], "verified")
                                             for record in candidates):
-        return {"finding": "conflicting_or_unqualified_evidence"}
-    return {"finding": "evidence_available" if candidates else "missing_closure_evidence"}
+        return {"finding": "conflicting_or_unqualified_evidence", "trace": ["reconcile"]}
+    return {"finding": "evidence_available" if candidates else "missing_closure_evidence", "trace": ["reconcile"]}
 
 
 def prepare(state: Resolution):
@@ -31,11 +33,11 @@ def prepare(state: Resolution):
         "missing_closure_evidence": "Ask the demo coordinator to obtain a synthetic follow-up completion record.",
         "evidence_available": "Ask the demo reviewer to verify the submitted completion record.",
     }
-    return {"action": actions[state["finding"]]}
+    return {"action": actions[state["finding"]], "trace": ["prepare"]}
 
 
 def route(_: Resolution):
-    return {"route": "human_review"}
+    return {"route": "human_review", "trace": ["route"]}
 
 
 workflow = StateGraph(Resolution)

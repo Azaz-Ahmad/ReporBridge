@@ -1,8 +1,9 @@
 import { useState, type ReactNode } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowDownToLine, ArrowRight, ArrowUpRight, CalendarDays, ClipboardList, GitBranch, HeartPulse, Link2, Plus, ShieldCheck, Users, Workflow } from 'lucide-react';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
+import { ArrowDownToLine, ArrowRight, ArrowUpRight, CalendarDays, CircleAlert, ClipboardList, GitBranch, HeartPulse, Plus, RotateCcw, ShieldCheck, Users, Workflow } from 'lucide-react';
 import { api } from './api';
 import { Button, Empty, Feedback, Panel, Status } from './ui';
+import { completionEvidence, DependencyMap, Evaluation, Innovations, Interoperability, Journey, Lifecycle, populationCounts, RunTrace } from './showcase';
 import { label, moment, patientName, type Audit, type Obligation, type Role, type Snapshot } from './types';
 
 export type ScreenProps = {
@@ -19,20 +20,29 @@ function titleFor(data: Snapshot, item: Obligation) {
 }
 
 export function Dashboard({ data, role, busy, action }: ScreenProps) {
+  const amira = data.patients.find((patient) => patient.id === 'demo-amira');
+  const counts = populationCounts(data);
   const metrics = [
-    { title: 'Synthetic patients', value: data.patients.length, icon: Users, path: '/workspace', tone: 'violet' },
-    { title: 'Open obligations', value: data.clinical_obligations.filter((item) => item.status === 'open').length, icon: ClipboardList, path: '/passport', tone: 'amber' },
-    { title: 'Pending reviews', value: data.care_coordination_tasks.filter((task) => task.status === 'pending').length, icon: Workflow, path: '/resolution', tone: 'blue' },
-    { title: 'Pregnancy transitions', value: data.life_stage_events.filter((event) => event.stage === 'pregnancy').length, icon: GitBranch, path: '/workspace', tone: 'violet' },
-    { title: 'Verified closures', value: data.clinical_obligations.filter((item) => item.status === 'closed').length, icon: ShieldCheck, path: '/audit', tone: 'green' },
+    { title: 'Synthetic patients', value: counts.patients, icon: Users, path: '/workspace', tone: 'teal' },
+    { title: 'Open obligations', value: counts.open, icon: ClipboardList, path: '/passport', tone: 'amber' },
+    { title: 'Pending reviews', value: counts.pending, icon: Workflow, path: '/resolution', tone: 'blue' },
+    { title: 'Active transitions', value: counts.transitions, icon: GitBranch, path: '/workspace', tone: 'teal' },
+    { title: 'Verified closures', value: counts.verified, icon: ShieldCheck, path: '/audit', tone: 'green' },
+    { title: 'Blocked or escalated', value: counts.blocked, icon: CircleAlert, path: '/audit', tone: 'rose' },
   ];
   return <>
-    <div className="hero"><div><div className="eyebrow"><HeartPulse size={16} /> CARE CONTINUITY</div>
+    <div className="hero"><div>
+      <p className="eyebrow"><HeartPulse size={16} /> AJYRA AI — REPROBRIDGE</p>
       <h1>Population intelligence</h1>
-      <p>Track outstanding care across preconception and pregnancy.</p></div>
-      {role === 'coordinator' && !data.patients.some((p) => p.id === 'demo-amira') &&
-        <Button disabled={busy} onClick={() => action('/demo/seed', 'Synthetic patient and obligation are ready.')}><Plus size={16} /> Load demo patient</Button>}
-    </div>
+      <p className="product-subtitle">Women's Lifelong Reproductive, Maternal &amp; Preventive Care Intelligence</p>
+      <p className="hero-copy">Important care obligations can be lost when patients move between healthcare pathways. ReproBridge tracks these obligations until they are appropriately resolved.</p>
+    </div><div className="hero-case">
+      <span className="field-kicker">Demonstration journey</span>
+      <strong>{amira ? patientName(amira) : 'Amira’s synthetic case'}</strong>
+      {amira ? <><Status value={amira.stage} />
+        <Button asChild><Link to="/workspace?patient=demo-amira">Open Amira’s journey <ArrowRight size={16} /></Link></Button></>
+        : role === 'coordinator' && <Button disabled={busy} onClick={() => action('/demo/seed', 'Synthetic patient and obligation are ready.')}><Plus size={16} /> Load demo patient</Button>}
+    </div></div>
     <div className="metric-grid">{metrics.map(({ title, value, icon: Icon, path, tone }) => <Link key={title} className="metric" to={path}>
       <div><span className={'metric-icon ' + tone}><Icon size={19} /></span><ArrowUpRight size={15} /></div>
       <strong>{value}</strong><span>{title}</span>
@@ -46,6 +56,14 @@ export function Dashboard({ data, role, busy, action }: ScreenProps) {
         </tr>)}</tbody></table></div>
         : <Empty>Load the demo patient as a coordinator to begin.</Empty>}
     </Panel>
+    {role === 'coordinator' && amira && <details className="panel expandable"><summary><RotateCcw size={15} /> Reset Amira demo</summary>
+      <div className="inset reset-content">
+        <p>Restore Amira to preconception with one open obligation. Previous demo records and audit history move to a separate archive.</p>
+        <Button disabled={busy} variant="danger" onClick={() =>
+          action('/demo/reset-amira', 'Amira is ready at preconception. Previous demo runs remain archived.')}>Confirm reset</Button>
+      </div>
+    </details>}
+    <div className="two-columns"><Innovations /><Evaluation /></div>
     <Panel title="Recent activity" action={<Link className="text-link" to="/audit">View audit <ArrowRight size={15} /></Link>}>
       <AuditTable events={data.audit_events.slice(0, 4)} />
     </Panel>
@@ -54,17 +72,21 @@ export function Dashboard({ data, role, busy, action }: ScreenProps) {
 
 export function Workspace({ data, role, busy, action }: ScreenProps) {
   const [params, setParams] = useSearchParams();
-  const patient = data.patients.find((item) => item.id === params.get('patient')) || data.patients[0];
+  const patientId = params.get('patient');
+  const patient = patientId ? data.patients.find((item) => item.id === patientId) : data.patients[0];
   return <>
     <Heading title="Women’s health workspace" subtitle="Patient record, life-stage timeline, and source findings.">
       {patient && <label className="field-inline">Patient <select value={patient.id} onChange={(e) => setParams({ patient: e.target.value })}>
         {data.patients.map((item) => <option value={item.id} key={item.id}>{patientName(item)}</option>)}
       </select></label>}
     </Heading>
-    {!patient ? <Empty>Load a synthetic patient from the population dashboard.</Empty> : <>
+    {!patient ? <Empty>{patientId ? 'This patient is unavailable. ' : 'Load a synthetic patient. '}
+      <Link className="text-link" to="/">Open population dashboard</Link></Empty> : <>
       <Panel title={patientName(patient)} action={<Status value={patient.stage} />}>
+        <Journey stage={patient.stage} />
         <dl className="details"><div><dt>Patient ID</dt><dd>{patient.id}</dd></div>
-          <div><dt>Birth date</dt><dd>{patient.resource.birthDate}</dd></div><div><dt>Administrative gender</dt><dd>{label(patient.resource.gender || 'unknown')}</dd></div></dl>
+          <div><dt>Birth date</dt><dd>{patient.resource.birthDate}</dd></div><div><dt>Current pathway</dt><dd>{label(patient.stage)}</dd></div>
+          <div><dt>Administrative gender</dt><dd>{label(patient.resource.gender || 'unknown')}</dd></div></dl>
         {role === 'coordinator' && <div className="actions inset">
           <Button variant="outline" disabled={busy} onClick={() => action('/patients/' + patient.id + '/evaluate', 'Applicable rules evaluated.')}>Evaluate rules</Button>
           {patient.stage === 'preconception' && <Button disabled={busy} onClick={() => action('/patients/' + patient.id + '/pregnancy', 'Pregnancy registered. Existing obligations were retained.')}><CalendarDays size={17} /> Register pregnancy</Button>}
@@ -84,11 +106,14 @@ export function Workspace({ data, role, busy, action }: ScreenProps) {
           {!data.clinical_obligations.some((item) => item.patient_id === patient.id) && <Empty>No obligations recorded.</Empty>}
         </Panel>
       </div>
+      <div id="dependencies"><DependencyMap data={data} patientId={patient.id} /></div>
       <Panel title="Clinical evidence">
-        <div className="table-wrap"><table><thead><tr><th>Resource</th><th>Finding</th><th>Value</th><th>Status</th></tr></thead>
-          <tbody>{data.clinical_evidence.filter((row) => row.patient_id === patient.id).map(({ resource }) => <tr key={resource.id}>
-            <td>{resource.resourceType}/{resource.id}</td><td>{label(resource.code?.coding?.[0]?.code || '—')}</td>
-            <td>{resource.valueString || '—'}</td><td>{label(resource.status || '—')}</td></tr>)}</tbody></table></div>
+        <div className="table-wrap clinical-table"><table role="table"><thead><tr><th>Resource</th><th>Finding</th><th>Value</th><th>Status</th></tr></thead>
+          <tbody role="rowgroup">{data.clinical_evidence.filter((row) => row.patient_id === patient.id).map(({ resource }) => <tr role="row" key={resource.id}>
+            <td role="cell"><span className="mobile-cell-label" aria-hidden="true">Resource</span>{resource.resourceType}/{resource.id}</td>
+            <td role="cell"><span className="mobile-cell-label" aria-hidden="true">Finding</span>{label(resource.code?.coding?.[0]?.code || '—')}</td>
+            <td role="cell"><span className="mobile-cell-label" aria-hidden="true">Value</span>{resource.valueString || '—'}</td>
+            <td role="cell"><span className="mobile-cell-label" aria-hidden="true">Status</span>{label(resource.status || '—')}</td></tr>)}</tbody></table></div>
       </Panel>
     </>}
   </>;
@@ -96,42 +121,52 @@ export function Workspace({ data, role, busy, action }: ScreenProps) {
 
 export function Passport({ data, role, busy, action }: ScreenProps) {
   const [params, setParams] = useSearchParams();
-  const item = data.clinical_obligations.find((entry) => entry.id === params.get('obligation')) || data.clinical_obligations[0];
+  const obligationId = params.get('obligation');
+  const item = obligationId ? data.clinical_obligations.find((entry) => entry.id === obligationId) : data.clinical_obligations[0];
   const rule = data.rule_versions.find((entry) => entry.id === item?.rule_key);
   const source = data.clinical_evidence.find((entry) => entry.id === item?.source_id)?.resource;
-  const edges = data.obligation_dependencies.filter((edge) => edge.obligation_id === item?.id || edge.depends_on === item?.id);
+  const { hash } = useLocation();
+  const history = data.audit_events.filter((event) => event.obligation_id === item?.id);
+  const patient = data.patients.find((entry) => entry.id === item?.patient_id);
   return <>
     <Heading title="Clinical obligation passport" subtitle="Source evidence, ownership, and closure requirements.">
-      {!!item && <label className="field-inline">Obligation <select value={item.id} onChange={(event) => setParams({ obligation: event.target.value })}>
+      {!!item && <label className="field-inline">Passport obligation <select aria-label="Passport obligation" value={item.id} onChange={(event) => setParams({ obligation: event.target.value })}>
         {data.clinical_obligations.map((entry) => <option key={entry.id} value={entry.id}>{titleFor(data, entry)} · {entry.patient_id}</option>)}
       </select></label>}
     </Heading>
-    {!item || !rule || !source ? <Empty>Evaluate a synthetic patient to create an obligation.</Empty> : <>
-      <Panel title={titleFor(data, item)} action={<Status value={item.status} />}>
-        <div className="inset"><span className="pill amber">Illustrative demo rule</span></div>
+    {!item || !rule || !source ? <Empty>{obligationId ? 'This obligation is unavailable in the current run. ' : 'Evaluate a synthetic patient to create an obligation. '}
+      <Link className="text-link" to="/workspace">Open patient workspace</Link></Empty> : <>
+      <section className="passport-cover">
+        <span className="passport-icon"><ClipboardList size={25} /></span>
+        <div><p className="field-kicker">Clinical obligation passport</p><h2>{titleFor(data, item)}</h2>
+          <p>{patient ? patientName(patient) : item.patient_id} · {label(rule.pathway_id)} pathway</p></div>
+        <Status value={item.status} />
+      </section>
+      <Panel title="Obligation checkpoints"><Lifecycle data={data} item={item} /></Panel>
+      <Panel title="Care requirements" action={<span className="pill amber">Illustrative rule · unapproved</span>}>
         <dl className="details"><div><dt>Obligation ID</dt><dd>{item.id}</dd></div><div><dt>Patient ID</dt><dd>{item.patient_id}</dd></div>
           <div><dt>Pathway</dt><dd>{label(rule.pathway_id)}</dd></div><div><dt>Rule ID and version</dt><dd>{item.rule_key}</dd></div>
           <div><dt>Assigned owner</dt><dd>{item.owner}</dd></div><div><dt>Source evidence</dt><dd>{source.resourceType}/{source.id}</dd></div>
-          <div><dt>Required follow-up</dt><dd>{rule.definition.description}</dd></div>
+          <div><dt>Clinical rationale and next action</dt><dd>{rule.definition.description}</dd></div>
           <div><dt>Closure requirements</dt><dd>Final {rule.definition.closure} evidence, reviewer approval, and resolution of required dependencies.</dd></div>
-          <div><dt>Rule documentation</dt><dd>{rule.definition.source}</dd></div></dl>
+          <div><dt>Last updated</dt><dd>{moment(history[0]?.recorded ?? item.created)}</dd></div></dl>
         {role === 'coordinator' && item.status === 'open' && <div className="actions inset">
           <Button disabled={busy} onClick={() => action('/obligations/' + item.id + '/agent', 'Coordination action routed for review.')}>
             <Workflow size={17} /> Run care-resolution agent</Button>
           <Button variant="outline" disabled={busy} onClick={() => action('/obligations/' + item.id + '/close', 'Closure verified.')}>Verify closure</Button>
+          <Link className="text-link" to="/resolution">Open review queue <ArrowRight size={15} /></Link>
         </div>}
       </Panel>
-      <Panel title="Cross-pathway dependencies">
-        {edges.length ? edges.map((edge) => {
-          const predecessor = data.clinical_obligations.find((entry) => entry.id === edge.depends_on)!;
-          const successor = data.clinical_obligations.find((entry) => entry.id === edge.obligation_id)!;
-          return <div className="dependency" key={edge.id}><Link2 size={18} />
-            <div><Link to={'/passport?obligation=' + predecessor.id}>{titleFor(data, predecessor)}</Link>
-              {' must close before '}<Link to={'/passport?obligation=' + successor.id}>{titleFor(data, successor)}</Link>
-              <small>{label(edge.kind)} · {edge.rule_key}</small></div><Status value={predecessor.status} /></div>;
-        }) : <Empty>No dependency recorded for this obligation.</Empty>}
-      </Panel>
-      <Panel title="Obligation history"><AuditTable events={data.audit_events.filter((event) => event.obligation_id === item.id)} /></Panel>
+      <details className="panel expandable" id="provenance" open={hash === '#provenance' || undefined}>
+        <summary>Source evidence and provenance</summary>
+        <dl className="details"><div><dt>Source resource</dt><dd>{source.resourceType}/{source.id}</dd></div>
+          <div><dt>Recorded finding</dt><dd>{label(source.code?.coding?.[0]?.code ?? 'Unavailable')} · {source.valueString || '—'}</dd></div>
+          <div><dt>Evidence status</dt><dd>{label(source.status ?? 'Unavailable')}</dd></div>
+          <div><dt>Rule documentation</dt><dd>{rule.definition.source}</dd></div></dl>
+        <div className="inset"><Link className="text-link" to={'/workspace?patient=' + item.patient_id}>Open patient evidence <ArrowRight size={15} /></Link></div>
+      </details>
+      <DependencyMap data={data} patientId={item.patient_id} obligationId={item.id} />
+      <Panel title="Obligation history"><AuditTable events={history} /></Panel>
     </>}
   </>;
 }
@@ -139,23 +174,25 @@ export function Passport({ data, role, busy, action }: ScreenProps) {
 export function Resolution({ data, role, busy, action }: ScreenProps) {
   const [notes, setNotes] = useState<Record<string, string>>({});
   return <>
-    <Heading title="Care-resolution center" subtitle="Review the agent’s evidence reconciliation and proposed coordination actions." />
+    <Heading title="Care-resolution center" subtitle="AI coordinates reviewable care actions. Clinicians retain clinical authority." />
+    <div className="info-strip"><Workflow size={18} /><div><strong>Deterministic LangGraph workflow</strong>
+      <p>The demo runs evidence checks and proposal templates locally. No external LLM or outbound dispatch is configured.</p></div></div>
     {data.agent_executions.filter((execution) => execution.result.finding === 'failed').map((execution) =>
       <Panel key={execution.id} title="Coordination run failed" action={<Status value="failed" />}>
-        <p className="inset">{moment(execution.recorded)} · {execution.result.action}
-          {' '}<Link className="text-link" to={'/passport?obligation=' + execution.obligation_id}>Open passport</Link></p>
+        <div className="inset"><p>{moment(execution.recorded)} · {execution.result.action}</p>
+          <p>Evidence references: {execution.result.evidence_refs.join(', ') || 'None recorded'}.</p>
+          <RunTrace trace={execution.result.trace} />
+          <Link className="text-link" to={'/passport?obligation=' + execution.obligation_id}>Open passport</Link></div>
       </Panel>)}
     {!data.care_coordination_tasks.length && <Empty>Run the care-resolution agent from an open obligation passport.</Empty>}
-    {[...data.care_coordination_tasks].reverse().map((task) => {
+    {[...data.care_coordination_tasks].sort((a, b) =>
+      data.agent_executions.find((run) => run.id === b.execution_id)!.recorded.localeCompare(
+        data.agent_executions.find((run) => run.id === a.execution_id)!.recorded)).map((task) => {
       const item = data.clinical_obligations.find((entry) => entry.id === task.obligation_id)!;
       const execution = data.agent_executions.find((entry) => entry.id === task.execution_id)!;
       const review = data.clinical_approvals.find((entry) => entry.task_id === task.id);
       const rule = data.rule_versions.find((entry) => entry.id === item.rule_key);
-      const currentEvidence = data.clinical_evidence.filter((row) => row.patient_id === item.patient_id &&
-        row.resource.resourceType === 'Observation' && row.resource.code?.coding?.some((coding) =>
-          coding.system === 'https://reprobridge.example/fhir/CodeSystem/demo' && coding.code === rule?.definition.closure,
-        ),
-      );
+      const currentEvidence = completionEvidence(data, item);
       const evidenceRefs = currentEvidence.map((row) => row.resource.resourceType + '/' + row.id);
       const sourceRefs = data.clinical_evidence.filter((row) => row.patient_id === item.patient_id &&
         (row.id === item.source_id || row.resource.resourceType === 'Observation' && row.resource.code?.coding?.some(
@@ -164,11 +201,13 @@ export function Resolution({ data, role, busy, action }: ScreenProps) {
       const expectedRefs = [...new Set([...evidenceRefs, ...sourceRefs])].sort();
       const stale = JSON.stringify([...execution.result.evidence_refs].sort()) !== JSON.stringify(expectedRefs);
       return <Panel key={task.id} title={titleFor(data, item)} action={<Status value={task.status} />}>
-        <div className="inset"><p className="proposal">{task.action}</p></div>
+        <div className="inset"><p className="field-kicker">Proposed follow-up</p><p className="proposal">{task.action}</p>
+          <RunTrace trace={execution.result.trace} /></div>
         <dl className="details"><div><dt>Reconciliation</dt><dd><Status value={execution.result.finding} /></dd></div>
           <div><dt>Routing</dt><dd>{label(execution.result.route)}</dd></div>
           <div><dt>Execution</dt><dd>{moment(execution.recorded)} · {label(execution.actor)}</dd></div>
           <div><dt>Evidence reviewed by agent</dt><dd>{execution.result.evidence_refs.join(', ')}</dd></div>
+          <div><dt>External tools invoked</dt><dd>None. Nodes use authorized records supplied by the backend.</dd></div>
           {review && <div><dt>Reviewer decision</dt><dd>{label(review.decision)}{review.note && ' · ' + review.note}
             <small>{review.evidence_refs.join(', ') || 'No completion evidence at decision time'}</small></dd></div>}
         </dl>
@@ -200,6 +239,14 @@ export function AuditScreen({ data, role, token, busy, action }: ScreenProps) {
   const [error, setError] = useState('');
   const open = data.clinical_obligations.filter((item) => item.status === 'open');
   const current = open.find((item) => item.id === selected) || open[0];
+  const [inspectedId, setInspectedId] = useState('');
+  const inspected = data.clinical_obligations.find((item) => item.id === inspectedId) ||
+    data.clinical_obligations.find((item) => item.status === 'closed') || current;
+  const verification = data.audit_events.filter((event) => ['closure_verified', 'closure_blocked', 'closure_reopened'].includes(event.action));
+  const lastResult = verification.find((event) => event.obligation_id === inspected?.id);
+  const reviews = inspected ? data.clinical_approvals.filter((review) =>
+    data.care_coordination_tasks.some((task) => task.id === review.task_id && task.obligation_id === inspected.id)) : [];
+  const review = reviews.sort((a, b) => b.recorded.localeCompare(a.recorded))[0];
   async function download(patientId: string) {
     setError('');
     try {
@@ -217,8 +264,25 @@ export function AuditScreen({ data, role, token, busy, action }: ScreenProps) {
   return <>
     <Heading title="Evidence & audit" subtitle="Inspect submitted evidence, verified closures, and blocked decisions." />
     {error && <Feedback message={error} error />}
+    {inspected && <Panel title="Closure evidence review" action={<label className="field-inline">Inspect obligation <select value={inspected.id}
+      onChange={(event) => setInspectedId(event.target.value)}>
+      {data.clinical_obligations.map((item) => <option key={item.id} value={item.id}>{titleFor(data, item)} · {item.patient_id}</option>)}
+    </select></label>}>
+      <div className="verification-compare">
+        <div><ClipboardList size={20} /><strong>Action initiated</strong>
+          <p>{review ? label(review.decision) + ' · ' + label(review.actor) : 'No reviewer decision recorded'}</p>
+          <small>Reminders and appointments do not verify closure.</small></div>
+        <div><ShieldCheck size={20} /><strong>Care obligation verified as resolved</strong>
+          <Status value={inspected.status} />
+          <p>{lastResult?.detail.reason || (inspected.status === 'closed' ? 'Qualifying evidence and approval recorded.' : 'Verification is pending.')}</p></div>
+      </div>
+      <dl className="details"><div><dt>Required evidence</dt><dd>Final {data.rule_versions.find((rule) => rule.id === inspected.rule_key)?.definition.closure} observation, evidence-specific approval, and cleared prerequisites.</dd></div>
+        <div><dt>Supporting records</dt><dd>{completionEvidence(data, inspected).map(({ resource }) =>
+          resource.resourceType + '/' + resource.id + ' · ' + resource.status).join(', ') || 'No completion evidence submitted'}</dd></div>
+        <div><dt>Reviewer evidence references</dt><dd>{review?.evidence_refs.join(', ') || 'None recorded'}</dd></div></dl>
+    </Panel>}
     {role === 'coordinator' && current && <Panel title="Submit synthetic completion evidence">
-      <div className="inset"><label className="field-inline">Obligation <select value={current.id} onChange={(event) => setSelected(event.target.value)}>
+      <div className="inset"><label className="field-inline">Completion evidence obligation <select aria-label="Completion evidence obligation" value={current.id} onChange={(event) => setSelected(event.target.value)}>
         {open.map((item) => <option key={item.id} value={item.id}>{titleFor(data, item)} · {item.patient_id}</option>)}</select></label>
         <div className="actions">
           <Button disabled={busy} onClick={() => action('/obligations/' + current.id + '/demo-completion', 'Verified fixture submitted. Reviewer approval is still required.', { scenario: 'verified' })}>Add verified evidence</Button>
@@ -227,20 +291,25 @@ export function AuditScreen({ data, role, token, busy, action }: ScreenProps) {
       </div>
     </Panel>}
     <Panel title="Verification results">
-      <AuditTable events={data.audit_events.filter((event) => ['closure_verified', 'closure_blocked', 'closure_reopened'].includes(event.action))} />
+      <AuditTable events={verification} />
     </Panel>
     <Panel title="FHIR R4 export">
+      <Interoperability />
       {data.patients.length ? data.patients.map((patient) => <div className="record-link" key={patient.id}>
         <strong>{patientName(patient)}</strong><Button variant="outline" onClick={() => void download(patient.id)}><ArrowDownToLine size={16} /> Download FHIR bundle</Button>
       </div>) : <Empty>No patient bundles available.</Empty>}
     </Panel>
     <Panel title="Lifecycle audit history"><AuditTable events={data.audit_events} /></Panel>
+    {data.demo_run_archive.length > 0 && <details className="panel expandable"><summary>Archived Amira demo runs</summary>
+      <ul className="inset archive-list">{data.demo_run_archive.map((run) =>
+        <li key={run.id}><strong>{moment(run.recorded)}</strong> · {run.audit_count} audit events · {label(run.actor)}<small>{run.id}</small></li>)}</ul>
+    </details>}
   </>;
 }
 
 function AuditTable({ events }: { events: Audit[] }) {
   if (!events.length) return <Empty>No events recorded yet.</Empty>;
-  return <div className="table-wrap"><table><thead><tr><th>Action</th><th>Actor</th><th>Time</th><th>Evidence</th><th>Rule version</th></tr></thead>
+  return <div className="table-wrap audit-table" role="region" aria-label="Scrollable audit table" tabIndex={0}><table><thead><tr><th>Action</th><th>Actor</th><th>Time</th><th>Evidence</th><th>Rule version</th></tr></thead>
     <tbody>{events.map((event) => <tr key={event.sequence}><td><strong>{label(event.action)}</strong>
       <small>{event.detail.reason || event.patient_id}</small></td><td>{label(event.actor)}</td><td>{moment(event.recorded)}</td>
       <td>{event.evidence_refs.join(', ') || '—'}</td><td>{event.rule_key || event.detail.evaluated_rule || '—'}</td></tr>)}</tbody></table></div>;
