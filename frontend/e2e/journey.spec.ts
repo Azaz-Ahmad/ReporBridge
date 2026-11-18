@@ -73,6 +73,10 @@ test('completes the patient journey through all five screens', async ({ page }, 
   await expect(page.getByText('Recorded finding')).toBeVisible();
   await capture('03-obligation-passport');
   await page.getByRole('link', { name: 'Open review queue' }).click();
+  await expect(page.getByRole('heading', { name: 'Clinical Evidence Investigation' })).toBeVisible();
+  await expect(page.getByText('AI-generated evidence summary — requires clinical review.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Run Investigation', exact: true })).toBeDisabled();
+  await expect(page.getByText(/The Clinical Evidence Agent is unavailable/)).toBeVisible();
   await expect(page.getByText('Not started', { exact: true })).toBeVisible();
   await expect(page.getByRole('list', { name: 'Configured LangGraph steps' }).getByRole('listitem')).toHaveCount(4);
   await expect(page.getByRole('list', { name: 'Recorded LangGraph nodes' })).toHaveCount(0);

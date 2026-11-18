@@ -16,6 +16,7 @@ from app.fhir import check_references, structure_errors
 from app.agent import NODES
 from app.clinical.access import audit_access, authorize, permitted
 from app.clinical.api import router as clinical_router
+from app.investigation.api import router as investigation_router
 from app.rules import DEMO_TAG, observation
 
 app = FastAPI(title="Ajyra AI — ReproBridge", version="0.5.0",
@@ -58,6 +59,7 @@ def write(operation, *args):
 
 
 app.include_router(clinical_router(Reader, Coordinator, write))
+app.include_router(investigation_router(Reader, Coordinator, Reviewer, write))
 
 
 @app.exception_handler(HTTPException)
@@ -72,7 +74,7 @@ async def clinical_http_error(request, error):
 
 @app.exception_handler(RequestValidationError)
 async def validation_error(request, error):
-    if request.url.path.startswith("/api/v1/clinical/"):
+    if request.url.path.startswith(("/api/v1/clinical/", "/api/v1/agents/")):
         return JSONResponse(status_code=422, content={"detail": {
             "code": "invalid_request", "message": "Clinical request failed validation."}})
     return await request_validation_exception_handler(request, error)
@@ -108,7 +110,7 @@ def health():
     try:
         with db.engine.connect() as connection:
             revision = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-            if revision != "0004":
+            if revision != "0005":
                 raise HTTPException(503, "Run the clinical foundation database migration.")
     except SQLAlchemyError as error:
         raise HTTPException(503, "Database or migrations unavailable") from error

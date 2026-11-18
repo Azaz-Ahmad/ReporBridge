@@ -3,6 +3,7 @@ import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { ArrowDownToLine, ArrowRight, ArrowUpRight, CalendarDays, CircleAlert, ClipboardList, GitBranch, HeartPulse, Plus, RotateCcw, ShieldCheck, Users, Workflow } from 'lucide-react';
 import { api } from './api';
 import { ClinicalExplorer } from './ClinicalExplorer';
+import { ClinicalInvestigation } from './ClinicalInvestigation';
 import { Button, Empty, Feedback, Panel, Status } from './ui';
 import { closureMessage, completionEvidence, DependencyMap, Evaluation, Innovations, Interoperability, Journey, Lifecycle, obligationTitle as titleFor, populationCounts, RunTrace, WorkflowSteps, workflowStatus } from './showcase';
 import { label, moment, patientName, type Audit, type Role, type Snapshot } from './types';
@@ -192,7 +193,7 @@ export function Passport({ data, role, busy, action }: ScreenProps) {
   </>;
 }
 
-export function Resolution({ data, role, busy, busyPath, action }: ScreenProps) {
+export function Resolution({ data, role, token, busy, busyPath, action }: ScreenProps) {
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [params, setParams] = useSearchParams();
   const ordered = [...data.clinical_obligations].sort((a, b) => a.created.localeCompare(b.created));
@@ -208,10 +209,11 @@ export function Resolution({ data, role, busy, busyPath, action }: ScreenProps) 
   const status = workflowStatus(current, currentTask?.status, !!agentPath && agentPath === busyPath);
   return <>
     <Heading title="Care-resolution center" subtitle="Coordinate reviewable care actions while clinicians retain decision authority." />
+    {patient && <ClinicalInvestigation key={patient.id} patientId={patient.id} token={token} role={role} />}
     <Panel title="Workflow overview" action={<Status value={status} />}>
       <div className="workflow-roles inset">
         <div><strong>Deterministic clinical rules</strong><p>Generate obligations and check the requirements for closure.</p></div>
-        <div><strong>LangGraph orchestration</strong><p>Reconciles evidence and prepares a proposal using local deterministic logic. No external LLM is configured.</p></div>
+        <div><strong>LangGraph orchestration</strong><p>Reconciles evidence and prepares a proposal using local deterministic logic.</p></div>
         <div><strong>Human clinician</strong><p>Reviews the proposal and authorizes action against the current evidence.</p></div>
       </div>
       <div className="inset">

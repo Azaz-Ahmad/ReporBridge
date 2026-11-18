@@ -85,3 +85,9 @@ The [release assessment](docs/V03_DEMO_READINESS.md) links the test report and s
 - [Demo script](docs/DEMO_SCRIPT.md)
 - [Known limitations](docs/KNOWN_LIMITATIONS.md)
 - [v0.2 release assessment](docs/V02_DEMO_READINESS.md)
+
+## v0.5 Sprint 2 Clinical Evidence Agent
+
+The optional OpenAI Responses agent investigates canonical synthetic Amira evidence through seven scoped M08 tools. Configure the ignored local environment using .env.example and restart the backend. The current release is CONDITIONAL GO pending live OpenAI verification.
+
+See [implementation report](docs/V05_S2_IMPLEMENTATION_REPORT.md), [OpenAI configuration](docs/V05_S2_OPENAI_INTEGRATION.md), [evaluation report](docs/V05_S2_EVALUATION_REPORT.md) and [demo script](docs/V05_S2_DEMO_SCRIPT.md).

@@ -240,3 +240,15 @@ a.record-link:hover { background: #f0f7f8; }
 .clinical-results summary small { color: var(--muted); margin-inline: 8px; }
 .clinical-results p, .clinical-results blockquote { font-size: .84rem; overflow-wrap: anywhere; margin: 3px 0; }
 .clinical-results blockquote { border-left: 3px solid #0b7479; padding-left: 10px; white-space: pre-wrap; }
+
+.investigation { display: grid; gap: 1rem; }
+.investigation form, .investigation label { display: grid; gap: .6rem; }
+.investigation textarea { width: 100%; min-height: 6rem; resize: vertical; font: inherit; padding: .75rem; border: 1px solid #ddd; border-radius: .5rem; }
+.investigation-result { min-width: 0; overflow-wrap: anywhere; }
+.investigation-result details { margin-block: 1rem; }
+.investigation-result pre { white-space: pre-wrap; }
+.investigation-result small { display: block; overflow-wrap: anywhere; }
+
+.investigation label.clinical-history { display: flex; align-items: center; gap: .5rem; }
+.investigation .clinical-history input { width: auto; margin: 0; }
+.investigation form > .button { justify-self: start; }
