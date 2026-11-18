@@ -2,13 +2,13 @@
 
 ## Release decision
 
-CONDITIONAL GO for the implemented local synthetic agent workflow. Live OpenAI verification is blocked by missing credentials and disabled feature configuration. The unconditional LLM release gate remains pending.
+The initial delivery was CONDITIONAL GO pending credentials. The current Gemini integration has passed all three real investigations. See V05_S2_GEMINI_VERIFICATION.md for the current regression results and release decision.
 
 The starting commit is 737f7ceb4bd81a5b137dbbfaf3801e4b47ff6cc7. The verified implementation is committed after the final test run. The ending commit is reported in the delivery message and available through git log -1.
 
 ## Delivered implementation
 
-Official OpenAI SDK 2.54.0 supports a reusable Responses provider adapter. The configurable default is gpt-4.1-mini. Actual live model calls total zero. Invocation, strict structured parsing, bounded retries, classified failures, usage tracking and provider status are implemented. Dollar cost estimates are unavailable and configuring a dollar ceiling prevents execution.
+Official OpenAI SDK 2.54.0 supports a reusable Responses provider adapter. The configurable default is gpt-4.1-mini. Current verified Gemini model calls total 17 in the final three-case gate, with actual tool traces, source checks and human-review routing recorded. Invocation, strict structured parsing, bounded retries, classified failures, usage tracking and provider status are implemented. Dollar cost estimates are unavailable and configuring a dollar ceiling prevents execution.
 
 The dedicated graph contains validate_request, investigate, authorized_tools, validate_grounding, prepare_review_packet and human_review_queue. The model chooses function calls. The backend supplies trusted scope and enforces tools, schemas, access and budgets. The deterministic care-resolution graph continues independently.
 
@@ -35,7 +35,7 @@ Migration 0005 adds two independent tables for runs and summary reviews. Old mig
 
 The existing Care-resolution center gains a Clinical Evidence Investigation section. It shows provider status, a bounded synthetic question, persisted execution metadata, source citations, findings, missing/conflicting information, grounding, uncertainty and immutable reviewer decisions. Every action uses a backend endpoint.
 
-The running app displays the actual disabled provider state. The five existing screens remain. Desktop and 390-pixel screenshots were inspected, UTF-8 rendering was corrected, and the mobile panel fits.
+The running app displays the active Gemini provider configuration. The five existing screens remain. Desktop and 390-pixel screenshots were inspected, UTF-8 rendering was corrected, and the mobile panel fits.
 
 Summary review uses its own records. Existing clinical approval and closure tables remain independent. Source snapshots are revalidated at generation, submission and review.
 

@@ -1,5 +1,7 @@
 # Sprint 2 test report
 
+This records the initial Sprint 2 regression run. Current 93-test database suites and live Gemini release gates are recorded in V05_S2_GEMINI_VERIFICATION.md.
+
 The final complete command was `scripts\Test-Demo.ps1 -PostgreSQL`, executed on 18 November 2026.
 
 Artifacts are in `test-reports/20261118-230629-1dd024a9`.

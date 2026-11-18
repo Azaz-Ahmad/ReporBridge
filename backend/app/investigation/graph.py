@@ -21,7 +21,10 @@ JSON-encoded value_json exactly from normalized.values. Use empty strings for un
 Historical sources must be labeled historical. Do not resolve conflicts. Report both and abstain.
 Not found means not found in accessible records. Never infer care never happened.
 No sources, missing essential evidence, tool errors or insufficient context require abstention.
+Unavailable document content belongs in missing_information, never in clinical findings.
+When document search returns no sections, consider context listing to inspect unavailable document metadata.
 Every finding needs supporting_sources. Mark narrative interpretation explicitly.
+Tool result pages permit limit from 1 to 8 only. Use limit=5 unless a smaller page is sufficient.
 Final output is a strict Draft. It is a review proposal. All conclusions require human review."""
 
 
@@ -34,6 +37,7 @@ class InvestigationState(TypedDict, total=False):
     messages: list[dict]
     calls: list[dict]
     tool_history: list[dict]
+    model_history: list[dict]
     evidence: list[dict]
     draft: object
     validation: dict
@@ -72,7 +76,12 @@ def build(provider, settings, run, context, persist, initial_fingerprint):
             usage["output_tokens"] += turn.output_tokens
             usage["retries"] += turn.retries
             usage["usage_complete"] = usage["usage_complete"] and turn.usage_complete
+            model_record = {"requested_model": settings.model, "reported_model": turn.model_name,
+                            "response_id": turn.response_id, "api": "responses",
+                            "input_tokens": turn.input_tokens, "output_tokens": turn.output_tokens,
+                            "retries": turn.retries}
             return checkpoint(state, "investigate", calls=turn.calls, draft=turn.draft,
+                              model_history=[*state.get("model_history", []), model_record],
                               messages=[*state["messages"], *turn.messages], usage=usage,
                               steps=state["steps"] + 1)
         except ProviderFailure as error:
@@ -80,7 +89,12 @@ def build(provider, settings, run, context, persist, initial_fingerprint):
             usage["input_tokens"] += error.input_tokens
             usage["output_tokens"] += error.output_tokens
             usage["usage_complete"] = False
-            return checkpoint(state, "investigate", error=error.code, calls=[], usage=usage)
+            model_record = {"requested_model": settings.model, "reported_model": error.model_name,
+                            "response_id": error.response_id, "api": "responses",
+                            "input_tokens": error.input_tokens, "output_tokens": error.output_tokens,
+                            "retries": error.retries, "error": error.code, "http_status": error.http_status}
+            return checkpoint(state, "investigate", error=error.code, calls=[], usage=usage,
+                              model_history=[*state.get("model_history", []), model_record])
         except Exception:
             usage["usage_complete"] = False
             return checkpoint(state, "investigate", error="provider_failure", calls=[], usage=usage)

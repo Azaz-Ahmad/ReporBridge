@@ -71,6 +71,7 @@ def save(connection, actor, run_id, state, elapsed):
         fail(409, "run_interrupted", "This run can no longer publish a result.")
     detail = {**run["detail"], "trace": state.get("trace", []),
               "tool_history": state.get("tool_history", []),
+              "model_history": state.get("model_history", []),
               "usage": state.get("usage", run["detail"]["usage"]),
               "error": state.get("error"), "duration_ms": elapsed,
               "validation": state.get("validation"),

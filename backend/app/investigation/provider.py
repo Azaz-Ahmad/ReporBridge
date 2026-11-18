@@ -37,8 +37,13 @@ class Settings(BaseModel):
         parsed.port
         return value.rstrip("/")
 
+    @property
+    def schema_profile(self):
+        return "google_structural" if self.model.startswith("google/") else "strict"
+
     def public(self):
-        return {**self.model_dump(), "version": "clinical-evidence-v1",
+        return {**self.model_dump(), "version": "clinical-evidence-v2",
+                "schema_profile": self.schema_profile,
                 "cost_estimate_usd": None, "cost_estimation": "unavailable"}
 
 
@@ -64,10 +69,13 @@ def configuration():
 
 
 class ProviderFailure(Exception):
-    def __init__(self, code, retries=0, usage=None):
+    def __init__(self, code, retries=0, usage=None, http_status=None, model_name=None, response_id=None):
         super().__init__(code)
         self.code = code
         self.retries = retries
+        self.http_status = http_status
+        self.model_name = model_name
+        self.response_id = response_id
         self.input_tokens = usage.input_tokens if usage else 0
         self.output_tokens = usage.output_tokens if usage else 0
 
@@ -81,6 +89,8 @@ class Turn:
     output_tokens: int = 0
     retries: int = 0
     usage_complete: bool = True
+    model_name: str | None = None
+    response_id: str | None = None
 
 
 class Provider(Protocol):
@@ -100,6 +110,18 @@ def strict_schema(schema):
     return result
 
 
+def provider_schema(schema, profile):
+    """Google receives structural constraints. Full original contracts remain enforced locally."""
+    if isinstance(schema, list):
+        return [provider_schema(item, profile) for item in schema]
+    if not isinstance(schema, dict):
+        return schema
+    unsupported = {"minItems", "maxItems", "minLength", "maxLength", "minimum", "maximum",
+                   "exclusiveMinimum", "exclusiveMaximum", "pattern", "format", "multipleOf"}
+    return {key: provider_schema(value, profile) for key, value in schema.items()
+            if profile != "google_structural" or key not in unsupported}
+
+
 class OpenAIProvider:
     def __init__(self, settings):
         self.settings = settings
@@ -116,12 +138,15 @@ class OpenAIProvider:
                     model=self.settings.model, input=messages, store=False,
                     include=["reasoning.encrypted_content"],
                     max_output_tokens=self.settings.output_tokens,
-                    tools=tools, tool_choice="none" if final else "auto",
+                    tools=tools,
+                    tool_choice="none" if final else "auto",
                     parallel_tool_calls=False,
                     text={"format": {"type": "json_schema", "name": "ClinicalEvidenceDraft",
-                                     "strict": True, "schema": strict_schema(Draft.model_json_schema())}})
+                                     "strict": True, "schema": provider_schema(strict_schema(Draft.model_json_schema()),
+                                                               self.settings.schema_profile)}})
                 if response.status != "completed":
-                    raise ProviderFailure("incomplete_response", attempt, response.usage)
+                    raise ProviderFailure("incomplete_response", attempt, response.usage,
+                                          model_name=response.model, response_id=response.id)
                 calls = []
                 output = []
                 for item in response.output:
@@ -135,21 +160,25 @@ class OpenAIProvider:
                     try:
                         draft = Draft.model_validate_json(response.output_text)
                     except (ValueError, ValidationError):
-                        raise ProviderFailure("malformed_output", attempt, response.usage) from None
+                        raise ProviderFailure("malformed_output", attempt, response.usage,
+                                              model_name=response.model, response_id=response.id) from None
                 return Turn(calls=calls, draft=draft, messages=output,
                             input_tokens=usage.input_tokens if usage else 0,
                             output_tokens=usage.output_tokens if usage else 0, retries=attempt,
-                            usage_complete=bool(usage) and attempt == 0)
-            except (openai.RateLimitError, openai.InternalServerError):
+                            usage_complete=bool(usage) and attempt == 0,
+                            model_name=response.model, response_id=response.id)
+            except (openai.RateLimitError, openai.InternalServerError) as error:
                 if attempt:
-                    raise ProviderFailure("rate_limit_or_provider_unavailable", attempt) from None
+                    raise ProviderFailure("rate_limit_or_provider_unavailable", attempt,
+                                          http_status=error.status_code) from None
                 time.sleep(0.25)
             except openai.APITimeoutError:
                 # An unknown remote completion may have consumed tokens. Avoid replaying it.
                 raise ProviderFailure("provider_timeout", attempt) from None
-            except openai.AuthenticationError:
-                raise ProviderFailure("provider_authentication", attempt) from None
+            except openai.AuthenticationError as error:
+                raise ProviderFailure("provider_authentication", attempt, http_status=error.status_code) from None
             except openai.APIConnectionError:
                 raise ProviderFailure("provider_connection", attempt) from None
-            except openai.APIError:
-                raise ProviderFailure("provider_request_failed", attempt) from None
+            except openai.APIError as error:
+                raise ProviderFailure("provider_request_failed", attempt,
+                                      http_status=getattr(error, "status_code", None)) from None

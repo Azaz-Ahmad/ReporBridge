@@ -2,7 +2,7 @@
 
 ## Release gate
 
-Live OpenAI verification is BLOCKED. No API key was configured and the runtime agent remains disabled. Zero successful live model investigations were claimed. The LLM milestone is CONDITIONAL GO pending three real investigations and review of their tool selection, citations, missing evidence and conflicts.
+The current Gemini integration passed three real OpenRouter Responses investigations with source/value checks, mandatory review routing and clinical-state preservation. The runtime uses google/gemini-3.8-flash-20260902. OpenRouter reports google/gemini-3.8-flash, and both identifiers are retained. See V05_S2_GEMINI_VERIFICATION.md for the current regression and release decision. Previous blocked reports remain historical records.
 
 ## Supported scope
 

@@ -1,5 +1,7 @@
 # Custom OpenAI-compatible provider verification
 
+This historical report covers the earlier key restriction on openai/gpt-4.1-mini. Current permitted Gemini configuration and successful live verification are recorded in V05_S2_GEMINI_VERIFICATION.md.
+
 The adapter now reads OPENAI_BASE_URL, validates it, passes it explicitly to the official OpenAI SDK and includes it in provider status and persisted run configuration. An unset or blank value defaults to https://api.openai.com/v1. The Responses request format, strict Draft schema, LangGraph investigation, seven authorized M08 tools and grounding/review controls use their existing implementations.
 
 The configured local endpoint is https://openrouter.ai/api/v1 with model openai/gpt-4.1-mini. The authenticated running backend reports status available, which represents valid local configuration. Upstream model eligibility is established by actual requests.

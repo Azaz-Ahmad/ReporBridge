@@ -1,6 +1,6 @@
 # OpenAI integration
 
-The implementation uses official openai Python SDK 2.54.0, declared as openai>=2.54,<3. OpenAIProvider calls client.responses.create with store=False, parallel_tool_calls=False, a strict Draft JSON schema and seven strict function definitions. The configurable default model is gpt-4.1-mini. This default supports Responses, function calling and structured output according to its official model documentation.
+The implementation uses official openai Python SDK 2.54.0, declared as openai>=2.54,<3. OpenAIProvider calls client.responses.create with store=False, parallel_tool_calls=False, a strict Draft JSON schema and seven strict function definitions. The configured primary model is google/gemini-3.8-flash-20260902 through https://openrouter.ai/api/v1. Every live request uses that exact dated model ID. OpenRouter reports google/gemini-3.8-flash in response metadata, and both requested and reported identifiers are persisted. The adapter retains its original official OpenAI defaults for callers that leave configuration unset.
 
 ## Configuration
 
@@ -8,7 +8,7 @@ The implementation uses official openai Python SDK 2.54.0, declared as openai>=2
 |---|---|
 | OPENAI_API_KEY | Required secret, read only in backend |
 | OPENAI_BASE_URL | https://api.openai.com/v1 when unset or blank |
-| OPENAI_MODEL | gpt-4.1-mini |
+| OPENAI_MODEL | Current local/example setting is google/gemini-3.8-flash-20260902 |
 | OPENAI_TIMEOUT_SECONDS | 30, validated range 1–60 |
 | OPENAI_MAX_OUTPUT_TOKENS | 2400, range 256–6000 per response |
 | OPENAI_MAX_TOOL_CALLS | 8, range 1–16 per investigation |
@@ -26,7 +26,7 @@ The provider status endpoint reports configuration readiness. An available confi
 
 The backend validates OPENAI_BASE_URL, passes it explicitly to the official SDK and persists it with each run configuration. The provider status response includes the selected endpoint. The request continues to use Responses, seven authorized function tools and the strict Draft output schema.
 
-For OpenRouter, configure the ignored local .env file with OPENAI_BASE_URL=https://openrouter.ai/api/v1 and OPENAI_MODEL=openai/gpt-4.1-mini. Store the OpenRouter credential only as OPENAI_API_KEY in that ignored file, enable CLINICAL_EVIDENCE_AGENT_ENABLED and restart the backend. Keep .env.example credential-free.
+For OpenRouter, configure the ignored local .env file with OPENAI_BASE_URL=https://openrouter.ai/api/v1 and OPENAI_MODEL=google/gemini-3.8-flash-20260902. Store the OpenRouter credential only as OPENAI_API_KEY in that ignored file, enable CLINICAL_EVIDENCE_AGENT_ENABLED and restart the backend. Keep .env.example credential-free.
 
 URLs must use HTTP or HTTPS and exclude embedded credentials, query strings and fragments because endpoint configuration is visible in status and run records. An unset or blank URL selects the official OpenAI endpoint. Invalid endpoint configuration disables invocation with invalid_configuration.
 
@@ -42,7 +42,11 @@ Provider error bodies and credentials are excluded from persisted error records.
 
 ## Live verification
 
-No OPENAI_API_KEY was configured during this implementation. The agent is disabled in the running app. The repeatable live command recorded BLOCKED and zero successful live runs.
+The current Gemini verification passed all three real investigations, covering complete, missing and conflicting evidence. Artifacts are in test-reports/openai-live-20261118-235154-39baee/summary.json. The gate independently checked source versions/digests, four structured clinical values, abstention, real tool execution, reviewer access and clinical-state preservation. The provider reported 65,104 input and 7,602 output tokens across 17 model calls.
+
+Google initially returned HTTP 400 because the response schema produced too many serving states. The google_structural profile removes serving-time size/range/format constraints from the final response schema. Types, required fields, enums and closed objects are retained. Full original Pydantic bounds, tool argument schemas, page limits and grounding remain enforced in the backend. Tool instructions explicitly state the existing maximum page size of eight. The working API is Responses.
+
+See V05_S2_GEMINI_VERIFICATION.md for current release gates, model identifiers and the complete compatibility history. Earlier Sprint 2 reports record historical blocked runs.
 
 From the repository root, configure the ignored local .env file, enable the agent and restart the backend. Then run `.venv\Scripts\python.exe scripts/verify_clinical_agent_live.py`. It performs three bounded investigations in disposable PostgreSQL schemas, covering complete, missing and conflicting synthetic evidence. It never resets the live Amira workflow.
 

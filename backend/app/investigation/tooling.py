@@ -46,6 +46,7 @@ def definitions():
         schema = strict_schema(contract.model_json_schema())
         if "limit" in schema["properties"]:
             schema["properties"]["limit"]["maximum"] = 8
+            schema["properties"]["limit"]["description"] = "Page size from 1 to 8. Use 5 when unsure."
         result.append({"type": "function", "name": name, "description": description,
                        "strict": True, "parameters": schema})
     return result

@@ -1,5 +1,7 @@
 # Sprint 2 synthetic evaluation report
 
+This records the initial scripted evaluation. Current live Gemini results and the release decision are in V05_S2_GEMINI_VERIFICATION.md.
+
 Repeatable command executed on 18 November 2026.
 
 ` .venv/Scripts/python.exe scripts/evaluate_clinical_agent.py `

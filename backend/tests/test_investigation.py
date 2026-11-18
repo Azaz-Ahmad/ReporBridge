@@ -411,10 +411,14 @@ def test_invalid_endpoint_fails_without_exposing_credentials(monkeypatch, endpoi
     assert 'secret' not in json.dumps(settings.public())
 
 
-def test_custom_responses_sdk_grounding_and_persisted_trace(client, monkeypatch):
+@pytest.mark.parametrize("requested_model,reported_model", [
+    ("openai/gpt-4.1-mini", "openai/gpt-4.1-mini"),
+    ("google/gemini-3.8-flash-20260902", "google/gemini-3.8-flash"),
+])
+def test_custom_responses_sdk_grounding_and_persisted_trace(client, monkeypatch, requested_model, reported_model):
     seed(client)
     monkeypatch.setenv('OPENAI_BASE_URL', 'https://openrouter.ai/api/v1')
-    monkeypatch.setenv('OPENAI_MODEL', 'openai/gpt-4.1-mini')
+    monkeypatch.setenv('OPENAI_MODEL', requested_model)
     monkeypatch.setenv('OPENAI_API_KEY', 'unit-test-placeholder')
     monkeypatch.setenv('CLINICAL_EVIDENCE_AGENT_ENABLED', 'true')
     monkeypatch.delenv('OPENAI_MAX_RUN_COST_USD', raising=False)
@@ -425,7 +429,7 @@ def test_custom_responses_sdk_grounding_and_persisted_trace(client, monkeypatch)
         body = json.loads(http_request.content)
         requests.append(body)
         assert str(http_request.url) == 'https://openrouter.ai/api/v1/responses'
-        assert body['model'] == 'openai/gpt-4.1-mini'
+        assert body['model'] == requested_model
         assert body['text']['format']['strict'] is True
         assert len(body['tools']) == 7
         if len(requests) == 1:
@@ -444,7 +448,7 @@ def test_custom_responses_sdk_grounding_and_persisted_trace(client, monkeypatch)
             output = [{'type': 'message', 'id': 'msg_custom', 'role': 'assistant', 'status': 'completed',
                        'content': [{'type': 'output_text', 'text': draft.model_dump_json(), 'annotations': []}]}]
         return httpx.Response(200, json={'id': 'resp_custom', 'object': 'response', 'created_at': 1,
-            'status': 'completed', 'model': body['model'], 'output': output,
+            'status': 'completed', 'model': reported_model, 'output': output,
             'usage': {'input_tokens': 12, 'output_tokens': 8, 'total_tokens': 20}})
 
     def sdk_client(**kwargs):
@@ -460,3 +464,54 @@ def test_custom_responses_sdk_grounding_and_persisted_trace(client, monkeypatch)
     assert trace['tool_history'][0]['status'] == 'ok'
     assert trace['evidence_references']
     assert trace['usage']['input_tokens'] == 24
+    assert all(item['requested_model'] == requested_model for item in trace['model_history'])
+    assert all(item['reported_model'] == reported_model for item in trace['model_history'])
+    assert all(item['response_id'] == 'resp_custom' for item in trace['model_history'])
+    assert all(body['tools'][0]['parameters']['properties']['limit']['maximum'] == 8 for body in requests)
+    if requested_model.startswith('google/'):
+        assert 'maxItems' not in json.dumps(requests[0]['text']['format']['schema'])
+
+
+def test_google_serving_schema_retains_full_backend_validation():
+    original = provider.strict_schema(Draft.model_json_schema())
+    before = json.dumps(original, sort_keys=True)
+    structural = provider.provider_schema(original, 'google_structural')
+    assert original['properties']['findings']['maxItems'] == 12
+    assert 'maxItems' not in json.dumps(structural)
+    assert 'maxLength' not in json.dumps(structural)
+    assert structural['additionalProperties'] is False
+    assert structural['required'] == original['required']
+    assert structural['properties']['scope']['enum'] == ['evidence_review', 'outside_scope']
+    assert json.dumps(original, sort_keys=True) == before
+    payload = dict(summary='x' * 2001, findings=[], missing_information=[], conflicting_evidence=[],
+                   uncertainty=[], recommended_review_actions=[], abstained=True, scope='evidence_review')
+    with pytest.raises(ValueError):
+        Draft.model_validate(payload)
+    with pytest.raises(ValueError):
+        Support(evidence_id='source', version=0, excerpt='', value_key='', value_json='')
+    assert provider.Settings(model='google/gemini-3.8-flash-20260902').public()['schema_profile'] == 'google_structural'
+
+
+def test_upstream_http_error_metadata_is_persisted_without_error_body(client, monkeypatch):
+    seed(client)
+    monkeypatch.setenv('OPENAI_BASE_URL', 'https://openrouter.ai/api/v1')
+    monkeypatch.setenv('OPENAI_MODEL', 'google/gemini-3.8-flash-20260902')
+    monkeypatch.setenv('OPENAI_API_KEY', 'unit-test-placeholder')
+    monkeypatch.setenv('CLINICAL_EVIDENCE_AGENT_ENABLED', 'true')
+    monkeypatch.delenv('OPENAI_MAX_RUN_COST_USD', raising=False)
+    original_client = openai.OpenAI
+    def handler(request):
+        return httpx.Response(400, json={'error': {'message': 'Never persist raw provider detail', 'code': 400}})
+    def sdk_client(**kwargs):
+        return original_client(**kwargs, http_client=httpx.Client(transport=httpx.MockTransport(handler)))
+    monkeypatch.setattr(provider.openai, 'OpenAI', sdk_client)
+    run = request(client, 'upstream-error-trace').json()
+    trace = get(client, BASE + '/runs/' + run['id'] + '/trace').json()
+    record = trace['model_history'][0]
+    assert record['http_status'] == 400
+    assert record['error'] == 'provider_request_failed'
+    assert record['requested_model'] == 'google/gemini-3.8-flash-20260902'
+    assert record['reported_model'] is None and record['response_id'] is None
+    assert 'Never persist raw provider detail' not in json.dumps(run)
+    assert run['detail']['packet']['abstained'] is True
+    assert run['detail']['packet']['requires_human_review'] is True

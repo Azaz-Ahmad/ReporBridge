@@ -4,7 +4,7 @@
 
 Open http://127.0.0.1:5173 and sign in with the existing local coordinator token. The five-screen workflow and Amira's current records remain available. The current patient is at pregnancy after the preserved prior demonstration.
 
-Open Care-resolution center. The Clinical Evidence Investigation panel shows model configuration and provider status. With current configuration it displays unavailable and disables Run Investigation. The deterministic care-resolution action remains usable.
+Open Care-resolution center. The Clinical Evidence Investigation panel shows model configuration and provider status. The current local configuration displays the enabled Gemini provider and permits Run Investigation after synthetic-only confirmation. The deterministic care-resolution action remains usable.
 
 ## Configured OpenAI demonstration
 

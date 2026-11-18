@@ -88,6 +88,6 @@ The [release assessment](docs/V03_DEMO_READINESS.md) links the test report and s
 
 ## v0.5 Sprint 2 Clinical Evidence Agent
 
-The optional OpenAI Responses agent investigates canonical synthetic Amira evidence through seven scoped M08 tools. Configure the ignored local environment using .env.example and restart the backend. The current release is CONDITIONAL GO pending live OpenAI verification.
+The optional OpenAI Responses agent investigates canonical synthetic Amira evidence through seven scoped M08 tools. Configure the ignored local environment using .env.example and restart the backend. The configured model is google/gemini-3.8-flash-20260902 through OpenRouter. Three real investigations passed source grounding and human-review routing. See [current Gemini verification](docs/V05_S2_GEMINI_VERIFICATION.md) for the release gate.
 
 See [implementation report](docs/V05_S2_IMPLEMENTATION_REPORT.md), [OpenAI configuration](docs/V05_S2_OPENAI_INTEGRATION.md), [evaluation report](docs/V05_S2_EVALUATION_REPORT.md) and [demo script](docs/V05_S2_DEMO_SCRIPT.md).

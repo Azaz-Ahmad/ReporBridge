@@ -29,7 +29,7 @@ def router(Reader, Coordinator, Reviewer, write):
     def trace(run_id: str, actor: Reader):
         run = write(service.fetch, actor, run_id)
         return {key: run["detail"].get(key) for key in
-                ("trace", "tool_history", "evidence_references", "usage", "duration_ms", "error", "validation")}
+                ("trace", "tool_history", "model_history", "evidence_references", "usage", "duration_ms", "error", "validation")}
 
     @api.get("/runs/{run_id}/review-packet")
     def packet(run_id: str, actor: Reader):
