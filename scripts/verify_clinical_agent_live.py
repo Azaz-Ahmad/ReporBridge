@@ -21,7 +21,8 @@ from verify_postgres import scratch_schema
 report = ROOT / "test-reports" / ("openai-live-" + datetime.now().strftime("%Y%m%d-%H%M%S"))
 report.mkdir(parents=True, exist_ok=True)
 settings, availability = configuration()
-summary = {"api": "responses", "provider": "openai", "model": settings.model, "runs": []}
+summary = {"api": "responses", "provider": "openai", "model": settings.model,
+           "base_url": settings.base_url, "runs": []}
 if availability != "available":
     summary.update(status="BLOCKED", reason=availability, successful_live_runs=0)
     (report / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")

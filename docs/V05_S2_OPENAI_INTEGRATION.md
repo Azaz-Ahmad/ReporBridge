@@ -7,6 +7,7 @@ The implementation uses official openai Python SDK 2.54.0, declared as openai>=2
 | Environment variable | Default or behavior |
 |---|---|
 | OPENAI_API_KEY | Required secret, read only in backend |
+| OPENAI_BASE_URL | https://api.openai.com/v1 when unset or blank |
 | OPENAI_MODEL | gpt-4.1-mini |
 | OPENAI_TIMEOUT_SECONDS | 30, validated range 1–60 |
 | OPENAI_MAX_OUTPUT_TOKENS | 2400, range 256–6000 per response |
@@ -20,6 +21,18 @@ The elapsed-time guard is 180 seconds between model calls. An already executing 
 The prototype has no maintained model-price catalog. Usage tokens are recorded when the response provides them. Cost estimates remain null. A configured dollar ceiling fails closed because reliable dollar enforcement is unavailable.
 
 The provider status endpoint reports configuration readiness. An available configuration still needs a successful real API request to establish provider connectivity and model access.
+
+## Custom OpenAI-compatible endpoints
+
+The backend validates OPENAI_BASE_URL, passes it explicitly to the official SDK and persists it with each run configuration. The provider status response includes the selected endpoint. The request continues to use Responses, seven authorized function tools and the strict Draft output schema.
+
+For OpenRouter, configure the ignored local .env file with OPENAI_BASE_URL=https://openrouter.ai/api/v1 and OPENAI_MODEL=openai/gpt-4.1-mini. Store the OpenRouter credential only as OPENAI_API_KEY in that ignored file, enable CLINICAL_EVIDENCE_AGENT_ENABLED and restart the backend. Keep .env.example credential-free.
+
+URLs must use HTTP or HTTPS and exclude embedded credentials, query strings and fragments because endpoint configuration is visible in status and run records. An unset or blank URL selects the official OpenAI endpoint. Invalid endpoint configuration disables invocation with invalid_configuration.
+
+See V05_S2_CUSTOM_PROVIDER_VERIFICATION.md for the custom endpoint regression and live verification results. OpenRouter documents POST /api/v1/responses, but account guardrails and upstream model/provider capabilities still require live verification.
+
+[OpenRouter Responses reference](https://openrouter.ai/docs/api/api-reference/responses/create-responses)
 
 ## Provider failures
 

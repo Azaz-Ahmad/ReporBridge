@@ -3,20 +3,39 @@ import os
 import time
 from dataclasses import dataclass, field
 from typing import Protocol
+from urllib.parse import urlsplit
 
 import openai
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from app.investigation.contracts import Draft
 
 
+DEFAULT_BASE_URL = "https://api.openai.com/v1"
+
+
 class Settings(BaseModel):
+    base_url: str = Field(default=DEFAULT_BASE_URL, max_length=2048)
     model: str = Field(default="gpt-4.1-mini", min_length=1, max_length=100)
     timeout: float = Field(default=30, ge=1, le=60)
     output_tokens: int = Field(default=2400, ge=256, le=6000)
     max_tools: int = Field(default=8, ge=1, le=16)
     max_steps: int = Field(default=6, ge=2, le=10)
     max_seconds: int = 180
+
+    @field_validator("base_url", mode="before")
+    @classmethod
+    def validate_base_url(cls, value):
+        value = value.strip() if isinstance(value, str) else value
+        if not value:
+            return DEFAULT_BASE_URL
+        parsed = urlsplit(value)
+        if (parsed.scheme not in {"http", "https"} or not parsed.hostname
+                or parsed.username is not None or parsed.password is not None
+                or parsed.query or parsed.fragment):
+            raise ValueError("Use an HTTP(S) endpoint without embedded credentials, query or fragment.")
+        parsed.port
+        return value.rstrip("/")
 
     def public(self):
         return {**self.model_dump(), "version": "clinical-evidence-v1",
@@ -26,6 +45,7 @@ class Settings(BaseModel):
 def configuration():
     try:
         settings = Settings(
+            base_url=os.getenv("OPENAI_BASE_URL", ""),
             model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
             timeout=os.getenv("OPENAI_TIMEOUT_SECONDS", "30"),
             output_tokens=os.getenv("OPENAI_MAX_OUTPUT_TOKENS", "2400"),
@@ -83,7 +103,7 @@ def strict_schema(schema):
 class OpenAIProvider:
     def __init__(self, settings):
         self.settings = settings
-        self.client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"],
+        self.client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"], base_url=settings.base_url,
                                     timeout=settings.timeout, max_retries=0)
 
     def close(self):

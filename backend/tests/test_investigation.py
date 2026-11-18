@@ -383,3 +383,80 @@ def test_claim_checks_reject_unsupported_clinical_actions(client, configured):
     assert run["detail"]["packet"]["origin"] == "system_abstention"
     assert "clinical_scope_violation" in run["detail"]["validation"]["errors"]
     assert "prescribe" not in run["detail"]["packet"]["summary"]
+
+@pytest.mark.parametrize('endpoint', [None, '', 'https://openrouter.ai/api/v1/'])
+def test_custom_endpoint_configuration_and_status(client, monkeypatch, endpoint):
+    monkeypatch.setenv('CLINICAL_EVIDENCE_AGENT_ENABLED', 'true')
+    monkeypatch.setenv('OPENAI_API_KEY', 'unit-test-placeholder')
+    monkeypatch.delenv('OPENAI_MAX_RUN_COST_USD', raising=False)
+    if endpoint is None:
+        monkeypatch.delenv('OPENAI_BASE_URL', raising=False)
+    else:
+        monkeypatch.setenv('OPENAI_BASE_URL', endpoint)
+    expected = 'https://openrouter.ai/api/v1' if endpoint else provider.DEFAULT_BASE_URL
+    settings, availability = provider.configuration()
+    assert availability == 'available' and settings.base_url == expected
+    result = get(client, BASE + '/status').json()
+    assert result['configuration']['base_url'] == expected
+    assert 'unit-test-placeholder' not in json.dumps(result)
+
+
+@pytest.mark.parametrize('endpoint', ['file:///tmp/provider', 'https://user:secret@example.com/v1',
+                                      'https://example.com/v1?key=secret', 'https://example.com/v1#secret',
+                                      'https://example.com:99999/v1'])
+def test_invalid_endpoint_fails_without_exposing_credentials(monkeypatch, endpoint):
+    monkeypatch.setenv('OPENAI_BASE_URL', endpoint)
+    settings, availability = provider.configuration()
+    assert availability == 'invalid_configuration'
+    assert 'secret' not in json.dumps(settings.public())
+
+
+def test_custom_responses_sdk_grounding_and_persisted_trace(client, monkeypatch):
+    seed(client)
+    monkeypatch.setenv('OPENAI_BASE_URL', 'https://openrouter.ai/api/v1')
+    monkeypatch.setenv('OPENAI_MODEL', 'openai/gpt-4.1-mini')
+    monkeypatch.setenv('OPENAI_API_KEY', 'unit-test-placeholder')
+    monkeypatch.setenv('CLINICAL_EVIDENCE_AGENT_ENABLED', 'true')
+    monkeypatch.delenv('OPENAI_MAX_RUN_COST_USD', raising=False)
+    original_client = openai.OpenAI
+    requests = []
+
+    def handler(http_request):
+        body = json.loads(http_request.content)
+        requests.append(body)
+        assert str(http_request.url) == 'https://openrouter.ai/api/v1/responses'
+        assert body['model'] == 'openai/gpt-4.1-mini'
+        assert body['text']['format']['strict'] is True
+        assert len(body['tools']) == 7
+        if len(requests) == 1:
+            output = [{'type': 'function_call', 'id': 'fc_custom', 'call_id': 'call_custom',
+                       'name': 'get_patient_clinical_context', 'arguments': '{"kind":"Observation","limit":3}'}]
+        else:
+            result = json.loads(body['input'][-1]['output'])['result']['items'][0]
+            value = result['normalized']['values']['valueString']
+            draft = Draft(summary='A synthetic follow-up flag is documented for review.',
+                findings=[Finding(finding_id='source-flag', statement=value,
+                    supporting_sources=[Support(evidence_id=result['id'], version=result['version'],
+                        excerpt='', value_key='valueString', value_json=json.dumps(value))],
+                    evidence_status='available', requires_clinical_interpretation=False)],
+                missing_information=[], conflicting_evidence=[], uncertainty=['Human review required.'],
+                recommended_review_actions=['Inspect the source evidence.'], abstained=False, scope='evidence_review')
+            output = [{'type': 'message', 'id': 'msg_custom', 'role': 'assistant', 'status': 'completed',
+                       'content': [{'type': 'output_text', 'text': draft.model_dump_json(), 'annotations': []}]}]
+        return httpx.Response(200, json={'id': 'resp_custom', 'object': 'response', 'created_at': 1,
+            'status': 'completed', 'model': body['model'], 'output': output,
+            'usage': {'input_tokens': 12, 'output_tokens': 8, 'total_tokens': 20}})
+
+    def sdk_client(**kwargs):
+        return original_client(**kwargs, http_client=httpx.Client(transport=httpx.MockTransport(handler)))
+
+    monkeypatch.setattr(provider.openai, 'OpenAI', sdk_client)
+    run = request(client, 'custom-endpoint-sdk').json()
+    assert len(requests) == 2
+    assert run['detail']['configuration']['base_url'] == 'https://openrouter.ai/api/v1'
+    assert run['detail']['packet']['grounding_status'] == 'partially_grounded'
+    trace = get(client, BASE + '/runs/' + run['id'] + '/trace').json()
+    assert trace['tool_history'][0]['name'] == 'get_patient_clinical_context'
+    assert trace['tool_history'][0]['status'] == 'ok'
+    assert trace['evidence_references']
+    assert trace['usage']['input_tokens'] == 24
