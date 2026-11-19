@@ -211,6 +211,8 @@ class ClinicalRetrieval:
                 fail(409, "integrity_conflict", "Document excerpt does not match its source attachment.")
         options = {"method": "document", "content": match["body"], "section": match["section"],
                    "position": match["position"], "score": match.get("score")} if match else {}
+        from app.handoff_provenance import facility
+        facility_provenance = facility(self.connection, row)
         return EvidenceResult(
             **{key: row[key] for key in ("id", "patient_id", "source", "kind", "resource_id", "version",
                 "event_time", "clinical_time", "received", "status", "digest", "supersedes")},
@@ -219,7 +221,7 @@ class ClinicalRetrieval:
             provenance={"resource_reference": ref, "authorization_role": row["actor"],
                         "source_system": row["source"], "scope": row["scope"], "evidence_id": row["id"],
                         "content_trust": "untrusted_data", "event_id": event_id,
-                        "patient_local_references": sorted(set(references(record)))}, **options)
+                        "patient_local_references": sorted(set(references(record))), **facility_provenance}, **options)
 
     def list(self, filters, raw=False):
         rows, *context = self.prepare(filters)

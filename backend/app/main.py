@@ -240,6 +240,7 @@ def export_fhir(patient_id: str, role: Reader):
 
 
 def patient_bundle(connection, patient_id):
+    from app.handoff_provenance import export_agents
     patient = service.find(connection, db.patients, patient_id, required=True)
     resources = [patient["resource"], *service.decision_evidence_for(connection, patient_id)]
     for obligation in service.rows(connection, db.obligations, db.obligations.c.patient_id == patient_id):
@@ -264,7 +265,8 @@ def patient_bundle(connection, patient_id):
             resources.append({
                 "resourceType": "Provenance", "id": f"demo-audit-{action['sequence']}", "meta": {"tag": [DEMO_TAG]},
                 "target": [{"reference": f"Task/{identifier}"}], "recorded": action["recorded"],
-                "activity": {"text": action["action"]}, "agent": [{"who": {"display": action["actor"]}}],
+                "activity": {"text": ("SIMULATED — " if action["detail"].get("simulation") else "") + action["action"]},
+                "agent": [{"who": {"display": action["actor"]}}, *export_agents(action)],
                 "entity": [{"role": "source", "what": {"reference": reference}} for reference in action["evidence_refs"]],
             })
         resources.append(task)
