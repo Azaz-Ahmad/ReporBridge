@@ -110,3 +110,43 @@ def test_agent_cannot_alter_window(client, configured, monkeypatch, invent):
             with pytest.raises(HTTPException) as error:
                 investigation_service.sources_current(connection,"coordinator",run)
             assert error.value.status_code==409
+
+
+from app.clinical.fixtures import resource, coding
+from test_clinical_foundation import ingest
+from test_workflow import agent, close, review, snapshot
+
+
+def date_sources(client):
+    assert client("/patients/demo-amira/pregnancy").status_code==200
+    for suffix,code,value in [("lmp","tsp-lmp","2026-06-01"),("us","tsp-ultrasound-edd","2027-03-08"),
+                               ("registration","pregnancy-registration",None)]:
+        record=resource("Observation","tsp-"+suffix,status="final",code=coding(code),effectiveDateTime="2026-07-21")
+        record["valueDateTime" if value else "valueString"]=value or "registered"
+        response=ingest(client,record,"tsp-"+suffix)
+        assert response.status_code==200,response.text
+
+
+@pytest.mark.parametrize("completed_on,expected", [("2026-09-13","COMPLETED_IN_WINDOW"),("2026-09-14","COMPLETED_LATE")])
+def test_presence_dates_approval_closure_and_invalidation(client,monkeypatch,completed_on,expected):
+    obligation=seed(client);date_sources(client)
+    monkeypatch.setenv("DEMO_MODE","true")
+    client("/v1/tsp/clock",body={"as_of":"2026-09-15"})
+    from app.rules import observation
+    record=observation("demo-amira","demo-tsp-completion","follow-up-reconciled","verified")
+    record["effectiveDateTime"]=completed_on
+    assert client("/fhir/import",body={"resources":[record]}).status_code==200
+    result=client("/v1/tsp/patients/demo-amira/window",method="GET").json()
+    assert result["windows"][0]["status"]==expected,result
+    assert not result["completion_verified"]
+    refs=["Observation/demo-tsp-completion"]
+    assert review(client,agent(client,obligation),"approve",refs).status_code==200
+    assert next(x for x in snapshot(client)["clinical_obligations"] if x["id"]==obligation)["status"]=="open"
+    assert close(client,obligation).status_code==200
+    result=client("/v1/tsp/patients/demo-amira/window",method="GET").json()
+    assert result["completion_verified"] and result["windows"][0]["status"]==expected
+    response=ingest(client,record,"tsp-invalidated",version=2,action="invalidate",source="workflow")
+    assert response.status_code==200,response.text
+    result=client("/v1/tsp/patients/demo-amira/window",method="GET").json()
+    assert not result["completion_verified"] and result["windows"][0]["status"]=="WINDOW_PASSED"
+    assert close(client,obligation).status_code==409

@@ -7,6 +7,9 @@ def evaluate(policy, as_of=None):
         return {"state": "not_established", "label": "Timing not established.", "due_at": None,
                 "policy_id": policy["id"] if policy else None,
                 "reason": "policy_" + policy["status"] if policy else "no_policy"}
+    if policy["definition"].get("kind") == "gestational_window":
+        return {"state": "not_established", "label": "Use the patient-scoped prevention window.",
+                "due_at": None, "policy_id": policy["id"], "reason": "requires_dating_evidence"}
     moment = as_of or datetime.now(UTC)
     due = datetime.fromisoformat(policy["definition"]["due_at"])
     remaining = (due - moment).total_seconds()

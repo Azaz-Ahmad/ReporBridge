@@ -68,11 +68,33 @@ def patient_window(connection, actor, patient_id, session_id=None, as_of=None):
         missing.append("Pregnancy registration date")
     obligations = clinical.rows(connection, db.obligations, db.obligations.c.patient_id == patient_id,
                                 db.obligations.c.rule_key == PRE)
-    carried = any(item["status"] == "open" for item in obligations)
+    retained = clinical.rows(connection, db.audit, db.audit.c.patient_id == patient_id,
+                             db.audit.c.action == "obligation_retained_at_transition")
+    carried = any(item["status"] == "open" or any(event["obligation_id"] == item["id"] for event in retained) for item in obligations)
+    completion_dates, completion_inputs = [], []
+    for obligation in obligations:
+        rule = clinical.find(connection, db.rules, obligation["rule_key"], required=True)["definition"]
+        candidates = clinical.closure_candidates(connection, obligation)
+        if (not clinical.qualifying_source(connection, obligation, rule) or not candidates
+                or any(not clinical.matches(item, rule["closure"], "verified") for item in candidates)):
+            continue
+        for resource in candidates:
+            source = next((item for item in sources if item["source"] == "workflow" and item["resource_id"] == resource["id"]), None)
+            if not source or source["quality"]["state"] != "valid":
+                continue
+            try:
+                completed_on = day(resource.get("effectiveDateTime"))
+            except (ValueError, TypeError):
+                completed_on = None
+            if completed_on:
+                completion_dates.append(completed_on)
+                completion_inputs.append({"source_id": source["id"], "version": source["version"],
+                    "digest": source["digest"], "evidence_date": completed_on.isoformat()})
     result = calculate(policy, due_date=dating["due_date"], registered_on=registered,
-        as_of=projection_date, carried_obligation=carried, inputs=dating["inputs"], missing_evidence=missing)
+        as_of=projection_date, carried_obligation=carried, completion_dates=completion_dates, inputs=dating["inputs"], missing_evidence=missing)
     result.update(patient_id=patient_id, clock=current, dating_selection=dating.get("selection"),
-                  obligation_ids=[item["id"] for item in obligations], completion_verified=False)
+                  obligation_ids=[item["id"] for item in obligations], completion_inputs=completion_inputs,
+                  completion_verified=bool(obligations) and all(item["status"] == "closed" for item in obligations))
     return result
 
 

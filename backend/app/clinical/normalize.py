@@ -20,6 +20,7 @@ CONTRACT_STATUSES = {
 KNOWN_CODES = DOCUMENT_TYPES | {
     "follow-up-flag", "pregnancy-registration", "follow-up-reconciled", "pregnancy-handoff-reconciled",
     "synthetic", "metabolic-assessment", "synthetic-medication",
+    "tsp-lmp", "tsp-ultrasound-edd",  # Explicit synthetic dating vocabulary; no clinical terminology mapping.
 }
 UCUM = "http://unitsofmeasure.org"
 KNOWN_UNITS = {"g", "mg", "kg", "mmol/L", "mg/dL"}
