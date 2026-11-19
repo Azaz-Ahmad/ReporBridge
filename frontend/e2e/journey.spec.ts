@@ -30,8 +30,9 @@ test('completes the patient journey through all five screens', async ({ page }, 
   const started = performance.now();
   await page.goto('/');
   await signIn(page, 'coordinator');
-  await expect(page.getByRole('heading', { name: 'Population intelligence' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'ReproBridge', exact: true })).toBeVisible();
   timings.dashboardLoadAndSignInMs = Math.round(performance.now() - started);
+  if (!(await page.locator('.admin-drawer').evaluate(el => (el as HTMLDetailsElement).open))) await page.getByText('Admin', { exact: true }).click();
   await page.getByRole('button', { name: 'Load demo patient' }).click();
   await expect(page.getByRole('link', { name: 'Open Amira’s journey' })).toBeVisible();
   await expect(page.getByRole('link', { name: /1 Open obligations/ })).toBeVisible();
@@ -159,8 +160,10 @@ test('completes the patient journey through all five screens', async ({ page }, 
   await testInfo.attach('UI timings', { body: JSON.stringify(timings), contentType: 'application/json' });
   console.log('UI timings', JSON.stringify(timings));
   await page.reload();
+  if(new URL(page.url()).pathname==='/') await page.locator('.admin-drawer').evaluate(el => (el as HTMLDetailsElement).open=true);
   await expect(verification.getByText('Closure verified')).toBeVisible();
   await page.getByRole('link', { name: 'Population dashboard' }).click();
+  await page.locator('.admin-drawer').evaluate(el => (el as HTMLDetailsElement).open=true);
   await expect(page.getByRole('link', { name: /1 Verified closures/ })).toBeVisible();
   const otherPatient = {
     resourceType: 'Patient', id: 'demo-other', name: [{ given: ['Noor'], family: 'Demo' }],
@@ -174,6 +177,7 @@ test('completes the patient journey through all five screens', async ({ page }, 
   });
   expect(imported.ok()).toBeTruthy();
   await page.reload();
+  if(new URL(page.url()).pathname==='/') await page.locator('.admin-drawer').evaluate(el => (el as HTMLDetailsElement).open=true);
   await expect(page.getByRole('link', { name: /2 Synthetic patients/ })).toBeVisible();
   await page.getByRole('row', { name: /Noor Demo/ }).getByRole('link', { name: 'Open workspace' }).click();
   await expect(page.getByRole('heading', { name: 'Noor Demo' })).toBeVisible();
@@ -198,11 +202,13 @@ test('completes the patient journey through all five screens', async ({ page }, 
   await expect(stages.locator('[aria-current="step"]')).toContainText('Pregnancy');
   for (const route of ['/workspace?patient=demo-amira', '/passport', '/resolution', '/audit', '/']) {
     await page.goto(route);
+    if(route==='/') await page.locator('.admin-drawer').evaluate(el => (el as HTMLDetailsElement).open=true);
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), route + ' fits at 390 px').toBe(true);
     if (route.startsWith('/workspace')) await capture('08-mobile-workspace');
   }
 
+  if (!(await page.locator('.admin-drawer').evaluate(el => (el as HTMLDetailsElement).open))) await page.getByText('Admin', { exact: true }).click();
   await page.getByText('Reset Amira demo', { exact: true }).click();
   await page.getByRole('button', { name: 'Confirm reset' }).click();
   await expect(page.getByRole('status')).toContainText('Amira is ready at preconception');
@@ -238,6 +244,7 @@ test('completes the patient journey through all five screens', async ({ page }, 
   await expect(decisionHistory.getByText('Decision recorded', { exact: true })).toBeVisible();
   await expect(decisionHistory.getByText('Follow up initiated', { exact: true })).toBeVisible();
   await page.goto('/');
+  if (!(await page.locator('.admin-drawer').evaluate(el => (el as HTMLDetailsElement).open))) await page.getByText('Admin', { exact: true }).click();
   await page.getByRole('button', { name: 'Load illustrative timing scenario' }).click();
   await expect(page.locator('.decision-counts button').filter({ hasText: 'Due soon' }).locator('strong')).toHaveText('1');
   await expect(page.locator('.decision-counts button').filter({ hasText: 'Overdue' }).locator('strong')).toHaveText('1');
@@ -274,6 +281,7 @@ test('completes the patient journey through all five screens', async ({ page }, 
   expect(afterApproval.clinical_obligations.find((o: { id: string }) => o.id === tspObligation).status).toBe('open');
   expect((await page.request.post('/api/obligations/' + tspObligation + '/close', { headers: auth })).ok()).toBeTruthy();
   await page.reload();
+  if(new URL(page.url()).pathname==='/') await page.locator('.admin-drawer').evaluate(el => (el as HTMLDetailsElement).open=true);
   await expect(windowPanel.getByText(/Closure verified through existing gates/)).toBeVisible();
   await page.getByRole('button', { name: 'Invalidate TSP result' }).click();
   await expect(windowPanel.getByText('IN WINDOW', { exact: true }).first()).toBeVisible();
@@ -283,6 +291,7 @@ test('completes the patient journey through all five screens', async ({ page }, 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'TSP passport fits at 390 px').toBe(true);
   await capture('09-tsp-passport');
   await page.goto('/');
+  if (!(await page.locator('.admin-drawer').evaluate(el => (el as HTMLDetailsElement).open))) await page.getByText('Admin', { exact: true }).click();
   await page.getByRole('button', { name: 'Reset TSP demo', exact: true }).click();
   await expect(amiraWindow.getByText('IN WINDOW', { exact: true })).toBeVisible();
   await expect(page.getByLabel('Demo clock banner')).toContainText('2026-11-22');
@@ -330,4 +339,17 @@ test('completes the patient journey through all five screens', async ({ page }, 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'SIMULATED handoff passport fits at 390 px').toBe(true);
   await testInfo.attach('SIMULATED handoff proof', { body: JSON.stringify({ before: handoffState, after: handoffReopened }), contentType: 'application/json' });
   await capture('10-simulated-handoff');
+  expect((await page.request.post('/api/demo/jury-seed',{headers:auth})).ok()).toBeTruthy();
+  await page.goto('/');
+  await expect(page.getByRole('heading',{name:'Review first'})).toBeVisible();
+  await expect(page.getByRole('cell',{name:/Lina Omar/})).toBeVisible();
+  await expect(page.getByRole('cell',{name:/Sara Ali/})).toBeVisible();
+  await expect(page.getByRole('cell',{name:/Amira Haddad/})).toBeVisible();
+  await page.evaluate(()=>document.fonts.ready);
+  await mkdir('../demo-assets',{recursive:true});
+  for(const [width,height] of [[1366,768],[1920,1080]]) {
+    await page.setViewportSize({width,height});
+    await page.screenshot({path:`../demo-assets/dashboard-${width}x${height}.png`,fullPage:false,animations:'disabled'});
+  }
+
 });

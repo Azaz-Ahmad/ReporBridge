@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { ArrowDownToLine, ArrowRight, ArrowUpRight, CalendarDays, CircleAlert, ClipboardList, GitBranch, HeartPulse, Plus, RotateCcw, ShieldCheck, Users, Workflow } from 'lucide-react';
 import { api } from './api';
+import { JuryOverview, DemoAdmin, JourneyStrip } from './Jury';
 import { HANDOFF_PATIENT, HandoffSetup, HandoffPanel, HandoffTimeline } from './Handoff';
 import { TspQueue, TspWindow } from './Tsp';
 import { ClinicalExplorer } from './ClinicalExplorer';
@@ -32,18 +33,11 @@ export function Dashboard({ data, role, token, busy, action }: ScreenProps) {
     { title: 'Blocked or escalated', value: counts.blocked, icon: CircleAlert, path: '/audit', tone: 'rose' },
   ];
   return <>
-    <div className="hero"><div>
-      <p className="eyebrow"><HeartPulse size={16} /> AJYRA AI — REPROBRIDGE</p>
-      <h1>Population intelligence</h1>
-      <p className="product-subtitle">Women's Lifelong Reproductive, Maternal &amp; Preventive Care Intelligence</p>
-      <p className="hero-copy">ReproBridge identifies unresolved reproductive-care obligations, preserves them across life-stage transitions, and coordinates evidence-verified follow-up.</p>
-    </div><div className="hero-case">
-      <span className="field-kicker">Demonstration journey</span>
-      <strong>{amira ? patientName(amira) : 'Amira’s synthetic case'}</strong>
-      {amira ? <><Status value={amira.stage} />
-        <Button asChild><Link to="/workspace?patient=demo-amira">Open Amira’s journey <ArrowRight size={16} /></Link></Button></>
-        : role === 'coordinator' && <Button disabled={busy} onClick={() => action('/demo/seed', 'Synthetic patient and obligation are ready.')}><Plus size={16} /> Load demo patient</Button>}
-    </div></div>
+    <div className="hero jury-hero"><div><h1>ReproBridge</h1><p>Keep unfinished care visible across pregnancy and care teams.</p></div>
+    {amira ? <Button asChild><Link to="/workspace?patient=demo-amira">Open Amira’s journey</Link></Button> : <Button disabled={busy} onClick={()=>action('/demo/seed','Synthetic patients are ready.')}>Open Amira’s journey</Button>}</div>
+    <JuryOverview data={data} token={token} />
+    <DemoAdmin token={token}>
+    {!amira && <Button disabled={busy} onClick={()=>action('/demo/seed','Synthetic patient and obligation are ready.')}>Load demo patient</Button>}
     <div className="metric-grid">{metrics.map(({ title, value, icon: Icon, path, tone }) => <Link key={title} className="metric" to={path}>
       <div><span className={'metric-icon ' + tone}><Icon size={19} /></span><ArrowUpRight size={15} /></div>
       <strong>{value}</strong><span>{title}</span>
@@ -68,9 +62,7 @@ export function Dashboard({ data, role, token, busy, action }: ScreenProps) {
       </div>
     </details>}
     <div className="two-columns"><Innovations /><Evaluation /></div>
-    <Panel title="Recent activity" action={<Link className="text-link" to="/audit">View audit <ArrowRight size={15} /></Link>}>
-      <AuditTable events={data.audit_events.slice(0, 4)} />
-    </Panel>
+    </DemoAdmin>
   </>;
 }
 
@@ -92,6 +84,7 @@ export function Workspace({ data, role, token, busy, action }: ScreenProps) {
       <Link className="text-link" to="/">Open population dashboard</Link></Empty> : <>
       <Panel title={patientName(patient)} action={<Status value={patient.stage} />}>
         <Journey stage={patient.stage} />
+        <JourneyStrip token={token} patientId={patient.id} />
         {assessment && scenario && <div className="clinical-context">
           <p className="field-kicker">Documented clinical context</p>
           <strong>{scenario.finding}</strong>

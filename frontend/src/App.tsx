@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Activity, ArrowRight, ClipboardList, HeartPulse, LayoutDashboard, LogOut, Network, ShieldCheck, Users, Workflow } from 'lucide-react';
 import { Link, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { api } from './api';
+import { RoleSwitcher } from './Jury';
 import { DemoClock } from './Tsp';
 import { AuditScreen, Dashboard, Passport, Resolution, Workspace, type ScreenProps } from './screens';
 import { type Role, type Snapshot, label } from './types';
@@ -106,7 +107,7 @@ export function App() {
     </aside>
     <div className="content">
       <header className="app-header"><div className="topbar"><span className="demo-mark"><ShieldCheck size={17} /> SYNTHETIC DATA — DEMONSTRATION ONLY</span>
-        <div><span className="role">{role ? label(role) : 'Connecting'}</span>
+        <div><RoleSwitcher token={token} onToken={value=>signIn.mutate(value)} /><span className="role">{role ? label(role) : 'Connecting'}</span>
           <button className="icon-button" type="button" title="Sign out" aria-label="Sign out" onClick={signOut}><LogOut size={18} /></button></div>
       </div>
         {role && <div className="tsp-header"><DemoClock token={token} role={role} /></div>}
