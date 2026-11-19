@@ -17,9 +17,11 @@ from app.agent import NODES
 from app.clinical.access import audit_access, authorize, permitted
 from app.clinical.api import router as clinical_router
 from app.investigation.api import router as investigation_router
+from app.prevention.api import router as prevention_router
+from app.prevention import service as prevention
 from app.rules import DEMO_TAG, observation
 
-app = FastAPI(title="Ajyra AI — ReproBridge", version="0.5.0",
+app = FastAPI(title="Ajyra AI — ReproBridge", version="0.6.0",
               description="Synthetic illustration of care coordination across a life-stage transition.")
 bearer = HTTPBearer(auto_error=False)
 
@@ -55,11 +57,14 @@ def write(operation, *args):
             connection.execute(text("SELECT pg_advisory_xact_lock(4280071)"))
         elif connection.dialect.name == "sqlite":
             connection.exec_driver_sql("BEGIN IMMEDIATE")
-        return operation(connection, *args)
+        result = operation(connection, *args)
+        prevention.synchronize(connection)
+        return result
 
 
 app.include_router(clinical_router(Reader, Coordinator, write))
 app.include_router(investigation_router(Reader, Coordinator, Reviewer, write))
+app.include_router(prevention_router(Reader, Coordinator, Reviewer, write))
 
 
 @app.exception_handler(HTTPException)
@@ -74,7 +79,7 @@ async def clinical_http_error(request, error):
 
 @app.exception_handler(RequestValidationError)
 async def validation_error(request, error):
-    if request.url.path.startswith(("/api/v1/clinical/", "/api/v1/agents/")):
+    if request.url.path.startswith(("/api/v1/clinical/", "/api/v1/agents/", "/api/v1/prevention/")):
         return JSONResponse(status_code=422, content={"detail": {
             "code": "invalid_request", "message": "Clinical request failed validation."}})
     return await request_validation_exception_handler(request, error)
@@ -110,7 +115,7 @@ def health():
     try:
         with db.engine.connect() as connection:
             revision = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-            if revision != "0005":
+            if revision != "0006":
                 raise HTTPException(503, "Run the clinical foundation database migration.")
     except SQLAlchemyError as error:
         raise HTTPException(503, "Database or migrations unavailable") from error

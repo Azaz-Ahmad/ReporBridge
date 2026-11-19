@@ -7,6 +7,7 @@ from sqlalchemy import or_, select
 
 from app import db, service
 from app.rules import PRE, PREG, RULES, observation, seed_records
+from app.prevention import service as prevention
 
 
 def archive_summaries(connection):
@@ -60,10 +61,12 @@ def reset_amira(connection, actor):
         and [row["resource"] for row in evidence] == [initial]
         and not any(related_rows.values())
         and all(event["action"] in {"resource_imported", "obligation_created", "demo_reset"} for event in audit_events)
+        and prevention.initial_fixture(connection)
     )
     if already_ready:
         return {"status": "ready", "patient_id": patient_id, "archive_id": None}
 
+    prevention.archive_for_reset(connection, actor)
     archive_id = uuid4().hex
     archived = {
         **related_rows, db.patients.name: [patient], db.obligations.name: obligations,

@@ -4,6 +4,7 @@ import { ArrowDownToLine, ArrowRight, ArrowUpRight, CalendarDays, CircleAlert, C
 import { api } from './api';
 import { ClinicalExplorer } from './ClinicalExplorer';
 import { ClinicalInvestigation } from './ClinicalInvestigation';
+import { PreventionQueue, PreventionPassport, DecisionReadiness, DecisionTimeline, DecisionHistory } from './Prevention';
 import { Button, Empty, Feedback, Panel, Status } from './ui';
 import { closureMessage, completionEvidence, DependencyMap, Evaluation, Innovations, Interoperability, Journey, Lifecycle, obligationTitle as titleFor, populationCounts, RunTrace, WorkflowSteps, workflowStatus } from './showcase';
 import { label, moment, patientName, type Audit, type Role, type Snapshot } from './types';
@@ -17,7 +18,7 @@ function Heading({ title, subtitle, children }: { title: string; subtitle: strin
   return <div className="page-heading"><div><h1>{title}</h1><p>{subtitle}</p></div>{children}</div>;
 }
 
-export function Dashboard({ data, role, busy, action }: ScreenProps) {
+export function Dashboard({ data, role, token, busy, action }: ScreenProps) {
   const amira = data.patients.find((patient) => patient.id === 'demo-amira');
   const counts = populationCounts(data);
   const metrics = [
@@ -45,6 +46,7 @@ export function Dashboard({ data, role, busy, action }: ScreenProps) {
       <div><span className={'metric-icon ' + tone}><Icon size={19} /></span><ArrowUpRight size={15} /></div>
       <strong>{value}</strong><span>{title}</span>
     </Link>)}</div>
+    <PreventionQueue token={token} role={role} />
     <Panel title="Patient registry">
       {data.patients.length ? <div className="table-wrap"><table><thead><tr><th>Patient</th><th>Life stage</th><th>Open obligations</th><th>Workspace</th></tr></thead>
         <tbody>{data.patients.map((patient) => <tr key={patient.id}>
@@ -117,6 +119,7 @@ export function Workspace({ data, role, token, busy, action }: ScreenProps) {
           {!obligations.length && <Empty>No obligations recorded.</Empty>}
         </Panel>
       </div>
+      <DecisionTimeline token={token} patientId={patient.id} />
       <div id="dependencies"><DependencyMap data={data} patientId={patient.id} /></div>
       <ClinicalExplorer key={patient.id} patientId={patient.id} token={token} coordinator={role === 'coordinator'} />
       <Panel title="Clinical evidence">
@@ -131,7 +134,7 @@ export function Workspace({ data, role, token, busy, action }: ScreenProps) {
   </>;
 }
 
-export function Passport({ data, role, busy, action }: ScreenProps) {
+export function Passport({ data, role, token, busy, action }: ScreenProps) {
   const [params, setParams] = useSearchParams();
   const obligationId = params.get('obligation');
   const item = obligationId ? data.clinical_obligations.find((entry) => entry.id === obligationId) : data.clinical_obligations[0];
@@ -155,6 +158,7 @@ export function Passport({ data, role, busy, action }: ScreenProps) {
           <p>{patient ? patientName(patient) : item.patient_id} · {label(rule.pathway_id)} pathway</p></div>
         <Status value={item.status} />
       </section>
+      <PreventionPassport obligationId={item.id} token={token} role={role} />
       <Panel title="Obligation checkpoints"><Lifecycle data={data} item={item} /></Panel>
       <Panel title="Care requirements" action={<span className="pill amber">Illustrative — Not Clinically Approved</span>}>
         <div className="clinical-context">
@@ -209,6 +213,7 @@ export function Resolution({ data, role, token, busy, busyPath, action }: Screen
   const status = workflowStatus(current, currentTask?.status, !!agentPath && agentPath === busyPath);
   return <>
     <Heading title="Care-resolution center" subtitle="Coordinate reviewable care actions while clinicians retain decision authority." />
+    {patient && <DecisionReadiness key={patient.id + "-decision"} patientId={patient.id} token={token} role={role} />}
     {patient && <ClinicalInvestigation key={patient.id} patientId={patient.id} token={token} role={role} />}
     <Panel title="Workflow overview" action={<Status value={status} />}>
       <div className="workflow-roles inset">
@@ -364,6 +369,7 @@ export function AuditScreen({ data, role, token, busy, action }: ScreenProps) {
         <strong>{patientName(patient)}</strong><Button variant="outline" onClick={() => void download(patient.id)}><ArrowDownToLine size={16} /> Download FHIR bundle</Button>
       </div>) : <Empty>No patient bundles available.</Empty>}
     </Panel>
+    <DecisionHistory token={token} />
     <Panel title="Lifecycle audit history"><AuditTable events={data.audit_events} /></Panel>
     {data.demo_run_archive.length > 0 && <details className="panel expandable"><summary>Archived Amira demo runs</summary>
       <ul className="inset archive-list">{data.demo_run_archive.map((run) =>

@@ -12,6 +12,7 @@ async function signIn(page: Page, role: 'coordinator' | 'reviewer') {
 const preconception = 'Preconception metabolic assessment review · demo-amira';
 
 test('completes the patient journey through all five screens', async ({ page }, testInfo) => {
+  test.setTimeout(90_000);
   const timings: Record<string, number> = {};
   await page.setViewportSize({ width: 1440, height: 1000 });
   const captureDir = process.env.REPROBRIDGE_CAPTURE_DIR;
@@ -34,6 +35,8 @@ test('completes the patient journey through all five screens', async ({ page }, 
   await page.getByRole('button', { name: 'Load demo patient' }).click();
   await expect(page.getByRole('link', { name: 'Open Amira’s journey' })).toBeVisible();
   await expect(page.getByRole('link', { name: /1 Open obligations/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Prevention Decision Queue' })).toBeVisible();
+  await expect(page.locator('.decision-counts button').filter({ hasText: 'Awaiting evidence' }).locator('strong')).toHaveText('1');
   await expect(page.getByRole('link', { name: /0 Blocked or escalated/ })).toBeVisible();
   if (captureDir) {
     await page.getByText('Six innovations', { exact: true }).click();
@@ -43,11 +46,15 @@ test('completes the patient journey through all five screens', async ({ page }, 
   const navigating = performance.now();
   await page.getByRole('link', { name: 'Open workspace' }).click();
   await expect(page.getByRole('heading', { name: 'Amira Haddad' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Decision Timeline' })).toBeVisible();
   timings.workspaceNavigationMs = Math.round(performance.now() - navigating);
   await expect(page.getByText('Patient/demo-amira')).toBeVisible();
   await page.getByRole('link', { name: /Preconception metabolic assessment review/ }).first().click();
   await expect(page.getByText('Required completion evidence is missing.')).toBeVisible();
-  await page.getByText('Source evidence and provenance', { exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Prevention Decision', exact: true })).toBeVisible();
+  await expect(page.getByText('Timing not established.', { exact: true })).toBeVisible();
+  if (await page.locator('#provenance').getAttribute('open') === null)
+    await page.getByText('Source evidence and provenance', { exact: true }).click();
   await expect(page.locator('#provenance')).toContainText('Observation/demo-initial-flag');
   await expect(page.locator('#provenance')).toContainText('preconception-follow-up@1.0.0');
   await page.getByRole('link', { name: 'Women’s health workspace' }).click();
@@ -69,12 +76,16 @@ test('completes the patient journey through all five screens', async ({ page }, 
   await expect(page.getByRole('heading', { name: 'Clinical obligation passport' })).toBeVisible();
   await expect(page.getByText('must close before')).toBeVisible();
   await expect(page.getByText('Illustrative — Not Clinically Approved')).toBeVisible();
-  await page.getByText('Source evidence and provenance', { exact: true }).click();
+  if (await page.locator('#provenance').getAttribute('open') === null)
+    await page.getByText('Source evidence and provenance', { exact: true }).click();
   await expect(page.getByText('Recorded finding')).toBeVisible();
   await capture('03-obligation-passport');
   await page.getByRole('link', { name: 'Open review queue' }).click();
   await expect(page.getByRole('heading', { name: 'Clinical Evidence Investigation' })).toBeVisible();
-  await expect(page.getByText('AI-generated evidence summary — requires clinical review.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Decision Readiness Investigation' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Run Decision Readiness Investigation' })).toBeDisabled();
+  await expect(page.locator('section').filter({ has: page.getByRole('heading', { name: 'Clinical Evidence Investigation', exact: true }) })
+    .getByText('AI-generated evidence summary — requires clinical review.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Run Investigation', exact: true })).toBeDisabled();
   await expect(page.getByText(/The Clinical Evidence Agent is unavailable/)).toBeVisible();
   await expect(page.getByText('Not started', { exact: true })).toBeVisible();
@@ -201,4 +212,30 @@ test('completes the patient journey through all five screens', async ({ page }, 
   await page.getByRole('link', { name: 'Evidence & audit', exact: true }).click();
   await page.getByText('Archived Amira demo runs', { exact: true }).click();
   await expect(page.getByText(/\d+ audit events · Coordinator/)).toBeVisible();
+
+  await page.goto('/passport');
+  await page.getByRole('button', { name: 'Sign out' }).click();
+  await signIn(page, 'reviewer');
+  await page.getByLabel('Clinical decision rationale').fill('Synthetic reviewer requests a reconciliation note.');
+  await page.getByRole('button', { name: 'Begin clinician review' }).click();
+  await page.getByLabel('Outstanding follow-up actions, one per line').fill('Obtain a synthetic clinician reconciliation note.');
+  await page.getByRole('checkbox', { name: 'I reviewed the current evidence snapshot and take responsibility for this decision.' }).check();
+  await page.getByRole('button', { name: 'Record clinical decision', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Clinical decision recorded' })).toBeVisible();
+  const decisionSnapshot = await page.request.get('/api/snapshot', { headers: { Authorization: 'Bearer ' + process.env.E2E_COORDINATOR_TOKEN } });
+  const decisionClinical = await decisionSnapshot.json();
+  expect(decisionClinical.clinical_approvals).toHaveLength(0);
+  expect(decisionClinical.closure_evidence).toHaveLength(0);
+  expect(decisionClinical.clinical_obligations[0].status).toBe('open');
+  await page.getByRole('button', { name: 'Sign out' }).click();
+  await signIn(page, 'coordinator');
+  await page.getByRole('button', { name: 'Initiate follow-up 1' }).click();
+  await page.goto('/audit');
+  const decisionHistory = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Decision History' }) });
+  await expect(decisionHistory.getByText('Decision recorded', { exact: true })).toBeVisible();
+  await expect(decisionHistory.getByText('Follow up initiated', { exact: true })).toBeVisible();
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Load illustrative timing scenario' }).click();
+  await expect(page.locator('.decision-counts button').filter({ hasText: 'Due soon' }).locator('strong')).toHaveText('1');
+  await expect(page.locator('.decision-counts button').filter({ hasText: 'Overdue' }).locator('strong')).toHaveText('1');
 });

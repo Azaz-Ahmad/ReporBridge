@@ -37,13 +37,14 @@ def get(connection, actor, run_id):
     return result
 
 
-def reserve(connection, actor, request, settings, availability):
+def reserve(connection, actor, request, settings, availability, binding=None):
     context = authorize(connection, actor, request.patient_id)
     tooling.synthetic_scope(connection, context)
     existing = connection.execute(select(runs).where(
         runs.c.actor == actor, runs.c.patient_id == request.patient_id,
         runs.c.request_id == request.request_id)).mappings().first()
-    fingerprint = digest({"patient_id": request.patient_id, "question": request.question})
+    fingerprint = digest({"patient_id": request.patient_id, "question": request.question,
+                          **({"decision_context": binding} if binding else {})})
     if existing:
         if existing["fingerprint"] != fingerprint:
             fail(409, "idempotency_conflict", "Request ID already belongs to a different question.")
@@ -59,7 +60,8 @@ def reserve(connection, actor, request, settings, availability):
                       "evidence_references": [], "packet": None, "error": None,
                       "usage": {"model_calls": 0, "input_tokens": 0, "output_tokens": 0,
                                 "retries": 0, "usage_complete": True}, "duration_ms": 0,
-                      "submitted": False, "source_snapshot": tooling.fingerprint(connection, context)}}
+                      "submitted": False, "source_snapshot": tooling.fingerprint(connection, context),
+                      "decision_context": binding}}
     connection.execute(runs.insert().values(**run))
     audit_access(connection, context, "investigation_started")
     return run, True, tooling.fingerprint(connection, context)
@@ -84,9 +86,9 @@ def save(connection, actor, run_id, state, elapsed):
         status=state.get("status", "running"), updated=now(), detail=detail))
 
 
-def run_investigation(actor, request, write):
+def run_investigation(actor, request, write, trusted_decision=None):
     settings, availability = provider.configuration()
-    run, created, fingerprint = write(reserve, actor, request, settings, availability)
+    run, created, fingerprint = write(reserve, actor, request, settings, availability, trusted_decision)
     if not created:
         return run
     # Re-authorize after reservation so no model chooses its trusted scope.

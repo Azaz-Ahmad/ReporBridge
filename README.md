@@ -91,3 +91,9 @@ The [release assessment](docs/V03_DEMO_READINESS.md) links the test report and s
 The optional OpenAI Responses agent investigates canonical synthetic Amira evidence through seven scoped M08 tools. Configure the ignored local environment using .env.example and restart the backend. The configured model is google/gemini-3.8-flash-20260902 through OpenRouter. Three real investigations passed source grounding and human-review routing. See [current Gemini verification](docs/V05_S2_GEMINI_VERIFICATION.md) for the release gate.
 
 See [implementation report](docs/V05_S2_IMPLEMENTATION_REPORT.md), [OpenAI configuration](docs/V05_S2_OPENAI_INTEGRATION.md), [evaluation report](docs/V05_S2_EVALUATION_REPORT.md) and [demo script](docs/V05_S2_DEMO_SCRIPT.md).
+
+## v0.6 Prevention Decision Intelligence
+
+The five existing screens now show persisted prevention decisions, source prerequisites, clinician review, deterministic illustrative timing and decision history. Amira has no invented deadline. A separate synthetic timing scenario demonstrates due-soon and overdue status. The existing evidence agent performs decision-bound investigations through the same seven authorized tools.
+
+See [v0.6 implementation](docs/V06_IMPLEMENTATION_REPORT.md), [decision contracts](docs/V06_DECISION_DATA_CONTRACT.md), [timing policy](docs/V06_TIMING_POLICY.md), [tests](docs/V06_TEST_REPORT.md) and [demonstration](docs/V06_DEMO_SCRIPT.md).

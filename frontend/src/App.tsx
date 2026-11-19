@@ -50,7 +50,10 @@ export function App() {
     mutationFn: ({ path, body }: { path: string; body?: unknown; success: string }) => api(token, path, 'POST', body),
     onSuccess: (_, variables) => setFeedback({ message: variables.success }),
     onError: (error) => setFeedback({ message: error.message, error: true }),
-    onSettled: () => cache.invalidateQueries({ queryKey: ['snapshot', token] }),
+    onSettled: () => {
+      cache.invalidateQueries({ queryKey: ['snapshot', token] });
+      cache.invalidateQueries({ queryKey: ['prevention'] });
+    },
   });
 
   const submit = (event: FormEvent) => {

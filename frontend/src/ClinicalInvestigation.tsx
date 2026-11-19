@@ -14,14 +14,16 @@ type Packet = { summary: string; origin: string; findings: Finding[]; grounding_
   recommended_review_actions: string[]; source_references: Source[] };
 type Run = { id: string; status: string; created: string; review: { decision: string; note: string } | null;
   detail: { question: string; configuration: { model: string }; packet: Packet | null; error: string | null;
-    duration_ms: number; trace: string[]; validation?: { errors: string[]; claim_checks?: string };
+    duration_ms: number; trace: string[]; decision_context?: { decision_id: string } | null; validation?: { errors: string[]; claim_checks?: string };
     usage: { model_calls: number; input_tokens: number; output_tokens: number; retries: number };
     tool_history: { name: string; call_id: string; status: string; duration_ms: number; evidence_ids: string[] }[] } };
 const base = '/v1/agents/clinical-evidence';
 const defaultQuestion = "What documented evidence is available regarding Amira Haddad's unresolved preconception metabolic assessment, and what information requires clinician reconciliation?";
 
-export function ClinicalInvestigation({ patientId, token, role }: { patientId: string; token: string; role: Role }) {
-  const [question, setQuestion] = useState(defaultQuestion);
+export function ClinicalInvestigation({ patientId, token, role, decisionId }: {
+  patientId: string; token: string; role: Role; decisionId?: string;
+}) {
+  const [question, setQuestion] = useState(decisionId ? "Investigate this prevention decision and its evidence prerequisites for clinician review." : defaultQuestion);
   const [attested, setAttested] = useState(false);
   const [selected, setSelected] = useState('');
   const [requestId, setRequestId] = useState(() => crypto.randomUUID());
@@ -29,13 +31,15 @@ export function ClinicalInvestigation({ patientId, token, role }: { patientId: s
   const [source, setSource] = useState<Source | null>(null);
   const provider = useQuery({ queryKey: ['evidence-provider', token],
     queryFn: () => api<Provider>(token, base + '/status') });
-  const runs = useQuery({ queryKey: ['evidence-runs', token, patientId],
-    queryFn: () => api<Run[]>(token, base + '/runs?patient_id=' + encodeURIComponent(patientId)),
+  const runs = useQuery({ queryKey: ['evidence-runs', token, patientId, decisionId],
+    queryFn: () => api<Run[]>(token, decisionId ? '/v1/prevention/decisions/' + decisionId + '/investigations'
+      : base + '/runs?patient_id=' + encodeURIComponent(patientId))
+      .then((items) => decisionId ? items : items.filter((item) => !item.detail.decision_context)),
     refetchInterval: (query) => query.state.data?.some((run) => run.status === 'running') ? 2000 : false });
   const run = runs.data?.find((item) => item.id === selected) ?? runs.data?.[0];
   const investigation = useMutation({
-    mutationFn: () => api<Run>(token, base + '/runs', 'POST',
-      { patient_id: patientId, question, request_id: requestId, synthetic_only: true }),
+    mutationFn: () => api<Run>(token, decisionId ? '/v1/prevention/decisions/' + decisionId + '/investigations' : base + '/runs', 'POST',
+      decisionId ? { request_id: requestId } : { patient_id: patientId, question, request_id: requestId, synthetic_only: true }),
     onSuccess: (result) => {
       setSelected(result.id);
       setRequestId(crypto.randomUUID());
@@ -53,25 +57,25 @@ export function ClinicalInvestigation({ patientId, token, role }: { patientId: s
       token, '/v1/clinical/patients/' + patientId + '/evidence/' + source!.evidence_id),
   });
   const packet = run?.detail.packet;
-  return <Panel title="Clinical Evidence Investigation">
+  return <Panel title={decisionId ? "Decision Readiness Investigation" : "Clinical Evidence Investigation"}>
     <div className="inset investigation">
       <p><strong>AI-generated evidence summary — requires clinical review.</strong></p>
       {provider.isLoading && <p role="status">Checking provider…</p>}
       {provider.data && <p>OpenAI Responses · {provider.data.configuration.model} · <Status value={provider.data.status} /></p>}
       {provider.data && !provider.data.available && <p>
-        The Clinical Evidence Agent is unavailable. Provider status is {label(provider.data.status).toLowerCase()}.
+        {decisionId ? 'Decision readiness investigation is unavailable.' : 'The Clinical Evidence Agent is unavailable.'} Provider status is {label(provider.data.status).toLowerCase()}.
         Configure the OpenAI API key and enable the agent in the backend environment to run an investigation.
       </p>}
       {provider.error && <Feedback message={provider.error.message} error />}
       {role === 'coordinator' && <form onSubmit={(event) => { event.preventDefault(); investigation.mutate(); }}>
         <label>Clinical evidence question
-          <textarea value={question} maxLength={800} minLength={12}
+          <textarea value={question} readOnly={!!decisionId} maxLength={800} minLength={12}
             onChange={(event) => { setQuestion(event.target.value); setRequestId(crypto.randomUUID()); }} />
         </label>
         <label className="clinical-history"><input type="checkbox" checked={attested}
           onChange={(event) => setAttested(event.target.checked)} /> This question contains synthetic demonstration data only.</label>
         <Button type="submit" disabled={!provider.data?.available || !attested || patientId !== 'demo-amira' || investigation.isPending}>
-          {investigation.isPending ? 'Investigating…' : 'Run Investigation'}</Button>
+          {investigation.isPending ? 'Investigating…' : decisionId ? 'Run Decision Readiness Investigation' : 'Run Investigation'}</Button>
       </form>}
       {investigation.error && <Feedback message={investigation.error.message} error />}
       {runs.error && <Feedback message={runs.error.message} error />}
