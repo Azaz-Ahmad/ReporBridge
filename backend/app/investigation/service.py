@@ -11,6 +11,7 @@ from app.clinical.normalize import digest
 from app.investigation import provider, tooling
 from app.investigation.graph import SYSTEM, build
 from app.investigation.schema_v1 import runs, reviews
+from app.prevention.window_grounding import prompt as window_prompt
 
 
 def provider_factory(settings):
@@ -37,7 +38,7 @@ def get(connection, actor, run_id):
     return result
 
 
-def reserve(connection, actor, request, settings, availability, binding=None, workflow='single_agent'):
+def reserve(connection, actor, request, settings, availability, binding=None, workflow='single_agent', window_context=None):
     context = authorize(connection, actor, request.patient_id)
     tooling.synthetic_scope(connection, context)
     existing = connection.execute(select(runs).where(
@@ -45,6 +46,7 @@ def reserve(connection, actor, request, settings, availability, binding=None, wo
         runs.c.request_id == request.request_id)).mappings().first()
     fingerprint = digest({"patient_id": request.patient_id, "question": request.question,
                           **({"decision_context": binding} if binding else {}),
+                          **({"window_context": window_context} if window_context else {}),
                           **({"workflow": workflow} if workflow != "single_agent" else {})})
     if existing:
         if existing["fingerprint"] != fingerprint:
@@ -62,7 +64,7 @@ def reserve(connection, actor, request, settings, availability, binding=None, wo
                       "usage": {"model_calls": 0, "input_tokens": 0, "output_tokens": 0,
                                 "retries": 0, "usage_complete": True}, "duration_ms": 0,
                       "submitted": False, "source_snapshot": tooling.fingerprint(connection, context),
-                      "decision_context": binding, "workflow": workflow}}
+                      "decision_context": binding, "window_context": window_context, "workflow": workflow}}
     connection.execute(runs.insert().values(**run))
     audit_access(connection, context, "investigation_started")
     return run, True, tooling.fingerprint(connection, context)
@@ -89,9 +91,9 @@ def save(connection, actor, run_id, state, elapsed, extra_detail=None):
         status=state.get("status", "running"), updated=now(), detail=detail))
 
 
-def run_investigation(actor, request, write, trusted_decision=None):
+def run_investigation(actor, request, write, trusted_decision=None, trusted_window=None):
     settings, availability = provider.configuration()
-    run, created, fingerprint = write(reserve, actor, request, settings, availability, trusted_decision)
+    run, created, fingerprint = write(reserve, actor, request, settings, availability, trusted_decision, "single_agent", trusted_window)
     if not created:
         return run
     # Re-authorize after reservation so no model chooses its trusted scope.
@@ -100,7 +102,7 @@ def run_investigation(actor, request, write, trusted_decision=None):
     state = {
         "run_id": run["id"], "patient_id": context.patient_id, "actor": actor,
         "question": request.question, "allowed_tools": list(tooling.TOOLS),
-        "messages": [{"role": "system", "content": SYSTEM},
+        "messages": [{"role": "system", "content": SYSTEM + (window_prompt(trusted_window) if trusted_window else "")},
                      {"role": "user", "content": request.question}],
         "calls": [], "tool_history": [], "evidence": [], "draft": None,
         "status": "running", "error": None, "steps": 0, "trace": [],
@@ -163,6 +165,11 @@ def list_runs(connection, actor, patient_id):
 
 
 def sources_current(connection, actor, run):
+    window = run["detail"].get("window_context")
+    if window:
+        from app.prevention.window_grounding import current
+        if not current(connection, actor, window):
+            fail(409, "stale_review_packet", "Prevention window context changed. Start a fresh investigation.")
     scope = authorize(connection, actor, run["patient_id"])
     tooling.synthetic_scope(connection, scope)
     retrieval = tooling.ClinicalTools(connection, scope).retrieval

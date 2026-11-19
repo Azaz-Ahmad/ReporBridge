@@ -73,3 +73,40 @@ def test_api_authorization_clock_and_hold(client, monkeypatch):
     assert result["as_of"]=="2026-11-23" and result["window_start"] is None
     assert client(base+"/clock/reset").json()["as_of"]=="2026-11-22"
     assert client(base+"/clock",body={"as_of":"not-a-date"}).status_code==422
+
+
+from test_investigation import configured  # noqa: F401
+from app.investigation import provider
+from app.prevention.window_grounding import explanation
+from app import db
+from app.investigation import service as investigation_service
+
+
+@pytest.mark.parametrize("invent", [False, True])
+def test_agent_cannot_alter_window(client, configured, monkeypatch, invent):
+    seed(client)
+    monkeypatch.setenv("DEMO_MODE","true")
+    expected=client("/v1/tsp/patients/demo-amira/window",method="GET").json()
+    invoke=configured.invoke
+    def wrapped(*args,**kwargs):
+        turn=invoke(*args,**kwargs)
+        if turn.draft:
+            turn.draft.summary=explanation(expected) if not invent else "Prevention window W1: IN_WINDOW; 2027-01-01 through 2027-01-30. Policy invented version 9."
+        return turn
+    configured.invoke=wrapped
+    response=client("/v1/tsp/patients/demo-amira/investigations",body={"request_id":"guard-check"})
+    assert response.status_code==200,response.text
+    run=response.json(); packet=run["detail"]["packet"]
+    assert packet["prevention_window"]==expected
+    assert (packet["grounding_status"]=="validation_failed") is invent
+    if invent:
+        assert packet["abstained"] and packet["origin"]=="system_abstention"
+        assert "tsp_window_or_policy_mismatch" in run["detail"]["validation"]["errors"]
+    else:
+        assert packet["summary"]==explanation(expected)
+        assert client("/v1/tsp/clock",body={"as_of":"2026-11-23"}).status_code==200
+        with db.engine.begin() as connection:
+            from fastapi import HTTPException
+            with pytest.raises(HTTPException) as error:
+                investigation_service.sources_current(connection,"coordinator",run)
+            assert error.value.status_code==409

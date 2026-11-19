@@ -48,11 +48,15 @@ export function TspQueue({ token }: { token: string }) {
   </Panel>;
 }
 
-export function TspWindow({ token, patientId, timeline = false }: { token: string; patientId: string; timeline?: boolean }) {
+export function TspWindow({ token, patientId, timeline = false, role }: { token: string; patientId: string; timeline?: boolean; role?: Role }) {
   const query = useQuery({ queryKey: ['tsp', 'patient', patientId, token], queryFn: () => api<WindowResult>(token, '/v1/tsp/patients/' + patientId + '/window') });
+  const explain = useMutation({ mutationFn: () => api<{ id: string; detail: { packet: { summary: string; abstained: boolean } | null } }>(token, '/v1/tsp/patients/' + patientId + '/investigations', 'POST', { request_id: crypto.randomUUID() }) });
   const item = query.data;
   return <Panel title={timeline ? 'Prevention window timeline' : 'Time-Sensitive Prevention Window'}>
     {query.error && <Feedback message={query.error.message} error />}
+    {role === 'coordinator' && !timeline && <Button disabled={explain.isPending} onClick={() => explain.mutate()}>Explain computed window</Button>}
+    {explain.error && <Feedback message={explain.error.message} error />}
+    {explain.data && <div className="inset"><p>Investigation {explain.data.id} · mandatory human review</p><p>{explain.data.detail.packet?.summary}</p></div>}
     {item && <><WindowBadge value={item.status} /><p>As of {item.as_of} · {item.clock.demo_mode ? 'DEMO CLOCK' : 'Asia/Dubai calendar'}</p>
       <p>Policy {item.policy_id || 'not established'} · version {item.policy_version || 'none'}</p>
       <p><strong>pending clinical confirmation</strong><br /><code className="tsp-citation">{item.citation}</code></p>

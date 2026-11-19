@@ -4,6 +4,7 @@ from uuid import uuid4
 from fastapi import APIRouter, Request, Response
 from app.clinical.contracts import Contract
 from app.prevention import tsp
+from app.prevention.contracts import InvestigationRequest
 
 
 class ClockDate(Contract):
@@ -40,5 +41,15 @@ def router(Reader, Coordinator, write):
     @api.get("/queue")
     def queue(request: Request, response: Response, actor: Reader):
         return write(tsp.queue, actor, session(request, response))
+
+    @api.post("/patients/{patient_id}/investigations")
+    def investigate(patient_id: str, body: InvestigationRequest, request: Request, response: Response, actor: Coordinator):
+        from app.prevention.window_grounding import bind
+        from app.investigation import service
+        from app.investigation.contracts import RunRequest
+        binding = write(bind, actor, patient_id, session(request, response))
+        return service.run_investigation(actor, RunRequest(patient_id=patient_id,
+            question="Review synthetic source evidence and explain the backend-computed prevention result for clinician review.",
+            request_id="tsp-" + body.request_id, synthetic_only=True), write, trusted_window=binding)
 
     return api

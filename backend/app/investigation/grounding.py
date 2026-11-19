@@ -95,6 +95,7 @@ def packet(run, draft, snapshots, validation, error=None):
         source_references=[Source(evidence_id=item["id"], version=item["version"], digest=item["digest"],
                                  citation=item["citation"], quality_state=item["quality"]["state"])
                            for item in {row["id"]: row for row in snapshots}.values()],
+        prevention_window=(run["detail"].get("window_context") or {}).get("result"),
         grounding_status=validation["status"], requires_human_review=True,
         abstained=not safe or draft.abstained, origin="model" if safe else "system_abstention",
         model_name=run["detail"]["configuration"]["model"], created_at=run["created"])

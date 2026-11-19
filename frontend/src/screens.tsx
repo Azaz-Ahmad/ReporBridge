@@ -162,7 +162,7 @@ export function Passport({ data, role, token, busy, action }: ScreenProps) {
         <Status value={item.status} />
       </section>
       <PreventionPassport obligationId={item.id} token={token} role={role} />
-      <TspWindow token={token} patientId={item.patient_id} />
+      <TspWindow token={token} patientId={item.patient_id} role={role} />
       <Panel title="Obligation checkpoints"><Lifecycle data={data} item={item} /></Panel>
       <Panel title="Care requirements" action={<span className="pill amber">Illustrative — Not Clinically Approved</span>}>
         <div className="clinical-context">

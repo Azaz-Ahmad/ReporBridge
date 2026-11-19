@@ -175,6 +175,16 @@ def build(provider, settings, run, context, persist, initial_fingerprint, execut
                 errors.append("unsupported_timing_advice")
         validation = grounding.validate(draft, evidence) if draft else {
             "status": "insufficient_evidence", "errors": [], "conflicting_evidence_ids": []}
+        window = run["detail"].get("window_context")
+        if window:
+            from app.prevention import window_grounding
+            errors.extend(window_grounding.validate(draft, window))
+            try:
+                with db.engine.begin() as connection:
+                    if not window_grounding.current(connection, context.role, window):
+                        errors.append("tsp_window_context_changed")
+            except Exception:
+                errors.append("tsp_window_context_unavailable")
         error = state.get("error")
         if errors:
             validation["errors"] = sorted(set([*validation["errors"], *errors]))
