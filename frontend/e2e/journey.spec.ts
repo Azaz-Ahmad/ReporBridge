@@ -351,5 +351,15 @@ test('completes the patient journey through all five screens', async ({ page }, 
     await page.setViewportSize({width,height});
     await page.screenshot({path:`../demo-assets/dashboard-${width}x${height}.png`,fullPage:false,animations:'disabled'});
   }
+  await page.getByText('Switch demo role', {exact:true}).click();
+  await page.getByRole('combobox',{name:'Demo role',exact:true}).selectOption('reviewer');
+  await page.getByLabel('Existing role token').fill(process.env.E2E_REVIEWER_TOKEN!);
+  await page.getByRole('button',{name:'Switch role',exact:true}).click();
+  await expect(page.locator('.role')).toHaveText('Reviewer');
+  if(!(await page.getByLabel('Existing role token').isVisible())) await page.getByText('Switch demo role',{exact:true}).click();
+  await page.getByRole('combobox',{name:'Demo role',exact:true}).selectOption('coordinator');
+  await page.getByLabel('Existing role token').fill(process.env.E2E_COORDINATOR_TOKEN!);
+  await page.getByRole('button',{name:'Switch role',exact:true}).click();
+  await expect(page.locator('.role')).toHaveText('Coordinator');
 
 });
