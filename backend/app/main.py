@@ -295,3 +295,12 @@ def jury_seed(actor: Coordinator):
     if not demo_enabled():
         raise HTTPException(403, "Demo mode is required.")
     return write(seed, actor)
+
+
+@app.middleware("http")
+async def diagnostic_fixture_mode(request, call_next):
+    path = request.url.path
+    diagnostic = path in {"/api/v1/clinical/demo/dataset", "/api/v1/prevention/demo/timing", "/api/v1/simulated-handoff/demo/seed"} or path.startswith("/api/v1/tsp/demo/")
+    if request.method == "POST" and diagnostic and os.getenv("REPROBRIDGE_TEST_MODE") != "true":
+        return JSONResponse(status_code=403,content={"detail":{"code":"test_mode_required", "message":"Diagnostic fixtures require test mode. Use the default three-patient demo seed."}})
+    return await call_next(request)
