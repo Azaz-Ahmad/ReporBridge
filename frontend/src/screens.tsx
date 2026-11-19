@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { ArrowDownToLine, ArrowRight, ArrowUpRight, CalendarDays, CircleAlert, ClipboardList, GitBranch, HeartPulse, Plus, RotateCcw, ShieldCheck, Users, Workflow } from 'lucide-react';
 import { api } from './api';
+import { TspQueue, TspWindow } from './Tsp';
 import { ClinicalExplorer } from './ClinicalExplorer';
 import { ClinicalInvestigation } from './ClinicalInvestigation';
 import { PreventionQueue, PreventionPassport, DecisionReadiness, DecisionTimeline, DecisionHistory } from './Prevention';
@@ -47,6 +48,7 @@ export function Dashboard({ data, role, token, busy, action }: ScreenProps) {
       <strong>{value}</strong><span>{title}</span>
     </Link>)}</div>
     <PreventionQueue token={token} role={role} />
+    <TspQueue token={token} />
     <Panel title="Patient registry">
       {data.patients.length ? <div className="table-wrap"><table><thead><tr><th>Patient</th><th>Life stage</th><th>Open obligations</th><th>Workspace</th></tr></thead>
         <tbody>{data.patients.map((patient) => <tr key={patient.id}>
@@ -120,6 +122,7 @@ export function Workspace({ data, role, token, busy, action }: ScreenProps) {
         </Panel>
       </div>
       <DecisionTimeline token={token} patientId={patient.id} />
+      <TspWindow token={token} patientId={patient.id} timeline />
       <div id="dependencies"><DependencyMap data={data} patientId={patient.id} /></div>
       <ClinicalExplorer key={patient.id} patientId={patient.id} token={token} coordinator={role === 'coordinator'} />
       <Panel title="Clinical evidence">
@@ -159,6 +162,7 @@ export function Passport({ data, role, token, busy, action }: ScreenProps) {
         <Status value={item.status} />
       </section>
       <PreventionPassport obligationId={item.id} token={token} role={role} />
+      <TspWindow token={token} patientId={item.patient_id} />
       <Panel title="Obligation checkpoints"><Lifecycle data={data} item={item} /></Panel>
       <Panel title="Care requirements" action={<span className="pill amber">Illustrative — Not Clinically Approved</span>}>
         <div className="clinical-context">

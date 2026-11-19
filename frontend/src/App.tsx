@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Activity, ArrowRight, ClipboardList, HeartPulse, LayoutDashboard, LogOut, Network, ShieldCheck, Users, Workflow } from 'lucide-react';
 import { Link, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { api } from './api';
+import { DemoClock } from './Tsp';
 import { AuditScreen, Dashboard, Passport, Resolution, Workspace, type ScreenProps } from './screens';
 import { type Role, type Snapshot, label } from './types';
 import { Button, Feedback } from './ui';
@@ -53,6 +54,7 @@ export function App() {
     onSettled: () => {
       cache.invalidateQueries({ queryKey: ['snapshot', token] });
       cache.invalidateQueries({ queryKey: ['prevention'] });
+      cache.invalidateQueries({ queryKey: ['tsp'] });
     },
   });
 
@@ -107,6 +109,7 @@ export function App() {
           <button className="icon-button" type="button" title="Sign out" aria-label="Sign out" onClick={signOut}><LogOut size={18} /></button></div>
       </header>
       <main>
+        {role && <DemoClock token={token} role={role} />}
         {feedback && <Feedback {...feedback} />}
         {snapshot.error ? <Feedback message={snapshot.error.message} error /> : !props ? <p role="status">Loading workspace…</p> :
           <Routes>
