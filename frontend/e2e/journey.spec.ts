@@ -12,7 +12,7 @@ async function signIn(page: Page, role: 'coordinator' | 'reviewer') {
 const preconception = 'Preconception metabolic assessment review · demo-amira';
 
 test('completes the patient journey through all five screens', async ({ page }, testInfo) => {
-  test.setTimeout(150_000);
+  test.setTimeout(180_000);
   const timings: Record<string, number> = {};
   await page.setViewportSize({ width: 1440, height: 1000 });
   const captureDir = process.env.REPROBRIDGE_CAPTURE_DIR;
@@ -286,4 +286,48 @@ test('completes the patient journey through all five screens', async ({ page }, 
   await page.getByRole('button', { name: 'Reset TSP demo', exact: true }).click();
   await expect(amiraWindow.getByText('IN WINDOW', { exact: true })).toBeVisible();
   await expect(page.getByLabel('Demo clock banner')).toContainText('2026-11-22');
+
+  // SIMULATED inter-facility handoff: genuine local feed/receipts and unchanged clinical gates.
+  await page.getByRole('button', { name: 'Load simulated handoff demo' }).click();
+  await page.getByRole('link', { name: 'Open simulated handoff workspace' }).click();
+  const receivingView = page.locator('section').filter({ has: page.getByRole('heading', { name: 'SIMULATED Hospital B receiving view', exact: true }) });
+  await expect(receivingView.getByText('Hospital A — SIMULATED originating care team', { exact: true }).first()).toBeVisible();
+  await expect(receivingView.getByRole('button', { name: 'Receive records from Hospital A' })).toBeDisabled();
+  await page.getByRole('button', { name: 'Register pregnancy', exact: true }).click();
+  await expect(receivingView.getByRole('button', { name: 'Receive records from Hospital A' })).toBeEnabled();
+  await receivingView.getByRole('button', { name: 'Receive records from Hospital A' }).click();
+  await expect(receivingView.getByText('Hospital B — SIMULATED receiving care team', { exact: true })).toBeVisible();
+  await expect(receivingView.getByText(/Origin: Hospital A, received/)).toBeVisible();
+  await receivingView.getByText('SIMULATED owner history', { exact: true }).click();
+  await expect(receivingView.locator('.handoff-history li').filter({ hasText: 'Hospital A — SIMULATED originating care team → Hospital B — SIMULATED receiving care team' })).toBeVisible();
+  const handoffTimeline = page.locator('section').filter({ has: page.getByRole('heading', { name: 'SIMULATED facility timeline', exact: true }) });
+  await expect(handoffTimeline.getByText('Unresolved obligation surfaced in the receiving view')).toBeVisible();
+  await page.getByText('Clinical evidence explorer', { exact: true }).click();
+  await page.getByLabel('Resource type').selectOption('DocumentReference');
+  const exchangeNote = page.locator('.clinical-results li').filter({ has: page.getByText('DocumentReference/demo-handoff-received-note', { exact: true }) });
+  await exchangeNote.locator('summary').click();
+  await expect(exchangeNote.getByText('SIMULATED · Hospital A', { exact: true })).toBeVisible();
+  await expect(exchangeNote.getByText(/received via simulated exchange/)).toBeVisible();
+  const handoffState = await (await page.request.get('/api/v1/simulated-handoff/patients/demo-handoff', { headers: auth })).json();
+  const receiptReplay = await (await page.request.post('/api/v1/simulated-handoff/patients/demo-handoff/receive', { headers: auth })).json();
+  expect(receiptReplay.received_at).toBe(handoffState.received_at);
+  const handoffObligation = handoffState.obligation_id;
+  const handoffResult = await (await page.request.post('/api/obligations/' + handoffObligation + '/demo-completion', { headers: auth, data: { scenario: 'verified' } })).json();
+  const handoffTask = await (await page.request.post('/api/obligations/' + handoffObligation + '/agent', { headers: auth })).json();
+  expect((await page.request.post('/api/tasks/' + handoffTask.id + '/review', { headers: { Authorization: 'Bearer ' + process.env.E2E_REVIEWER_TOKEN },
+    data: { decision: 'approve', evidence_refs: ['Observation/' + handoffResult.id], note: 'SIMULATED Hospital B reviewer inspected original evidence.' } })).ok()).toBeTruthy();
+  const beforeHandoffClose = await (await page.request.get('/api/v1/simulated-handoff/patients/demo-handoff', { headers: auth })).json();
+  expect(beforeHandoffClose.obligation_status).toBe('open');
+  expect((await page.request.post('/api/obligations/' + handoffObligation + '/close', { headers: auth })).ok()).toBeTruthy();
+  await page.goto('/passport?obligation=' + handoffObligation);
+  await expect(receivingView.getByText('Closed', { exact: true })).toBeVisible();
+  await receivingView.getByRole('button', { name: 'Receive simulated origin invalidation' }).click();
+  await expect(receivingView.getByText('Open', { exact: true })).toBeVisible();
+  await expect(receivingView.getByText('Hospital B — SIMULATED receiving care team', { exact: true })).toBeVisible();
+  const handoffReopened = await (await page.request.get('/api/v1/simulated-handoff/patients/demo-handoff', { headers: auth })).json();
+  expect(handoffReopened.obligation_status).toBe('open');
+  expect(handoffReopened.original_owner).toContain('Hospital A');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'SIMULATED handoff passport fits at 390 px').toBe(true);
+  await testInfo.attach('SIMULATED handoff proof', { body: JSON.stringify({ before: handoffState, after: handoffReopened }), contentType: 'application/json' });
+  await capture('10-simulated-handoff');
 });

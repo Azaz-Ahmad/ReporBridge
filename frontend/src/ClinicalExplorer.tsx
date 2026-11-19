@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { api } from './api';
+import { FacilityChips, type Facility } from './Handoff';
 import { Button, Empty, Feedback, Status } from './ui';
 import { label } from './types';
 
@@ -22,7 +23,7 @@ type Evidence = {
   position: number | null;
   content: string | null;
   quality: { state: string; warnings: string[] };
-  provenance: { source_system: string; authorization_role: string; resource_reference: string; evidence_id: string };
+  provenance: { source_system: string; authorization_role: string; resource_reference: string; evidence_id: string; facility?: Facility };
   normalized: { document?: { type: string; content_ref: string | null; available: boolean } };
 };
 type Page = { items: Evidence[]; next_offset: number | null; outcome: string };
@@ -90,6 +91,7 @@ export function ClinicalExplorer({ patientId, token, coordinator }: { patientId:
             </summary>
             <div className="inset">
               <p>{item.citation} · Source status {label(item.status)}</p>
+              <FacilityChips facility={item.provenance.facility} />
               <p>Clinical time {item.clinical_time ?? 'Unavailable'} · Received {item.received}</p>
               {item.quality.warnings.length > 0 && <p>Quality flags {item.quality.warnings.map(label).join(', ')}</p>}
               {item.supersedes && <p>Supersedes evidence <code>{item.supersedes}</code></p>}

@@ -306,3 +306,9 @@ a.record-link:hover { background: #f0f7f8; }
 .tsp-header { padding: 16px clamp(18px, 3vw, 42px) 0; }
 .tsp-header:has(> :empty) { display: none; }
 .tsp-header .tsp-clock { margin-bottom: 0; }
+
+.facility-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.facility-chip { display: inline-flex; border: 1px solid #c5b5df; border-radius: 16px; padding: 5px 10px; background: #f4effa; color: #543780; font-size: .8rem; }
+.facility-provenance p, .handoff-history { overflow-wrap: anywhere; }
+.handoff-history { display: grid; gap: 12px; padding-left: 22px; }
+.handoff-history small { display: block; color: var(--muted); margin-top: 5px; }
