@@ -1,0 +1,26 @@
+{
+  "id": "glycemic-assessment-pregnancy",
+  "version": "1",
+  "kind": "gestational_window",
+  "citation": "CITATION_PENDING_CLINICAL_CONFIRMATION",
+  "clinical_confirmation": "pending clinical confirmation",
+  "due_soon_days": 7,
+  "dating_conflict_threshold_days": 7,
+  "gestation_days": 280,
+  "windows": [
+    {
+      "id": "W1",
+      "label": "Early pregnancy",
+      "start": "pregnancy_registration",
+      "end_ga_day": 104,
+      "requires_carried_obligation": true
+    },
+    {
+      "id": "W2",
+      "label": "Standard",
+      "start_ga_day": 168,
+      "end_ga_day": 202,
+      "requires_carried_obligation": false
+    }
+  ]
+}

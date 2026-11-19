@@ -21,7 +21,7 @@ from app.prevention.api import router as prevention_router
 from app.prevention import service as prevention
 from app.rules import DEMO_TAG, observation
 
-app = FastAPI(title="Ajyra AI — ReproBridge", version="0.6.0",
+app = FastAPI(title="Ajyra AI â€” ReproBridge", version="0.6.0",
               description="Synthetic illustration of care coordination across a life-stage transition.")
 bearer = HTTPBearer(auto_error=False)
 
@@ -115,7 +115,7 @@ def health():
     try:
         with db.engine.connect() as connection:
             revision = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-            if revision != "0006":
+            if revision != "0007":
                 raise HTTPException(503, "Run the clinical foundation database migration.")
     except SQLAlchemyError as error:
         raise HTTPException(503, "Database or migrations unavailable") from error
