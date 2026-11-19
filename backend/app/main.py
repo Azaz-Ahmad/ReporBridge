@@ -128,7 +128,7 @@ def health():
 
 @app.get("/api/session")
 def session(role: Reader):
-    return {"role": role}
+    return {"role": role, "demo_mode": os.getenv("DEMO_MODE", "").lower() in {"true", "1", "yes"}}
 
 
 def read_snapshot(operation, *args):
@@ -164,7 +164,10 @@ def workspace_snapshot(connection, role):
 
 @app.post("/api/demo/seed")
 def seed(actor: Coordinator):
-    return {"patient_id": write(service.seed, actor)}
+    if os.getenv("REPROBRIDGE_TEST_MODE") == "true":
+        return {"patient_id": write(service.seed, actor)}
+    from app.jury import seed as jury_seed
+    return write(jury_seed, actor)
 
 
 @app.post("/api/demo/reset-amira")
@@ -283,3 +286,12 @@ def patient_bundle(connection, patient_id):
     if structure_errors(bundle):
         raise HTTPException(409, "The stored patient record cannot be exported as this FHIR R4 bundle.")
     return bundle
+
+
+@app.post("/api/demo/jury-seed")
+def jury_seed(actor: Coordinator):
+    from app.jury import seed
+    from app.prevention.tsp import demo_enabled
+    if not demo_enabled():
+        raise HTTPException(403, "Demo mode is required.")
+    return write(seed, actor)
