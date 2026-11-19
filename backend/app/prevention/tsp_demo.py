@@ -46,7 +46,7 @@ def load(connection, actor, session_id, reset=False):
     old = clinical.rows(connection, db.audit, db.audit.c.patient_id == "demo-amira",
                         db.audit.c.action == "tsp_fixture_seeded")
     if old and not reset:
-        anchor = date.fromisoformat(old[-1]["detail"]["anchor"])
+        anchor = date.fromisoformat(max(old, key=lambda event: event["sequence"])["detail"]["anchor"])
     clinical.seed(connection, actor)
     patient = {**seed_records()[0], "id": UNCERTAIN,
                "name": [{"given": ["Uncertain"], "family": "Dating Demo"}]}
@@ -84,7 +84,7 @@ def completion(connection, actor, obligation_id, session_id):
     seeded = clinical.rows(connection, db.audit, db.audit.c.patient_id == "demo-amira", db.audit.c.action == "tsp_fixture_seeded")
     if not seeded:
         fail(409, "fixture_missing", "Load the TSP fixture first.")
-    anchor = date.fromisoformat(seeded[-1]["detail"]["anchor"])
+    anchor = date.fromisoformat(max(seeded, key=lambda event: event["sequence"])["detail"]["anchor"])
     # Explicit historical synthetic result, seven days before the seed anchor. No glucose value.
     completed = anchor - timedelta(days=7)
     if completed > date.fromisoformat(tsp.clock(connection, session_id)["as_of"]):

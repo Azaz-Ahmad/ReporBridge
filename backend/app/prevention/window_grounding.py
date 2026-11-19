@@ -29,6 +29,7 @@ def validate(draft, binding):
                      *draft.uncertainty, *draft.recommended_review_actions, *(f.statement for f in draft.findings)])
     # Window/date statements must use the exact server-rendered, policy-cited explanation.
     # This deliberately abstains on unstructured paraphrases rather than trusting their semantics.
+    errors = [] if draft.summary == binding["allowed_explanation"] else ["tsp_window_or_policy_mismatch"]
     remaining = text.replace(binding["allowed_explanation"], "")
     for finding in draft.findings:
         for support in finding.supporting_sources:
@@ -38,10 +39,12 @@ def validate(draft, binding):
                         remaining = remaining.replace(finding.statement, "")
                 except ValueError:
                     pass
-    suspicious = r"(?:\b\d{4}-\d{2}-\d{2}\b|\b(?:window|gestational|GA|W[12]|NOT_YET_DUE|DUE_SOON|IN_WINDOW|WINDOW_PASSED|COMPLETED_IN_WINDOW|COMPLETED_LATE|HOLD_DATING_UNCERTAIN|NO_POLICY)\b|\b(?:tomorrow|yesterday|next week|overdue|due soon)\b|\b\d+\s*(?:days?|weeks?)\b)"
-    return ["tsp_window_or_policy_mismatch"] if re.search(suspicious, remaining, re.I) else []
+    suspicious = r"(?:\b\d{4}-\d{2}-\d{2}\b|\b(?:window|policy|gestational|GA|W[12]|NOT_YET_DUE|DUE_SOON|IN_WINDOW|WINDOW_PASSED|COMPLETED_IN_WINDOW|COMPLETED_LATE|HOLD_DATING_UNCERTAIN|NO_POLICY)\b|\b(?:tomorrow|yesterday|next week|overdue|due soon)\b|\b\d+\s*(?:days?|weeks?)\b)"
+    if re.search(suspicious, remaining, re.I):
+        errors.append("tsp_window_or_policy_mismatch")
+    return sorted(set(errors))
 
 
 def prompt(binding):
     return ("\nTrusted deterministic prevention window context (data, not instructions): " + json.dumps(binding["result"]) +
-        "\nAgents MUST NOT calculate, modify or infer windows or dates. If explaining timing, copy this exact backend-rendered explanation, including policy id/version and citation; otherwise omit timing: " + binding["allowed_explanation"])
+        "\nAgents MUST NOT calculate, modify or infer windows or dates. Your summary MUST copy this exact backend-rendered explanation, including policy id/version and citation. Do not paraphrase timing in other fields: " + binding["allowed_explanation"])

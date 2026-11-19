@@ -12,6 +12,9 @@ def default_policy():
 
 def calculate(policy, *, due_date, registered_on, as_of, carried_obligation=False,
               completion_dates=(), inputs=(), missing_evidence=()):
+    dates = [as_of, *completion_dates, *([due_date] if due_date else []), *([registered_on] if registered_on else [])]
+    if any(type(value) is not date for value in dates):
+        raise ValueError("Window calculator accepts calendar dates only.")
     result = {"status": "NO_POLICY", "as_of": as_of.isoformat(), "timezone": "Asia/Dubai",
               "policy_id": policy.get("id") if policy else None,
               "policy_version": policy.get("version") if policy else None,
@@ -64,7 +67,8 @@ def resolve_dating(policy, sources):
         if not modality:
             continue
         if (item.get("quality", {}).get("state") != "valid" or resource.get("status") != "final"
-                or resource.get("modifierExtension") or resource.get("dataAbsentReason")):
+                or resource.get("modifierExtension") or resource.get("dataAbsentReason")
+                or resource.get("component") or len(resource.get("code", {}).get("coding", [])) != 1):
             missing.append("Unqualified dating source: " + item["id"])
             continue
         try:
@@ -82,4 +86,4 @@ def resolve_dating(policy, sources):
         missing.append("Dating sources differ by more than the policy threshold")
     # No modality is declared clinically authoritative; expose conservative selection for review.
     return {"due_date": min(dates) if dates and not missing else None, "inputs": accepted,
-            "missing_evidence": missing, "selection": "earliest EDD within policy tolerance"}
+            "missing_evidence": missing, "selection": policy["dating_selection"]}

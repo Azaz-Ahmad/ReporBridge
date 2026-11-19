@@ -55,8 +55,8 @@ def patient_window(connection, actor, patient_id, session_id=None, as_of=None):
     sources = [{**retrieval.result(row, *metadata).model_dump(mode="json"), "resource": row["resource"]}
                for row in rows if row["id"] not in metadata[0]]
     dating = resolve_dating(policy, sources) if policy else {"due_date": None, "inputs": [], "missing_evidence": []}
-    registrations = [item for item in sources if any(c.get("code") == "pregnancy-registration"
-        for c in item["resource"].get("code", {}).get("coding", [])) and item["quality"]["state"] == "valid"]
+    registrations = [item for item in sources if clinical.matches(item["resource"], "pregnancy-registration", "registered")
+                     and item["quality"]["state"] == "valid"]
     registered = None
     if registrations:
         try:
@@ -90,10 +90,15 @@ def patient_window(connection, actor, patient_id, session_id=None, as_of=None):
                 completion_dates.append(completed_on)
                 completion_inputs.append({"source_id": source["id"], "version": source["version"],
                     "digest": source["digest"], "evidence_date": completed_on.isoformat()})
+    registration_inputs = [{"source_id": item["id"], "version": item["version"], "digest": item["digest"],
+                            "modality": "registration", "source_date": day(item["resource"]["effectiveDateTime"]).isoformat(),
+                            "due_date": None} for item in registrations if registered]
     result = calculate(policy, due_date=dating["due_date"], registered_on=registered,
-        as_of=projection_date, carried_obligation=carried, completion_dates=completion_dates, inputs=dating["inputs"], missing_evidence=missing)
+        as_of=projection_date, carried_obligation=carried, completion_dates=completion_dates, inputs=[*dating["inputs"], *registration_inputs], missing_evidence=missing)
     result.update(patient_id=patient_id, clock=current, dating_selection=dating.get("selection"),
-                  obligation_ids=[item["id"] for item in obligations], completion_inputs=completion_inputs,
+                  obligation_ids=[item["id"] for item in obligations],
+                  obligation_inputs=[{key: item[key] for key in ("id", "source_id", "rule_key", "status")} for item in obligations],
+                  completion_inputs=completion_inputs,
                   completion_verified=bool(obligations) and all(item["status"] == "closed" for item in obligations))
     return result
 

@@ -104,12 +104,13 @@ export function App() {
       <div className="rail-note"><Network size={18} /><span>HealthX Ajyal Hackathon<small>22 November 2026</small></span></div>
     </aside>
     <div className="content">
-      <header className="topbar"><span className="demo-mark"><ShieldCheck size={17} /> SYNTHETIC DATA — DEMONSTRATION ONLY</span>
+      <header className="app-header"><div className="topbar"><span className="demo-mark"><ShieldCheck size={17} /> SYNTHETIC DATA — DEMONSTRATION ONLY</span>
         <div><span className="role">{role ? label(role) : 'Connecting'}</span>
           <button className="icon-button" type="button" title="Sign out" aria-label="Sign out" onClick={signOut}><LogOut size={18} /></button></div>
+      </div>
+        {role && <div className="tsp-header"><DemoClock token={token} role={role} /></div>}
       </header>
       <main>
-        {role && <DemoClock token={token} role={role} />}
         {feedback && <Feedback {...feedback} />}
         {snapshot.error ? <Feedback message={snapshot.error.message} error /> : !props ? <p role="status">Loading workspace…</p> :
           <Routes>

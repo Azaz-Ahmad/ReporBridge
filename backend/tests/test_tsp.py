@@ -177,3 +177,57 @@ def test_seed_idempotence_clock_reset_and_fixture_reopen(client,monkeypatch):
     assert reset.json()["clock"]["as_of"]=="2026-11-22"
     assert client(base+"/patients/demo-amira/window",method="GET").json()["status"]=="IN_WINDOW"
     assert client(base+"/demo/reset").status_code==200
+
+
+
+def test_date_only_and_dubai_calendar():
+    from datetime import datetime
+    from app.prevention.tsp import day
+    assert day("2026-11-22T22:30:00+00:00")==date(2026,11,23)
+    with pytest.raises(ValueError,match="calendar dates only"):
+        calculate(default_policy(),due_date=ORIGIN,registered_on=REGISTERED,as_of=datetime(2026,11,22))
+
+
+def test_session_isolation_and_policy_retirement(client,monkeypatch):
+    monkeypatch.setenv("DEMO_MODE","true")
+    assert client("/v1/tsp/demo/seed").status_code==200
+    from app.prevention.tsp import clock
+    with db.engine.begin() as connection:
+        assert clock(connection,"a"*32,date(2027,1,27))["as_of"]=="2027-01-27"
+        assert clock(connection,"b"*32)["as_of"]=="2026-11-22"
+        assert clock(connection,"a"*32)["as_of"]=="2027-01-27"
+    result=client("/v1/tsp/patients/demo-amira/window",method="GET").json()
+    assert any(item["modality"]=="registration" for item in result["inputs_used"])
+    assert result["obligation_inputs"]
+    assert client("/v1/prevention/policies/glycemic-assessment-pregnancy/state",body={"status":"retired"}).status_code==200
+    assert client("/v1/tsp/patients/demo-amira/window",method="GET").json()["status"]=="NO_POLICY"
+
+
+def test_dating_correction_recomputes_and_preserves_versions(client,monkeypatch):
+    from datetime import datetime, UTC
+    from app.prevention.tsp_demo import dating_resources
+    monkeypatch.setenv("DEMO_MODE","true")
+    assert client("/v1/tsp/demo/seed").status_code==200
+    record=dating_resources("demo-amira",date(2026,11,22))[1]
+    original=record["valueDateTime"]
+    record["valueDateTime"]=(date.fromisoformat(original)+timedelta(days=8)).isoformat()
+    response=ingest(client,record,"tsp-dating-conflict",version=2,source="synthetic-tsp",event_time=datetime.now(UTC).isoformat())
+    assert response.status_code==200,response.text
+    result=client("/v1/tsp/patients/demo-amira/window",method="GET").json()
+    assert result["status"]=="HOLD_DATING_UNCERTAIN" and not result["windows"]
+    record["valueDateTime"]=original
+    assert ingest(client,record,"tsp-dating-agree",version=3,source="synthetic-tsp",event_time=datetime.now(UTC).isoformat()).status_code==200
+    result=client("/v1/tsp/patients/demo-amira/window",method="GET").json()
+    assert result["status"]=="IN_WINDOW"
+    assert next(x for x in result["inputs_used"] if x.get("modality")=="ultrasound")["version"]==3
+
+
+@pytest.mark.parametrize("change", ["policy", "date", "status"])
+def test_window_explanation_is_exactly_policy_bound(change):
+    from app.investigation.contracts import Draft
+    from app.prevention.window_grounding import validate
+    result=run(100)
+    expected=explanation(result)
+    text=expected.replace("version 1", "version 9") if change=="policy" else expected.replace(result["windows"][0]["window_end"],"2027-01-01") if change=="date" else expected.replace("IN_WINDOW","WINDOW_PASSED")
+    draft=Draft(summary=text,findings=[],missing_information=[],conflicting_evidence=[],uncertainty=[],recommended_review_actions=[],abstained=True,scope="evidence_review")
+    assert validate(draft,{"allowed_explanation":expected})==["tsp_window_or_policy_mismatch"]

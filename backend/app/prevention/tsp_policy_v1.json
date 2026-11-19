@@ -22,5 +22,6 @@
       "end_ga_day": 202,
       "requires_carried_obligation": false
     }
-  ]
+  ],
+  "dating_selection": "earliest_edd_within_tolerance"
 }

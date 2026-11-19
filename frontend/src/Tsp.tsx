@@ -9,7 +9,7 @@ type Clock = { demo_mode: boolean; as_of: string; label: string; timezone: strin
 export type WindowResult = { patient_id: string; status: string; as_of: string; policy_id: string | null;
   policy_version: string | null; citation: string; clinical_confirmation: string;
   window_start: string | null; window_end: string | null; active_window?: string;
-  clock: Clock; inputs_used: { source_id: string; version: string; source_date: string; due_date: string }[];
+  clock: Clock; inputs_used: { source_id: string; version: string; source_date: string; due_date: string | null }[];
   missing_evidence: string[]; reviewer_questions: string[]; obligation_ids: string[];
   windows: { id: string; label: string; status: string; window_start: string; window_end: string; completion_date: string | null }[];
   completion_verified: boolean };
@@ -81,7 +81,7 @@ export function TspWindow({ token, patientId, timeline = false, role }: { token:
         <p><time>{window.window_start}</time> – <time>{window.window_end}</time> (inclusive)</p>
         {window.completion_date && <p>Qualifying evidence date: {window.completion_date}. {item.completion_verified ? 'Closure verified through existing gates.' : 'Evidence presence does not close an obligation.'}</p>}
       </li>)}</ol> : <p>No established window</p>}
-      {!timeline && <><h3>Inputs used</h3>{item.inputs_used.map((input) => <p key={input.source_id}>{input.source_id} · version {input.version} · source {input.source_date} · EDD {input.due_date}</p>)}
+      {!timeline && <><h3>Inputs used</h3>{item.inputs_used.map((input) => <p key={input.source_id}>{input.source_id} · version {input.version} · source {input.source_date} {input.due_date ? `· EDD ${input.due_date}` : '· registration date'}</p>)}
         <h3>Missing evidence / reason for review</h3>{!item.missing_evidence.length && <p>No dating evidence gaps. Clinician review and approval remain required.</p>}
         {item.missing_evidence.map((message) => <p key={message}>{message}</p>)}
         {item.reviewer_questions.map((question) => <p key={question}>{question}</p>)}</>}

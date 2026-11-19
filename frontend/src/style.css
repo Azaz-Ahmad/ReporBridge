@@ -302,3 +302,7 @@ a.record-link:hover { background: #f0f7f8; }
 .tsp-windows { display: grid; gap: 12px; padding-left: 22px; }
 .tsp-citation { overflow-wrap: anywhere; font-size: .8rem; }
 @media (max-width: 600px) { .tsp-clock form { align-items: stretch; flex-direction: column; } }
+
+.tsp-header { padding: 16px clamp(18px, 3vw, 42px) 0; }
+.tsp-header:has(> :empty) { display: none; }
+.tsp-header .tsp-clock { margin-bottom: 0; }
