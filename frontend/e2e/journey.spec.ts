@@ -83,6 +83,9 @@ test('completes the patient journey through all five screens', async ({ page }, 
   await page.getByRole('link', { name: 'Open review queue' }).click();
   await expect(page.getByRole('heading', { name: 'Clinical Evidence Investigation' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Decision Readiness Investigation' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Multi-Agent Clinical Intelligence' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Run Multi-Agent Investigation' })).toBeDisabled();
+  await expect(page.getByText('No multi-agent investigations recorded for this selection.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Run Decision Readiness Investigation' })).toBeDisabled();
   await expect(page.locator('section').filter({ has: page.getByRole('heading', { name: 'Clinical Evidence Investigation', exact: true }) })
     .getByText('AI-generated evidence summary — requires clinical review.')).toBeVisible();

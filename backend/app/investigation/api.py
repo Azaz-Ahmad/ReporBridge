@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app import db
 from app.investigation import service
 from app.investigation.contracts import Review, RunRequest
+from app.multi.contracts import MultiRequest
 
 
 def router(Reader, Coordinator, Reviewer, write):
@@ -15,6 +16,11 @@ def router(Reader, Coordinator, Reviewer, write):
     @api.post("/runs")
     def create(request: RunRequest, actor: Coordinator):
         return service.run_investigation(actor, request, write)
+
+    @api.post("/runs/multi-agent")
+    def create_multi(request: MultiRequest, actor: Coordinator):
+        from app.multi.engine import run_investigation
+        return run_investigation(actor, request, write)
 
     @api.get("/runs")
     def list_runs(patient_id: str, actor: Reader):
@@ -29,7 +35,7 @@ def router(Reader, Coordinator, Reviewer, write):
     def trace(run_id: str, actor: Reader):
         run = write(service.fetch, actor, run_id)
         return {key: run["detail"].get(key) for key in
-                ("trace", "tool_history", "model_history", "evidence_references", "usage", "duration_ms", "error", "validation")}
+                ("trace", "tool_history", "model_history", "evidence_references", "usage", "duration_ms", "error", "validation", "multi_agent", "denied_tool_requests")}
 
     @api.get("/runs/{run_id}/review-packet")
     def packet(run_id: str, actor: Reader):

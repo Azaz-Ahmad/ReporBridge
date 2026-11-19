@@ -1,0 +1,7 @@
+# Backend tool permissions
+
+A01 retains seven read-only M08 interfaces: get_patient_clinical_context, search_patient_observations, search_patient_encounters, search_patient_documents, get_evidence_provenance, check_evidence_quality, get_related_obligations. The existing ClinicalTools implementation and authorization boundary are unchanged. Scope is server-owned and canonical-synthetic-only. Each actual request and cache reuse checks access; final validation rechecks ownership, source versions/digests/quality and the source fingerprint.
+
+A02, A03 and A04 have empty callable tool allowlists. This deliberately narrower configuration uses source-projected evidence already retrieved through A01 and backend-authorized decision/prerequisite reads. It prevents independent repeated retrieval and gives specialists no mutation or network capability. They may cite only the supplied inventory; unavailable context requires abstention. Future specialist retrieval would require an explicit reviewed allowlist, backend adapter and new tests.
+
+No agent has diagnosis, prescribing, policy creation, decision recording, approval or closure tools. Administrative actions are text proposals only. The existing role-scoped clinical workflows must perform any real action. Summary approval cannot record a PreventionDecision outcome or close an obligation. The coordinator starts/submits runs; an authorized reviewer records summary review. Every endpoint scopes access to the run patient. Missing provider configuration returns 503 and never selects a mock.

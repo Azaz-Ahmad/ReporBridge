@@ -2,7 +2,7 @@
 import os
 import time
 from dataclasses import dataclass, field
-from typing import Protocol
+from typing import Protocol, Literal
 from urllib.parse import urlsplit
 
 import openai
@@ -22,6 +22,7 @@ class Settings(BaseModel):
     max_tools: int = Field(default=8, ge=1, le=16)
     max_steps: int = Field(default=6, ge=2, le=10)
     max_seconds: int = 180
+    reasoning_effort: Literal['minimal', 'low', 'medium', 'high'] | None = None
 
     @field_validator("base_url", mode="before")
     @classmethod
@@ -55,7 +56,8 @@ def configuration():
             timeout=os.getenv("OPENAI_TIMEOUT_SECONDS", "30"),
             output_tokens=os.getenv("OPENAI_MAX_OUTPUT_TOKENS", "2400"),
             max_tools=os.getenv("OPENAI_MAX_TOOL_CALLS", "8"),
-            max_steps=os.getenv("OPENAI_MAX_AGENT_STEPS", "6"))
+            max_steps=os.getenv("OPENAI_MAX_AGENT_STEPS", "6"),
+            reasoning_effort=os.getenv("OPENAI_REASONING_EFFORT") or None)
     except ValidationError:
         return Settings(), "invalid_configuration"
     if os.getenv("CLINICAL_EVIDENCE_AGENT_ENABLED", "false").lower() != "true":
@@ -132,7 +134,13 @@ class OpenAIProvider:
         self.client.close()
 
     def invoke(self, messages, tools, final=False):
-        for attempt in range(2):
+        return self._invoke(messages, tools, final, Draft)
+
+    def invoke_structured(self, messages, contract):
+        return self._invoke(messages, [], True, contract)
+
+    def _invoke(self, messages, tools, final, contract):
+        for attempt in range(getattr(self, 'retry_attempts', 2)):
             try:
                 response = self.client.responses.create(
                     model=self.settings.model, input=messages, store=False,
@@ -141,8 +149,9 @@ class OpenAIProvider:
                     tools=tools,
                     tool_choice="none" if final else "auto",
                     parallel_tool_calls=False,
-                    text={"format": {"type": "json_schema", "name": "ClinicalEvidenceDraft",
-                                     "strict": True, "schema": provider_schema(strict_schema(Draft.model_json_schema()),
+                    **({'reasoning': {'effort': self.settings.reasoning_effort}} if self.settings.reasoning_effort else {}),
+                    text={"format": {"type": "json_schema", "name": contract.__name__,
+                                     "strict": True, "schema": provider_schema(strict_schema(contract.model_json_schema()),
                                                                self.settings.schema_profile)}})
                 if response.status != "completed":
                     raise ProviderFailure("incomplete_response", attempt, response.usage,
@@ -158,7 +167,7 @@ class OpenAIProvider:
                 draft = None
                 if not calls:
                     try:
-                        draft = Draft.model_validate_json(response.output_text)
+                        draft = contract.model_validate_json(response.output_text)
                     except (ValueError, ValidationError):
                         raise ProviderFailure("malformed_output", attempt, response.usage,
                                               model_name=response.model, response_id=response.id) from None
@@ -168,7 +177,7 @@ class OpenAIProvider:
                             usage_complete=bool(usage) and attempt == 0,
                             model_name=response.model, response_id=response.id)
             except (openai.RateLimitError, openai.InternalServerError) as error:
-                if attempt:
+                if attempt + 1 >= getattr(self, 'retry_attempts', 2):
                     raise ProviderFailure("rate_limit_or_provider_unavailable", attempt,
                                           http_status=error.status_code) from None
                 time.sleep(0.25)

@@ -39,6 +39,7 @@ class InvestigationState(TypedDict, total=False):
     messages: list[dict]
     calls: list[dict]
     tool_history: list[dict]
+    denied_tool_requests: list[dict]
     model_history: list[dict]
     evidence: list[dict]
     draft: object
@@ -51,7 +52,8 @@ class InvestigationState(TypedDict, total=False):
     trace: list[str]
 
 
-def build(provider, settings, run, context, persist, initial_fingerprint):
+def build(provider, settings, run, context, persist, initial_fingerprint, executor=None, finalize_on_budget=False):
+    execute = executor or tooling.execute
     start = time.perf_counter()
 
     def checkpoint(state, node, **updates):
@@ -103,17 +105,23 @@ def build(provider, settings, run, context, persist, initial_fingerprint):
 
     def authorized_tools(state):
         history = list(state["tool_history"])
+        denials = list(state.get("denied_tool_requests", []))
         evidence = list(state["evidence"])
         messages = list(state["messages"])
         error = state.get("error")
         for call in state["calls"]:
             if len(history) >= settings.max_tools:
+                if finalize_on_budget:
+                    denials.append({"name": call["name"], "call_id": call["call_id"], "reason": "tool_budget_not_executed"})
+                    messages.append({"type": "function_call_output", "call_id": call["call_id"],
+                                     "output": json.dumps({"error": {"code": "tool_budget_not_executed"}})})
+                    continue
                 error = "tool_budget_exhausted"
                 break
             if call.get("call_id") in {item["call_id"] for item in history}:
                 error = "duplicate_tool_call"
                 break
-            result, records, metadata = tooling.execute(context, call)
+            result, records, metadata = execute(context, call)
             history.append(metadata)
             evidence.extend(records)
             messages.append({"type": "function_call_output", "call_id": call["call_id"],
@@ -121,7 +129,7 @@ def build(provider, settings, run, context, persist, initial_fingerprint):
         if state["steps"] >= settings.max_steps:
             error = "step_budget_exhausted"
         return checkpoint(state, "authorized_tools", tool_history=history, evidence=evidence,
-                          messages=messages, calls=[], error=error)
+                          messages=messages, calls=[], error=error, denied_tool_requests=denials)
 
     def validate_grounding(state):
         errors = []

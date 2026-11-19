@@ -34,7 +34,7 @@ export function ClinicalInvestigation({ patientId, token, role, decisionId }: {
   const runs = useQuery({ queryKey: ['evidence-runs', token, patientId, decisionId],
     queryFn: () => api<Run[]>(token, decisionId ? '/v1/prevention/decisions/' + decisionId + '/investigations'
       : base + '/runs?patient_id=' + encodeURIComponent(patientId))
-      .then((items) => decisionId ? items : items.filter((item) => !item.detail.decision_context)),
+      .then((items) => (decisionId ? items : items.filter((item) => !item.detail.decision_context)).filter(item => (item.detail as { workflow?: string }).workflow !== 'multi_agent')),
     refetchInterval: (query) => query.state.data?.some((run) => run.status === 'running') ? 2000 : false });
   const run = runs.data?.find((item) => item.id === selected) ?? runs.data?.[0];
   const investigation = useMutation({

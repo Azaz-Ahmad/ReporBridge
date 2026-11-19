@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from './api';
 import { ClinicalInvestigation } from './ClinicalInvestigation';
+import { MultiAgent } from './MultiAgent';
 import { Button, Empty, Feedback, Panel, Status } from './ui';
 import { label, moment, type Role } from './types';
 
@@ -212,6 +213,7 @@ export function DecisionReadiness({ token, role, patientId }: Props & { patientI
         {data.error && <Feedback message={data.error.message} error />}
       </div>
     </Panel>
+    {decision && !['decided', 'cancelled'].includes(decision.status) && <MultiAgent key={decision.id + '-multi'} decisionId={decision.id} patientId={patientId} token={token} role={role} />}
     {decision && !['decided', 'cancelled'].includes(decision.status) &&
       <ClinicalInvestigation key={decision.id} decisionId={decision.id} patientId={patientId} token={token} role={role} />}
   </>;

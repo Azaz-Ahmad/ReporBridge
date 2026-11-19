@@ -37,14 +37,15 @@ def get(connection, actor, run_id):
     return result
 
 
-def reserve(connection, actor, request, settings, availability, binding=None):
+def reserve(connection, actor, request, settings, availability, binding=None, workflow='single_agent'):
     context = authorize(connection, actor, request.patient_id)
     tooling.synthetic_scope(connection, context)
     existing = connection.execute(select(runs).where(
         runs.c.actor == actor, runs.c.patient_id == request.patient_id,
         runs.c.request_id == request.request_id)).mappings().first()
     fingerprint = digest({"patient_id": request.patient_id, "question": request.question,
-                          **({"decision_context": binding} if binding else {})})
+                          **({"decision_context": binding} if binding else {}),
+                          **({"workflow": workflow} if workflow != "single_agent" else {})})
     if existing:
         if existing["fingerprint"] != fingerprint:
             fail(409, "idempotency_conflict", "Request ID already belongs to a different question.")
@@ -61,7 +62,7 @@ def reserve(connection, actor, request, settings, availability, binding=None):
                       "usage": {"model_calls": 0, "input_tokens": 0, "output_tokens": 0,
                                 "retries": 0, "usage_complete": True}, "duration_ms": 0,
                       "submitted": False, "source_snapshot": tooling.fingerprint(connection, context),
-                      "decision_context": binding}}
+                      "decision_context": binding, "workflow": workflow}}
     connection.execute(runs.insert().values(**run))
     audit_access(connection, context, "investigation_started")
     return run, True, tooling.fingerprint(connection, context)
@@ -74,6 +75,7 @@ def save(connection, actor, run_id, state, elapsed):
     detail = {**run["detail"], "trace": state.get("trace", []),
               "tool_history": state.get("tool_history", []),
               "model_history": state.get("model_history", []),
+              "denied_tool_requests": state.get("denied_tool_requests", []),
               "usage": state.get("usage", run["detail"]["usage"]),
               "error": state.get("error"), "duration_ms": elapsed,
               "validation": state.get("validation"),
@@ -154,6 +156,11 @@ def sources_current(connection, actor, run):
     scope = authorize(connection, actor, run["patient_id"])
     tooling.synthetic_scope(connection, scope)
     retrieval = tooling.ClinicalTools(connection, scope).retrieval
+    binding = run["detail"].get("decision_context")
+    if binding:
+        from app.prevention.service import validate_binding
+        if not validate_binding(connection, binding):
+            fail(409, "stale_review_packet", "Decision context changed. Start a fresh investigation.")
     if tooling.fingerprint(connection, scope) != run["detail"]["source_snapshot"]:
         fail(409, "stale_review_packet", "Evidence changed. Start a fresh investigation.")
     for item in run["detail"]["evidence_references"]:
@@ -188,7 +195,8 @@ def review(connection, actor, run_id, request):
     sources_current(connection, actor, run)
     packet = run["detail"]["packet"]
     if request.decision == "approve_summary" and (packet["origin"] != "model"
-            or packet["grounding_status"] == "validation_failed"):
+            or packet["grounding_status"] == "validation_failed"
+            or packet.get("packet_complete") is False):
         fail(409, "summary_unapprovable", "This abstention or failed validation requires evidence follow-up.")
     connection.execute(reviews.insert().values(run_id=run_id, actor=actor, recorded=now(),
                                                decision=request.decision, note=request.note))

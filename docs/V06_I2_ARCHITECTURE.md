@@ -1,0 +1,15 @@
+# Multi-agent clinical intelligence
+
+A separate bounded LangGraph supervisor composes the original six-node A01 graph. Nodes: validate_request, supervisor_planning, clinical_evidence_investigation, specialist_agent_routing, A02, A03, A04, deterministic_grounding_validation, unified_clinical_review_packet, human_review_queue. Conditional edges skip unnecessary specialists. A02/A03/A04 make independent real Responses calls with distinct contracts and instructions. No extra model call is spent on routing or packet formatting.
+
+A01 alone selects the seven authorized M08 tools. Request-local caching reuses identical normalized requests, scoped by role/patient/tool/arguments. Actual executions and cache hits are distinguished. Excess model tool requests receive explicit non-execution output and are recorded separately. There is no unrestricted SQL/HTTP model tool.
+
+Shared evidence has IDs, versions, hashes, source/event/ingestion time, normalized values, correction lineage, quality, citations and up to 600 characters of retrieved text per record. Sixteen records and 24,000 shared characters are the limits. Selection prioritizes configured prerequisite sources and correction/conflict records. Original retrieved evidence remains in memory for validation; summaries never replace it. Prompts have a 48,000-character ceiling. Truncation forces abstention and a partial packet.
+
+Only validated output crosses a handoff. Specialists receive A01 validation status and evidence references, never another agent's free instructions or an unsupported narrative. Specialist findings are checked against original retrieved sources. Patient/run/task/model/validation/execution envelopes are backend-owned. The final packet uses validated findings and deterministic prerequisite/timing data; its narrative remains interpretation.
+
+The existing clinical_investigation_runs.detail JSON stores the versioned multi-agent envelope, routing, each agent's findings/state/errors, tool/model/usage metadata and packet. Existing review rows store immutable human summary review. No new tables or migration are necessary; Alembic head remains 0006 and its five prevention tables are unchanged. Transient full messages and raw clinical documents are not persisted.
+
+POST /api/v1/agents/clinical-evidence/runs/multi-agent accepts the strict original request plus optional decision_id. Existing list/status/get/trace/review-packet/submit/review endpoints serve both modes with patient authorization. Trace now includes multi_agent and denied_tool_requests. Original single-agent creation remains available and is never an automatic fallback. Mode is part of request idempotency; replay across modes conflicts.
+
+References consulted: [LangGraph conditional edges](https://reference.langchain.com/python/langgraph/graph/state/StateGraph/add_conditional_edges), [OpenRouter stateless Responses](https://openrouter.ai/docs/api_reference/responses/overview). Local contracts and actual provider runs determine compatibility.

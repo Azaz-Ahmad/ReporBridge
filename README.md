@@ -97,3 +97,11 @@ See [implementation report](docs/V05_S2_IMPLEMENTATION_REPORT.md), [OpenAI confi
 The five existing screens now show persisted prevention decisions, source prerequisites, clinician review, deterministic illustrative timing and decision history. Amira has no invented deadline. A separate synthetic timing scenario demonstrates due-soon and overdue status. The existing evidence agent performs decision-bound investigations through the same seven authorized tools.
 
 See [v0.6 implementation](docs/V06_IMPLEMENTATION_REPORT.md), [decision contracts](docs/V06_DECISION_DATA_CONTRACT.md), [timing policy](docs/V06_TIMING_POLICY.md), [tests](docs/V06_TEST_REPORT.md) and [demonstration](docs/V06_DEMO_SCRIPT.md).
+
+### v0.6 Increment 2 — Multi-Agent Clinical Intelligence
+
+Care-Resolution Center now provides a bounded supervisor, the preserved Clinical Evidence Agent and three real model-backed specialists for reconciliation, context and evidence gaps. Select an authorized prevention decision, attest synthetic data, run the investigation, inspect actual agent/tool traces and submit its unified packet for human summary review. Clinical decisions, timing policies and obligation closure retain their existing authorized workflows.
+
+The explicit single-agent workflow remains available. Multi-agent output defaults to 4,000 tokens per call and low reasoning effort; effective settings and requested/reported models are persisted. See `.env.example` and `docs/V06_I2_IMPLEMENTATION_REPORT.md`. Alembic head remains `0006`; existing run/review JSON stores versioned specialist traces without new tables.
+
+Run `scripts/Test-Demo.ps1 -PostgreSQL` for regression checks. `python scripts/evaluate_multi_agent.py` runs labeled synthetic test doubles; `python scripts/verify_multi_agent_live.py` performs real paid synthetic OpenRouter comparisons with the configured model. Live verification never falls back to mocks. Detailed results, earlier failures and comparison limitations are in `docs/V06_I2_EVALUATION_REPORT.md` and `docs/V06_I2_LIVE_MODEL_VERIFICATION.md`.
