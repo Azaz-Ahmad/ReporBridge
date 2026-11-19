@@ -24,3 +24,31 @@ def test_completion_and_policy():
     assert run(202, completion_dates=[ORIGIN+timedelta(days=202)])["status"] == "COMPLETED_IN_WINDOW"
     assert calculate(None, due_date=None, registered_on=None, as_of=ORIGIN)["status"] == "NO_POLICY"
     assert run(100)["citation"] == "CITATION_PENDING_CLINICAL_CONFIRMATION"
+
+
+from app.prevention.window import resolve_dating
+
+
+def dating(kind, day, version="1"):
+    return {"id": kind, "version": version, "digest": "synthetic", "quality": {"state": "valid"},
+        "resource": {"resourceType": "Observation", "status": "final", "code": {"coding": [{"code": kind}]},
+                     "valueDateTime": day.isoformat()}}
+
+
+@pytest.mark.parametrize("difference,held", [(0,False),(7,False),(8,True)])
+def test_dating_agreement_and_conflict(difference, held):
+    policy=default_policy()
+    sources=[dating("tsp-lmp",ORIGIN),dating("tsp-ultrasound-edd",ORIGIN+timedelta(days=280+difference),"2")]
+    resolved=resolve_dating(policy,sources)
+    result=calculate(policy,due_date=resolved["due_date"],registered_on=REGISTERED,as_of=REGISTERED,
+                     inputs=resolved["inputs"],missing_evidence=resolved["missing_evidence"])
+    assert (result["status"]=="HOLD_DATING_UNCERTAIN") is held
+    assert result["inputs_used"][1]["version"]=="2"
+    if held:
+        assert result["windows"]==[] and result["window_start"] is None and result["reviewer_questions"]
+
+
+def test_missing_and_invalid_dating():
+    assert resolve_dating(default_policy(),[])["due_date"] is None
+    item=dating("tsp-lmp",ORIGIN); item["quality"]["state"]="superseded"
+    assert resolve_dating(default_policy(),[item])["due_date"] is None

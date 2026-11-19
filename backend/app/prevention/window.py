@@ -52,3 +52,34 @@ def calculate(policy, *, due_date, registered_on, as_of, carried_obligation=Fals
     if active:
         result.update({key: active[key] for key in ("status", "window_start", "window_end")}, active_window=active["id"])
     return result
+
+
+def resolve_dating(policy, sources):
+    """Resolve verified, versioned synthetic LMP/ultrasound resources; no model estimates."""
+    accepted, missing = [], []
+    for item in sources:
+        resource = item["resource"]
+        codes = {c.get("code") for c in resource.get("code", {}).get("coding", [])}
+        modality = "lmp" if "tsp-lmp" in codes else "ultrasound" if "tsp-ultrasound-edd" in codes else None
+        if not modality:
+            continue
+        if (item.get("quality", {}).get("state") != "valid" or resource.get("status") != "final"
+                or resource.get("modifierExtension") or resource.get("dataAbsentReason")):
+            missing.append("Unqualified dating source: " + item["id"])
+            continue
+        try:
+            raw = date.fromisoformat(resource["valueDateTime"])
+        except (KeyError, ValueError, TypeError):
+            missing.append("Invalid dating date: " + item["id"])
+            continue
+        due = raw + timedelta(days=policy["gestation_days"]) if modality == "lmp" else raw
+        accepted.append({"source_id": item["id"], "version": item["version"], "digest": item.get("digest"),
+                         "modality": modality, "source_date": raw.isoformat(), "due_date": due.isoformat()})
+    if not accepted:
+        missing.append("Pregnancy dating evidence")
+    dates = [date.fromisoformat(item["due_date"]) for item in accepted]
+    if dates and (max(dates)-min(dates)).days > policy["dating_conflict_threshold_days"]:
+        missing.append("Dating sources differ by more than the policy threshold")
+    # No modality is declared clinically authoritative; expose conservative selection for review.
+    return {"due_date": min(dates) if dates and not missing else None, "inputs": accepted,
+            "missing_evidence": missing, "selection": "earliest EDD within policy tolerance"}
