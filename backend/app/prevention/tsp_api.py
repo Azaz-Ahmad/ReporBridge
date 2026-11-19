@@ -52,4 +52,24 @@ def router(Reader, Coordinator, write):
             question="Review synthetic source evidence and explain the backend-computed prevention result for clinician review.",
             request_id="tsp-" + body.request_id, synthetic_only=True), write, trusted_window=binding)
 
+    @api.post("/demo/seed")
+    def seed(request: Request, response: Response, actor: Coordinator):
+        from app.prevention.tsp_demo import load
+        return write(load, actor, session(request, response))
+
+    @api.post("/demo/reset")
+    def reset(request: Request, response: Response, actor: Coordinator):
+        from app.prevention.tsp_demo import load
+        return write(load, actor, session(request, response), True)
+
+    @api.post("/demo/obligations/{obligation_id}/completion")
+    def completion(obligation_id: str, request: Request, response: Response, actor: Coordinator):
+        from app.prevention.tsp_demo import completion
+        return write(completion, actor, obligation_id, session(request, response))
+
+    @api.post("/demo/obligations/{obligation_id}/invalidate")
+    def invalidate(obligation_id: str, actor: Coordinator):
+        from app.prevention.tsp_demo import invalidate
+        return write(invalidate, actor, obligation_id)
+
     return api

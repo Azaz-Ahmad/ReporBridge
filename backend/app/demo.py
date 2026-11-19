@@ -40,6 +40,10 @@ def reset_amira(connection, actor):
 
     evidence = service.rows(connection, db.evidence, db.evidence.c.patient_id == patient_id)
     _, legacy_initial = seed_records(legacy=True)
+    from app.prevention.tsp_demo import allowed_completion
+    for row in evidence:
+        if allowed_completion(connection, row["resource"]):
+            allowed[row["id"]] = row["resource"]
     if any(allowed.get(row["id"]) != row["resource"] and row["resource"] != legacy_initial for row in evidence):
         raise HTTPException(409, "Amira has imported evidence outside the reset fixture. Her records were preserved.")
 

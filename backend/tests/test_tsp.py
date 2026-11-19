@@ -150,3 +150,30 @@ def test_presence_dates_approval_closure_and_invalidation(client,monkeypatch,com
     result=client("/v1/tsp/patients/demo-amira/window",method="GET").json()
     assert not result["completion_verified"] and result["windows"][0]["status"]=="WINDOW_PASSED"
     assert close(client,obligation).status_code==409
+
+
+
+def test_seed_idempotence_clock_reset_and_fixture_reopen(client,monkeypatch):
+    monkeypatch.setenv("DEMO_MODE","true")
+    base="/v1/tsp"
+    assert client(base+"/demo/seed",role="viewer").status_code==403
+    seeded=client(base+"/demo/seed");assert seeded.status_code==200,seeded.text
+    initial=client(base+"/patients/demo-amira/window",method="GET").json()
+    assert initial["status"]=="IN_WINDOW",initial
+    held=client(base+"/patients/demo-tsp-uncertain/window",method="GET").json()
+    assert held["status"]=="HOLD_DATING_UNCERTAIN" and not held["windows"]
+    client(base+"/clock",body={"as_of":"2027-01-27"})
+    assert client(base+"/demo/seed").json()["anchor"]==seeded.json()["anchor"]
+    assert client(base+"/patients/demo-amira/window",method="GET").json()["status"]=="DUE_SOON"
+    client(base+"/clock/reset")
+    obligation=initial["obligation_ids"][0]
+    response=client(base+"/demo/obligations/"+obligation+"/completion");assert response.status_code==200,response.text
+    ref="Observation/"+response.json()["resource"]["id"]
+    assert review(client,agent(client,obligation),"approve",[ref]).status_code==200
+    assert close(client,obligation).status_code==200
+    assert client(base+"/demo/obligations/"+obligation+"/invalidate").status_code==200
+    assert not client(base+"/patients/demo-amira/window",method="GET").json()["completion_verified"]
+    reset=client(base+"/demo/reset");assert reset.status_code==200,reset.text
+    assert reset.json()["clock"]["as_of"]=="2026-11-22"
+    assert client(base+"/patients/demo-amira/window",method="GET").json()["status"]=="IN_WINDOW"
+    assert client(base+"/demo/reset").status_code==200

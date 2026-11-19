@@ -12,7 +12,7 @@ async function signIn(page: Page, role: 'coordinator' | 'reviewer') {
 const preconception = 'Preconception metabolic assessment review · demo-amira';
 
 test('completes the patient journey through all five screens', async ({ page }, testInfo) => {
-  test.setTimeout(90_000);
+  test.setTimeout(150_000);
   const timings: Record<string, number> = {};
   await page.setViewportSize({ width: 1440, height: 1000 });
   const captureDir = process.env.REPROBRIDGE_CAPTURE_DIR;
@@ -241,4 +241,49 @@ test('completes the patient journey through all five screens', async ({ page }, 
   await page.getByRole('button', { name: 'Load illustrative timing scenario' }).click();
   await expect(page.locator('.decision-counts button').filter({ hasText: 'Due soon' }).locator('strong')).toHaveText('1');
   await expect(page.locator('.decision-counts button').filter({ hasText: 'Overdue' }).locator('strong')).toHaveText('1');
+
+  // TSP extension uses the same real backend and existing clinical gates; no model calls.
+  await page.getByRole('button', { name: 'Load TSP demo', exact: true }).click();
+  const tspQueue = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Time-Sensitive Prevention Windows', exact: true }) });
+  const amiraWindow = tspQueue.getByRole('row').filter({ has: page.getByRole('cell', { name: 'demo-amira', exact: true }) });
+  await expect(amiraWindow.getByText('IN WINDOW', { exact: true })).toBeVisible();
+  const uncertain = tspQueue.getByRole('row').filter({ has: page.getByRole('cell', { name: 'demo-tsp-uncertain', exact: true }) });
+  await expect(uncertain.getByText('HOLD DATING UNCERTAIN')).toBeVisible();
+  await expect(uncertain.getByText('No established window')).toBeVisible();
+  const auth = { Authorization: 'Bearer ' + process.env.E2E_COORDINATOR_TOKEN };
+  const initial = await (await page.request.get('/api/v1/tsp/patients/demo-amira/window', { headers: auth })).json();
+  const upcoming = new Date(initial.windows.find((w: { id: string }) => w.id === 'W2').window_start + 'T00:00:00Z');
+  upcoming.setUTCDate(upcoming.getUTCDate() - 1);
+  await page.getByLabel('Demo as-of date').fill(upcoming.toISOString().slice(0, 10));
+  await page.getByRole('button', { name: 'Apply demo date' }).click();
+  await expect(amiraWindow.getByText('DUE SOON', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Reset demo date', exact: true }).click();
+  await expect(amiraWindow.getByText('IN WINDOW', { exact: true })).toBeVisible();
+  const tspObligation = initial.obligation_ids[0];
+  await page.goto('/passport?obligation=' + tspObligation);
+  await page.getByRole('button', { name: 'Add dated synthetic result' }).click();
+  const windowPanel = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Time-Sensitive Prevention Window', exact: true }) });
+  await expect(windowPanel.getByText('COMPLETED IN WINDOW', { exact: true }).first()).toBeVisible();
+  const task = await (await page.request.post('/api/obligations/' + tspObligation + '/agent', { headers: auth })).json();
+  const before = await (await page.request.get('/api/snapshot', { headers: auth })).json();
+  const ref = before.clinical_evidence.find((e: { resource: { id: string } }) => e.resource.id === 'demo-' + tspObligation + '-verified');
+  const approved = await page.request.post('/api/tasks/' + task.id + '/review', { headers: { Authorization: 'Bearer ' + process.env.E2E_REVIEWER_TOKEN },
+    data: { decision: 'approve', evidence_refs: ['Observation/' + ref.resource.id], note: 'Synthetic TSP source reviewed.' } });
+  expect(approved.ok()).toBeTruthy();
+  const afterApproval = await (await page.request.get('/api/snapshot', { headers: auth })).json();
+  expect(afterApproval.clinical_obligations.find((o: { id: string }) => o.id === tspObligation).status).toBe('open');
+  expect((await page.request.post('/api/obligations/' + tspObligation + '/close', { headers: auth })).ok()).toBeTruthy();
+  await page.reload();
+  await expect(windowPanel.getByText(/Closure verified through existing gates/)).toBeVisible();
+  await page.getByRole('button', { name: 'Invalidate TSP result' }).click();
+  await expect(windowPanel.getByText('IN WINDOW', { exact: true }).first()).toBeVisible();
+  const reopened = await (await page.request.get('/api/snapshot', { headers: auth })).json();
+  expect(reopened.clinical_obligations.find((o: { id: string }) => o.id === tspObligation).status).toBe('open');
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'TSP passport fits at 390 px').toBe(true);
+  await capture('09-tsp-passport');
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Reset TSP demo', exact: true }).click();
+  await expect(amiraWindow.getByText('IN WINDOW', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Demo clock banner')).toContainText('2026-11-22');
 });

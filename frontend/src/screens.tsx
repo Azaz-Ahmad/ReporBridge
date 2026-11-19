@@ -48,7 +48,7 @@ export function Dashboard({ data, role, token, busy, action }: ScreenProps) {
       <strong>{value}</strong><span>{title}</span>
     </Link>)}</div>
     <PreventionQueue token={token} role={role} />
-    <TspQueue token={token} />
+    <TspQueue token={token} role={role} />
     <Panel title="Patient registry">
       {data.patients.length ? <div className="table-wrap"><table><thead><tr><th>Patient</th><th>Life stage</th><th>Open obligations</th><th>Workspace</th></tr></thead>
         <tbody>{data.patients.map((patient) => <tr key={patient.id}>

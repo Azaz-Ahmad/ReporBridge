@@ -15,6 +15,7 @@ mkdirSync('test-results-db', { recursive: true });
 const db = mkdtempSync(resolve('test-results-db/run-'));
 const serverEnv = {
   CLINICAL_EVIDENCE_AGENT_ENABLED: "false",
+  DEMO_MODE: "true",
   DATABASE_URL: process.env.REPROBRIDGE_E2E_DATABASE_URL || 'sqlite:///' + resolve(db, 'e2e.db').replaceAll('\\', '/'),
   COORDINATOR_TOKEN: process.env.E2E_COORDINATOR_TOKEN!,
   REVIEWER_TOKEN: process.env.E2E_REVIEWER_TOKEN!,

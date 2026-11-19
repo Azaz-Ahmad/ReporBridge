@@ -36,9 +36,17 @@ export function DemoClock({ token, role }: { token: string; role: Role }) {
     </form>}{change.error && <Feedback message={change.error.message} error />}</aside>;
 }
 
-export function TspQueue({ token }: { token: string }) {
+export function TspQueue({ token, role }: { token: string; role?: Role }) {
+  const cache = useQueryClient();
+  const clock = useQuery({ queryKey: ['tsp', 'clock', token], queryFn: () => api<Clock>(token, '/v1/tsp/clock') });
+  const fixture = useMutation({ mutationFn: (reset: boolean) => api(token, '/v1/tsp/demo/' + (reset ? 'reset' : 'seed'), 'POST'),
+    onSuccess: () => { cache.invalidateQueries({ queryKey: ['tsp'] }); cache.invalidateQueries({ queryKey: ['snapshot'] }); cache.invalidateQueries({ queryKey: ['prevention'] }); } });
   const query = useQuery({ queryKey: ['tsp', 'queue', token], queryFn: () => api<WindowResult[]>(token, '/v1/tsp/queue') });
   return <Panel title="Time-Sensitive Prevention Windows"><p className="muted">Illustrative policy · pending clinical confirmation</p>
+    {clock.data?.demo_mode && role === 'coordinator' && <div className="actions">
+      <Button disabled={fixture.isPending} onClick={() => fixture.mutate(false)}>Load TSP demo</Button>
+      <Button variant="outline" disabled={fixture.isPending} onClick={() => fixture.mutate(true)}>Reset TSP demo</Button>
+    </div>}{fixture.error && <Feedback message={fixture.error.message} error />}
     {query.error && <Feedback message={query.error.message} error />}
     {!query.data?.length && <p>No authorized synthetic windows available.</p>}
     {!!query.data?.length && <div className="table-wrap"><table><thead><tr><th>Patient</th><th>Status</th><th>Window dates</th><th>Review</th></tr></thead>
@@ -50,6 +58,9 @@ export function TspQueue({ token }: { token: string }) {
 
 export function TspWindow({ token, patientId, timeline = false, role }: { token: string; patientId: string; timeline?: boolean; role?: Role }) {
   const query = useQuery({ queryKey: ['tsp', 'patient', patientId, token], queryFn: () => api<WindowResult>(token, '/v1/tsp/patients/' + patientId + '/window') });
+  const cache = useQueryClient();
+  const fixture = useMutation({ mutationFn: (action: string) => api(token, '/v1/tsp/demo/obligations/' + query.data?.obligation_ids[0] + '/' + action, 'POST'),
+    onSuccess: () => { cache.invalidateQueries({ queryKey: ['tsp'] }); cache.invalidateQueries({ queryKey: ['snapshot'] }); cache.invalidateQueries({ queryKey: ['prevention'] }); } });
   const explain = useMutation({ mutationFn: () => api<{ id: string; detail: { packet: { summary: string; abstained: boolean } | null } }>(token, '/v1/tsp/patients/' + patientId + '/investigations', 'POST', { request_id: crypto.randomUUID() }) });
   const item = query.data;
   return <Panel title={timeline ? 'Prevention window timeline' : 'Time-Sensitive Prevention Window'}>
@@ -57,6 +68,10 @@ export function TspWindow({ token, patientId, timeline = false, role }: { token:
     {role === 'coordinator' && !timeline && <Button disabled={explain.isPending} onClick={() => explain.mutate()}>Explain computed window</Button>}
     {explain.error && <Feedback message={explain.error.message} error />}
     {explain.data && <div className="inset"><p>Investigation {explain.data.id} · mandatory human review</p><p>{explain.data.detail.packet?.summary}</p></div>}
+    {item?.clock.demo_mode && role === 'coordinator' && !timeline && patientId === 'demo-amira' && item.obligation_ids.length > 0 && <div className="actions">
+      <Button variant="outline" disabled={fixture.isPending} onClick={() => fixture.mutate('completion')}>Add dated synthetic result</Button>
+      <Button variant="outline" disabled={fixture.isPending} onClick={() => fixture.mutate('invalidate')}>Invalidate TSP result</Button>
+    </div>}{fixture.error && <Feedback message={fixture.error.message} error />}
     {item && <><WindowBadge value={item.status} /><p>As of {item.as_of} · {item.clock.demo_mode ? 'DEMO CLOCK' : 'Asia/Dubai calendar'}</p>
       <p>Policy {item.policy_id || 'not established'} · version {item.policy_version || 'none'}</p>
       <p><strong>pending clinical confirmation</strong><br /><code className="tsp-citation">{item.citation}</code></p>
