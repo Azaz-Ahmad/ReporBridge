@@ -52,3 +52,24 @@ def test_missing_and_invalid_dating():
     assert resolve_dating(default_policy(),[])["due_date"] is None
     item=dating("tsp-lmp",ORIGIN); item["quality"]["state"]="superseded"
     assert resolve_dating(default_policy(),[item])["due_date"] is None
+
+
+from test_workflow import client, seed  # noqa: F401
+
+
+def test_api_authorization_clock_and_hold(client, monkeypatch):
+    seed(client)
+    base="/v1/tsp"
+    assert client(base+"/patients/demo-amira/window",role=None,method="GET").status_code==401
+    assert client(base+"/patients/demo-missing/window",method="GET").status_code==404
+    monkeypatch.delenv("DEMO_MODE",raising=False)
+    assert client(base+"/clock",body={"as_of":"2026-11-23"}).status_code==403
+    monkeypatch.setenv("DEMO_MODE","true")
+    assert client(base+"/clock",method="GET").json()["as_of"]=="2026-11-22"
+    assert client(base+"/clock",role="viewer",body={"as_of":"2026-11-23"}).status_code==403
+    assert client(base+"/clock",body={"as_of":"2026-11-23"}).json()["as_of"]=="2026-11-23"
+    result=client(base+"/patients/demo-amira/window",method="GET").json()
+    assert result["status"]=="HOLD_DATING_UNCERTAIN" and result["clock"]["demo_mode"]
+    assert result["as_of"]=="2026-11-23" and result["window_start"] is None
+    assert client(base+"/clock/reset").json()["as_of"]=="2026-11-22"
+    assert client(base+"/clock",body={"as_of":"not-a-date"}).status_code==422
