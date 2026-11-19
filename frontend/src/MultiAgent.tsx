@@ -16,12 +16,17 @@ type Packet = { summary: string; packet_complete: boolean; abstained: boolean; g
   timing: { label: string; due_at: string | null }; timing_policy: { id: string; version: string } | null;
   prerequisites: { id: string; category: string; status: string }[];
   source_references: { evidence_id: string; version: number; citation: string; quality_state: string }[] };
+type Accounting = { model_calls: number; tool_calls: number; tool_requests: number; cache_hits: number;
+  input_tokens: number; output_tokens: number; total_latency_ms: number; cumulative_model_latency_ms: number;
+  tool_latency_ms: number; context_peak_characters: number; retries: number;
+  agents: Record<string, { model_calls: number; input_tokens: number; output_tokens: number; model_latency_ms: number; tool_calls: number }> };
 type Run = { id: string; created: string; status: string; review: { decision: string; note: string } | null;
   detail: { workflow?: string; question: string; decision_context?: { decision_id: string } | null; error: string | null;
     packet: Packet | null; trace: string[]; duration_ms: number; configuration: { model: string };
     usage: { model_calls: number; input_tokens: number; output_tokens: number; usage_complete: boolean };
     tool_history: { name: string; call_id: string; status: string; duration_ms: number; cached?: boolean; evidence_ids: string[] }[];
-    multi_agent?: { agents: Record<string, Agent>; routing: { agent_id: string; selected: boolean; reason: string; at: string }[] } } };
+    multi_agent?: { summary?: Accounting; execution_profile?: string; parallel_enabled?: boolean; sealed_context?: { id: string; sealed_at: string };
+      agents: Record<string, Agent>; routing: { agent_id: string; selected: boolean; reason: string; at: string }[] } } };
 const base = '/v1/agents/clinical-evidence';
 const names: Record<string, string> = { A01: 'Clinical Evidence Investigation', A02: 'Evidence Reconciliation Agent',
   A03: 'Clinical Context Agent', A04: 'Evidence Gap Agent' };
@@ -54,6 +59,39 @@ function SpecialistDetails({ agent }: { agent: Agent }) {
     <p>Questions are review proposals. Configured prerequisite states appear in the unified packet.</p>
   </div>;
   return null;
+}
+function ExecutionSummary({ run }: { run: Run }) {
+  const detail = run.detail;
+  const summary = detail.multi_agent?.summary;
+  const routing = detail.multi_agent?.routing ?? [];
+  const selected = routing.filter(x => x.selected).map(x => x.agent_id);
+  const skipped = routing.filter(x => !x.selected);
+  const metrics = [
+    ['Model calls', detail.usage.model_calls.toLocaleString()],
+    ['M08 executions', (summary?.tool_calls ?? detail.tool_history.filter(x => !x.cached).length).toLocaleString()],
+    ['Input tokens', detail.usage.input_tokens.toLocaleString()],
+    ['Output tokens', detail.usage.output_tokens.toLocaleString()],
+    ['Total duration', (detail.duration_ms / 1000).toFixed(1) + ' s'],
+    ['Grounding', detail.packet ? label(detail.packet.grounding_status) : 'Pending validation'],
+  ];
+  return <section className="execution-summary" aria-label="Persisted execution summary">
+    <h3>Execution summary</h3>
+    <p>Selected agents · {selected.length ? selected.join(', ') : 'Routing pending'}</p>
+    <dl className="execution-metrics">{metrics.map(([name, value]) => <div key={name}><dt>{name}</dt><dd>{value}</dd></div>)}</dl>
+    <p>{detail.packet ? (detail.packet.abstained ? 'Abstained · ' : 'Summary proposed · ') : ''}
+      Human review required</p>
+    {summary ? <p className="muted">Cumulative model time {(summary.cumulative_model_latency_ms / 1000).toFixed(1)} s ·
+      tool time {(summary.tool_latency_ms / 1000).toFixed(1)} s · {summary.cache_hits} cache hits · {summary.retries} retries
+      · peak input context {summary.context_peak_characters.toLocaleString()} characters</p>
+      : <p className="muted">{run.status === 'running' ? 'Invocation metrics will appear as persisted calls complete.'
+        : 'Per-call model timing and context size were not recorded in this legacy trace.'}</p>}
+    {skipped.length > 0 && <details><summary>Skipped agents and reasons</summary>
+      <ul>{skipped.map(x => <li key={x.agent_id}><strong>{x.agent_id} · {names[x.agent_id]}</strong><p>{x.reason}</p></li>)}</ul>
+    </details>}
+    {detail.multi_agent?.sealed_context && <details><summary>Pinned evidence context</summary>
+      <p>Sealed at {detail.multi_agent.sealed_context.sealed_at}</p><small>{detail.multi_agent.sealed_context.id}</small>
+      <p>Versions and hashes are rechecked before publication and human review.</p></details>}
+  </section>;
 }
 export function MultiAgent({ token, role, patientId, decisionId }: { token: string; role: Role; patientId: string; decisionId?: string }) {
   const [question, setQuestion] = useState('Review the documented clinical evidence, reconcile source discrepancies and identify unresolved decision prerequisites.');
@@ -97,14 +135,18 @@ export function MultiAgent({ token, role, patientId, decisionId }: { token: stri
     </select></label> : <Empty>No multi-agent investigations recorded for this selection.</Empty>}
     {run && <div data-testid="multi-run">
       <h3>Supervisor execution</h3><p><Status value={run.status} /> · {run.detail.question}</p>
+      <ExecutionSummary run={run} />
       {run.detail.error && <Feedback message={label(run.detail.error)} error />}
       <div className="agent-grid">{Object.keys(names).map(id => {
         const agent = run.detail.multi_agent?.agents[id];
+        const stats = run.detail.multi_agent?.summary?.agents[id];
         return <article key={id} className={'agent-card ' + (agent?.state ?? 'pending')}>
           <span className="field-kicker">{id}</span><h3>{names[id]}</h3>
           <Status value={agent?.state ?? 'pending'} />
           {agent && <details><summary>Inspect {names[id]}</summary>
             <p>{label(agent.validation_status)} · {agent.execution_metadata.duration_ms ?? 0} ms</p>
+            {stats && <p>{stats.model_calls} model calls · {stats.input_tokens.toLocaleString()} input / {stats.output_tokens.toLocaleString()} output tokens
+              · {(stats.model_latency_ms / 1000).toFixed(1)} s model time</p>}
             {agent.execution_metadata.reported_model && <small>{agent.execution_metadata.reported_model} · {agent.execution_metadata.response_id}</small>}
             {agent.error && <Feedback message={label(agent.error)} error />}
             <Findings items={agent.findings} />

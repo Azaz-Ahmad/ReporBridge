@@ -1,0 +1,11 @@
+# Remaining limitations
+
+Measurements use two repetitions per mode per primary case and two per serial/parallel control. They demonstrate this sample, not statistical significance, a production SLA or clinical superiority. Larger objectives and source inventories may behave differently. Input/output token accounting is provider-reported; dollar estimates remain null because no trustworthy price configuration exists.
+
+Routing uses explicit deterministic evidence/prerequisite conditions and lexical longitudinal intent. Broader natural-language objectives need more coverage before general deployment. All agent narrative remains clinician-interpreted: a valid source ID/excerpt/value does not establish semantic correctness. No production clinical rules or urgency thresholds were invented. Timing stays registered and deterministic; illustrative policies require clinical governance for real use.
+
+Context is bounded. Whole oversized retrieved sections are omitted with a partial/abstained outcome, rather than cut mid-sentence. The original M08 gateway defines the retrieved sections; complete documents remain accessible through authorized source APIs. Cache reuse is request-local and pinned; arbitrary overlapping searches are not conflated, so some repeated reads remain. No cross-run clinical context cache or automatic model escalation is enabled.
+
+Workers overlap read-only model calls only. The coordinator still executes M08 retrieval, source validation and SQL persistence serially. The prototype's global transaction lock and prevention synchronization can cause contention. The larger retained UI run recorded 6.475 seconds of checkpoint time during regression load; it is not a matched benchmark. Provider invocation time includes SDK serialization/parsing; recorded run duration is measured before its final checkpoint commit, and HTTP wall duration is separately retained by the benchmark.
+
+Interrupted jobs are marked failed and cannot publish a falsely complete packet. There is no distributed durable resumption and no automatic replay of an uncertain provider timeout. Explicit retries with new IDs require current source validation; duplicate IDs replay the original result/profile without new calls. Legacy and single-agent modes remain explicit choices, never hidden fallbacks. Demo role tokens are not production staff identity.

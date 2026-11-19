@@ -105,3 +105,11 @@ Care-Resolution Center now provides a bounded supervisor, the preserved Clinical
 The explicit single-agent workflow remains available. Multi-agent output defaults to 4,000 tokens per call and low reasoning effort; effective settings and requested/reported models are persisted. See `.env.example` and `docs/V06_I2_IMPLEMENTATION_REPORT.md`. Alembic head remains `0006`; existing run/review JSON stores versioned specialist traces without new tables.
 
 Run `scripts/Test-Demo.ps1 -PostgreSQL` for regression checks. `python scripts/evaluate_multi_agent.py` runs labeled synthetic test doubles; `python scripts/verify_multi_agent_live.py` performs real paid synthetic OpenRouter comparisons with the configured model. Live verification never falls back to mocks. Detailed results, earlier failures and comparison limitations are in `docs/V06_I2_EVALUATION_REPORT.md` and `docs/V06_I2_LIVE_MODEL_VERIFICATION.md`.
+
+### v0.6 Increment 2.1 — measured multi-agent optimization
+
+The default optimized profile selectively routes the same four agents over immutable, version-pinned evidence. The panel now shows persisted calls, tokens, timing, grounding, abstention, selected/skipped reasons and per-agent traces. Mandatory human review, source validation, deterministic timing and clinical closure controls are preserved.
+
+`MULTI_AGENT_EXECUTION_PROFILE=legacy` explicitly restores the frozen Increment 2 supervisor for rollback/comparison; no failure switches profiles or models automatically. `MULTI_AGENT_PARALLEL=false` supplies a serial control. See `.env.example` and `docs/V06_I21_OPTIMIZATION_DESIGN.md`.
+
+Run `python scripts/evaluate_multi_optimization.py` for labeled deterministic safety comparisons. `python scripts/verify_multi_optimization_live.py --repetitions 2 --parallel-comparison` performs bounded paid synthetic live comparisons. `python scripts/analyze_multi_optimization.py <report-directory> --publish-trace` exports measured metrics and trace fields with unavailable historical measurements left blank. Detailed results and limitations are in `docs/V06_I21_EVALUATION_REPORT.md`. No new migration is needed; Alembic remains `0006`.

@@ -78,6 +78,8 @@ class Specialists(ScriptedProvider):
 
 @pytest.fixture
 def configured_multi(monkeypatch):
+    # Preserve the original behavior assertions against the explicit frozen legacy profile.
+    monkeypatch.setenv("MULTI_AGENT_EXECUTION_PROFILE","legacy")
     monkeypatch.setenv("CLINICAL_EVIDENCE_AGENT_ENABLED","true")
     monkeypatch.setenv("OPENAI_API_KEY","unit-test-placeholder")
     monkeypatch.delenv("OPENAI_MAX_RUN_COST_USD",raising=False)

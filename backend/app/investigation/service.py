@@ -68,7 +68,7 @@ def reserve(connection, actor, request, settings, availability, binding=None, wo
     return run, True, tooling.fingerprint(connection, context)
 
 
-def save(connection, actor, run_id, state, elapsed):
+def save(connection, actor, run_id, state, elapsed, extra_detail=None):
     run = get(connection, actor, run_id)
     if run["status"] != "running":
         fail(409, "run_interrupted", "This run can no longer publish a result.")
@@ -83,7 +83,8 @@ def save(connection, actor, run_id, state, elapsed):
               "evidence_references": [
                   {"id": item["id"], "version": item["version"], "digest": item["digest"],
                    "quality": item["quality"]["state"]}
-                  for item in {row["id"]: row for row in state.get("evidence", [])}.values()]}
+                  for item in {row["id"]: row for row in state.get("evidence", [])}.values()],
+              **(extra_detail or {})}
     connection.execute(runs.update().where(runs.c.id == run_id).values(
         status=state.get("status", "running"), updated=now(), detail=detail))
 
@@ -132,6 +133,15 @@ def run_investigation(actor, request, write, trusted_decision=None):
 def mark_failure(connection, actor, run_id, detail):
     run = get(connection, actor, run_id)
     if run["status"] == "running":
+        if detail.get("multi_agent"):
+            multi = dict(detail["multi_agent"])
+            agents = {identifier: dict(record) for identifier, record in multi["agents"].items()}
+            for record in agents.values():
+                if record["state"] in {"pending", "running"}:
+                    record.update(state="failed", error="worker_interrupted", abstained=True)
+                    record["execution_metadata"] = {**record["execution_metadata"], "finished": now(), "error_class": "interrupted"}
+            multi.update(agents=agents, reserved_specialist_calls=0)
+            detail = {**detail, "multi_agent": multi, "usage": {**detail["usage"], "usage_complete": False}}
         connection.execute(runs.update().where(runs.c.id == run_id).values(
             status="interrupted", updated=now(), detail=detail))
 

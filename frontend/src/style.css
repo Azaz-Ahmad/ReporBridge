@@ -277,7 +277,13 @@ a.record-link:hover { background: #f0f7f8; }
 .investigation-result button { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
 /* Bounded specialist review cards fit both desktop and mobile. */
 .agent-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-items:start; gap:14px; margin:20px 0; }
-.agent-card small { display:block; }
+.agent-card small, .multi-agent li > small { display:block; }
+.execution-summary { margin:18px 0; padding:18px; border:1px solid #dedbea; border-radius:14px; background:#faf9fe; }
+.execution-metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin:16px 0; }
+.execution-metrics div { min-width:0; }
+.execution-metrics dt { font-size:.8rem; color:#5e5c71; }
+.execution-metrics dd { margin:4px 0 0; font-size:1.1rem; font-weight:700; }
+@media(max-width:600px) { .execution-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 .agent-card { min-width:0; padding:18px; border:1px solid var(--border,#dedbea); border-radius:14px; background:#faf9fe; }
 .agent-card h3 { margin:8px 0; }
 .agent-card.failed { border-color:#c58b90; }

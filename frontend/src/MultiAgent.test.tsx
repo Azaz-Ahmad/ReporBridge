@@ -63,3 +63,25 @@ test('provider failure stays visible without fabricated specialist results', asy
   await screen.findAllByText('Backend unavailable');
   expect(screen.queryByTestId('multi-run')).toBeNull();
 });
+
+test('execution summary uses persisted accounting and explains skipped agents', async () => {
+  const optimized = { ...run, detail: { ...run.detail, usage: { ...run.detail.usage, input_tokens: 14449, output_tokens: 1874 },
+    multi_agent: { ...run.detail.multi_agent, summary: { model_calls: 3, tool_calls: 2, tool_requests: 4, cache_hits: 2,
+      input_tokens: 14449, output_tokens: 1874, total_latency_ms: 45, cumulative_model_latency_ms: 30,
+      tool_latency_ms: 10, context_peak_characters: 8000, retries: 0, agents: {} },
+      routing: [{ agent_id: 'A01', selected: true, reason: 'Authorized evidence', at: '2026-11-19' },
+        { agent_id: 'A03', selected: false, reason: 'No longitudinal task', at: '2026-11-19' }],
+      sealed_context: { id: 'pinned-context', sealed_at: '2026-11-19T20:00:00Z' } } } };
+  mockRuns([optimized]); mount();
+  await screen.findByRole('heading', { name: 'Execution summary' });
+  expect(screen.getByText('14,449')).toBeTruthy();
+  expect(screen.getByText('M08 executions').parentElement?.textContent).toContain('2');
+  expect(screen.getByText('No longitudinal task')).toBeTruthy();
+  expect(screen.getByText('pinned-context')).toBeTruthy();
+});
+
+test('legacy traces do not invent missing per-call timing measurements', async () => {
+  mockRuns([run]); mount();
+  await screen.findByText('Per-call model timing and context size were not recorded in this legacy trace.');
+  expect(screen.queryByText(/peak input context/)).toBeNull();
+});

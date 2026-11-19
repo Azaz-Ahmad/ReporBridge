@@ -83,7 +83,7 @@ def build(provider, settings, run, context, persist, initial_fingerprint, execut
             model_record = {"requested_model": settings.model, "reported_model": turn.model_name,
                             "response_id": turn.response_id, "api": "responses",
                             "input_tokens": turn.input_tokens, "output_tokens": turn.output_tokens,
-                            "retries": turn.retries}
+                            "retries": turn.retries, **getattr(turn, "telemetry", {})}
             return checkpoint(state, "investigate", calls=turn.calls, draft=turn.draft,
                               model_history=[*state.get("model_history", []), model_record],
                               messages=[*state["messages"], *turn.messages], usage=usage,
@@ -92,11 +92,15 @@ def build(provider, settings, run, context, persist, initial_fingerprint, execut
             usage["retries"] += error.retries
             usage["input_tokens"] += error.input_tokens
             usage["output_tokens"] += error.output_tokens
-            usage["usage_complete"] = False
+            if not getattr(error, "not_sent", False):
+                usage["usage_complete"] = False
             model_record = {"requested_model": settings.model, "reported_model": error.model_name,
                             "response_id": error.response_id, "api": "responses",
                             "input_tokens": error.input_tokens, "output_tokens": error.output_tokens,
-                            "retries": error.retries, "error": error.code, "http_status": error.http_status}
+                            "retries": error.retries, "error": error.code, "http_status": error.http_status,
+                            **getattr(error, "telemetry", {})}
+            if getattr(error, "not_sent", False):
+                usage["model_calls"] -= 1
             return checkpoint(state, "investigate", error=error.code, calls=[], usage=usage,
                               model_history=[*state.get("model_history", []), model_record])
         except Exception:
