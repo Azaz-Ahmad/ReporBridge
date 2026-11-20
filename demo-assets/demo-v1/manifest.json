@@ -1,0 +1,70 @@
+{
+  "viewport": "1920x1080",
+  "mode": "replay",
+  "synthetic_only": true,
+  "screens": [
+    "01-dashboard",
+    "02-workspace",
+    "06-simulated-history",
+    "07-history-replay",
+    "03-passport",
+    "08-window-replay",
+    "04-resolution",
+    "09-clinician-review",
+    "10-evidence-verified-closure",
+    "05-evidence-audit"
+  ],
+  "steps": [
+    {
+      "screen": "01-dashboard",
+      "elapsed_ms": 6354
+    },
+    {
+      "screen": "02-workspace",
+      "elapsed_ms": 9142
+    },
+    {
+      "screen": "06-simulated-history",
+      "elapsed_ms": 10223
+    },
+    {
+      "screen": "07-history-replay",
+      "elapsed_ms": 20789
+    },
+    {
+      "screen": "03-passport",
+      "elapsed_ms": 30380
+    },
+    {
+      "screen": "08-window-replay",
+      "elapsed_ms": 31931
+    },
+    {
+      "screen": "04-resolution",
+      "elapsed_ms": 50011
+    },
+    {
+      "screen": "09-clinician-review",
+      "elapsed_ms": 51451
+    },
+    {
+      "screen": "10-evidence-verified-closure",
+      "elapsed_ms": 66469
+    },
+    {
+      "screen": "05-evidence-audit",
+      "elapsed_ms": 77041
+    }
+  ],
+  "recording_seconds": 90,
+  "accepted_replays": {
+    "tsp": true,
+    "history": true
+  },
+  "closure_verified": true,
+  "explanation_model": "anthropic/claude-sonnet-5.5-20260928",
+  "live_provider_configured": false,
+  "live_generation_requests": 0,
+  "codec": "VP9",
+  "fps": 25
+}

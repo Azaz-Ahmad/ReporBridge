@@ -1,0 +1,366 @@
+{
+  "synthetic_only": true,
+  "mode": "live",
+  "requested_model": "anthropic/claude-sonnet-5.5-20260928",
+  "reported_model": "anthropic/claude-sonnet-5.5",
+  "retries": 0,
+  "tool_calls": 0,
+  "cases": [
+    {
+      "case": "tsp",
+      "calls": 10,
+      "accepted": 10,
+      "latency_ms": {
+        "min": 6390,
+        "mean": 8128.9,
+        "max": 10367
+      },
+      "input_tokens": 26670,
+      "output_tokens": 6550,
+      "grounding_states": [
+        "partially_grounded"
+      ],
+      "guard_rejections": 0,
+      "trials": [
+        {
+          "case": "tsp",
+          "trial": 1,
+          "accepted": true,
+          "latency_ms": 10367,
+          "model": "anthropic/claude-sonnet-5.5-20260928",
+          "usage": {
+            "model_calls": 1,
+            "input_tokens": 2667,
+            "output_tokens": 655,
+            "retries": 0,
+            "usage_complete": true
+          },
+          "error": null,
+          "field_mismatches": []
+        },
+        {
+          "case": "tsp",
+          "trial": 2,
+          "accepted": true,
+          "latency_ms": 7093,
+          "model": "anthropic/claude-sonnet-5.5-20260928",
+          "usage": {
+            "model_calls": 1,
+            "input_tokens": 2667,
+            "output_tokens": 655,
+            "retries": 0,
+            "usage_complete": true
+          },
+          "error": null,
+          "field_mismatches": []
+        },
+        {
+          "case": "tsp",
+          "trial": 3,
+          "accepted": true,
+          "latency_ms": 8417,
+          "model": "anthropic/claude-sonnet-5.5-20260928",
+          "usage": {
+            "model_calls": 1,
+            "input_tokens": 2667,
+            "output_tokens": 655,
+            "retries": 0,
+            "usage_complete": true
+          },
+          "error": null,
+          "field_mismatches": []
+        },
+        {
+          "case": "tsp",
+          "trial": 4,
+          "accepted": true,
+          "latency_ms": 8969,
+          "model": "anthropic/claude-sonnet-5.5-20260928",
+          "usage": {
+            "model_calls": 1,
+            "input_tokens": 2667,
+            "output_tokens": 655,
+            "retries": 0,
+            "usage_complete": true
+          },
+          "error": null,
+          "field_mismatches": []
+        },
+        {
+          "case": "tsp",
+          "trial": 5,
+          "accepted": true,
+          "latency_ms": 6732,
+          "model": "anthropic/claude-sonnet-5.5-20260928",
+          "usage": {
+            "model_calls": 1,
+            "input_tokens": 2667,
+            "output_tokens": 655,
+            "retries": 0,
+            "usage_complete": true
+          },
+          "error": null,
+          "field_mismatches": []
+        },
+        {
+          "case": "tsp",
+          "trial": 6,
+          "accepted": true,
+          "latency_ms": 6390,
+          "model": "anthropic/claude-sonnet-5.5-20260928",
+          "usage": {
+            "model_calls": 1,
+            "input_tokens": 2667,
+            "output_tokens": 655,
+            "retries": 0,
+            "usage_complete": true
+          },
+          "error": null,
+          "field_mismatches": []
+        },
+        {
+          "case": "tsp",
+          "trial": 7,
+          "accepted": true,
+          "latency_ms": 8951,
+          "model": "anthropic/claude-sonnet-5.5-20260928",
+          "usage": {
+            "model_calls": 1,
+            "input_tokens": 2667,
+            "output_tokens": 655,
+            "retries": 0,
+            "usage_complete": true
+          },
+          "error": null,
+          "field_mismatches": []
+        },
+        {
+          "case": "tsp",
+          "trial": 8,
+          "accepted": true,
+          "latency_ms": 8335,
+          "model": "anthropic/claude-sonnet-5.5-20260928",
+          "usage": {
+            "model_calls": 1,
+            "input_tokens": 2667,
+            "output_tokens": 655,
+            "retries": 0,
+            "usage_complete": true
+          },
+          "error": null,
+          "field_mismatches": []
+        },
+        {
+          "case": "tsp",
+          "trial": 9,
+          "accepted": true,
+          "latency_ms": 7483,
+          "model": "anthropic/claude-sonnet-5.5-20260928",
+          "usage": {
+            "model_calls": 1,
+            "input_tokens": 2667,
+            "output_tokens": 655,
+            "retries": 0,
+            "usage_complete": true
+          },
+          "error": null,
+          "field_mismatches": []
+        },
+        {
+          "case": "tsp",
+          "trial": 10,
+          "accepted": true,
+          "latency_ms": 8552,
+          "model": "anthropic/claude-sonnet-5.5-20260928",
+          "usage": {
+            "model_calls": 1,
+            "input_tokens": 2667,
+            "output_tokens": 655,
+            "retries": 0,
+            "usage_complete": true
+          },
+          "error": null,
+          "field_mismatches": []
+        }
+      ]
+    },
+    {
+      "case": "history",
+      "calls": 10,
+      "accepted": 10,
+      "latency_ms": {
+        "min": 10396,
+        "mean": 11178,
+        "max": 12985
+      },
+      "input_tokens": 31190,
+      "output_tokens": 10910,
+      "grounding_states": [
+        "partially_grounded"
+      ],
+      "guard_rejections": 0,
+      "trials": [
+        {
+          "case": "history",
+          "trial": 1,
+          "accepted": true,
+          "latency_ms": 11255,
+          "model": "anthropic/claude-sonnet-5.5-20260928",
+          "usage": {
+            "model_calls": 1,
+            "input_tokens": 3119,
+            "output_tokens": 1091,
+            "retries": 0,
+            "usage_complete": true
+          },
+          "error": null,
+          "field_mismatches": []
+        },
+        {
+          "case": "history",
+          "trial": 2,
+          "accepted": true,
+          "latency_ms": 10396,
+          "model": "anthropic/claude-sonnet-5.5-20260928",
+          "usage": {
+            "model_calls": 1,
+            "input_tokens": 3119,
+            "output_tokens": 1091,
+            "retries": 0,
+            "usage_complete": true
+          },
+          "error": null,
+          "field_mismatches": []
+        },
+        {
+          "case": "history",
+          "trial": 3,
+          "accepted": true,
+          "latency_ms": 11126,
+          "model": "anthropic/claude-sonnet-5.5-20260928",
+          "usage": {
+            "model_calls": 1,
+            "input_tokens": 3119,
+            "output_tokens": 1091,
+            "retries": 0,
+            "usage_complete": true
+          },
+          "error": null,
+          "field_mismatches": []
+        },
+        {
+          "case": "history",
+          "trial": 4,
+          "accepted": true,
+          "latency_ms": 10846,
+          "model": "anthropic/claude-sonnet-5.5-20260928",
+          "usage": {
+            "model_calls": 1,
+            "input_tokens": 3119,
+            "output_tokens": 1091,
+            "retries": 0,
+            "usage_complete": true
+          },
+          "error": null,
+          "field_mismatches": []
+        },
+        {
+          "case": "history",
+          "trial": 5,
+          "accepted": true,
+          "latency_ms": 10847,
+          "model": "anthropic/claude-sonnet-5.5-20260928",
+          "usage": {
+            "model_calls": 1,
+            "input_tokens": 3119,
+            "output_tokens": 1091,
+            "retries": 0,
+            "usage_complete": true
+          },
+          "error": null,
+          "field_mismatches": []
+        },
+        {
+          "case": "history",
+          "trial": 6,
+          "accepted": true,
+          "latency_ms": 11193,
+          "model": "anthropic/claude-sonnet-5.5-20260928",
+          "usage": {
+            "model_calls": 1,
+            "input_tokens": 3119,
+            "output_tokens": 1091,
+            "retries": 0,
+            "usage_complete": true
+          },
+          "error": null,
+          "field_mismatches": []
+        },
+        {
+          "case": "history",
+          "trial": 7,
+          "accepted": true,
+          "latency_ms": 11031,
+          "model": "anthropic/claude-sonnet-5.5-20260928",
+          "usage": {
+            "model_calls": 1,
+            "input_tokens": 3119,
+            "output_tokens": 1091,
+            "retries": 0,
+            "usage_complete": true
+          },
+          "error": null,
+          "field_mismatches": []
+        },
+        {
+          "case": "history",
+          "trial": 8,
+          "accepted": true,
+          "latency_ms": 11014,
+          "model": "anthropic/claude-sonnet-5.5-20260928",
+          "usage": {
+            "model_calls": 1,
+            "input_tokens": 3119,
+            "output_tokens": 1091,
+            "retries": 0,
+            "usage_complete": true
+          },
+          "error": null,
+          "field_mismatches": []
+        },
+        {
+          "case": "history",
+          "trial": 9,
+          "accepted": true,
+          "latency_ms": 11087,
+          "model": "anthropic/claude-sonnet-5.5-20260928",
+          "usage": {
+            "model_calls": 1,
+            "input_tokens": 3119,
+            "output_tokens": 1091,
+            "retries": 0,
+            "usage_complete": true
+          },
+          "error": null,
+          "field_mismatches": []
+        },
+        {
+          "case": "history",
+          "trial": 10,
+          "accepted": true,
+          "latency_ms": 12985,
+          "model": "anthropic/claude-sonnet-5.5-20260928",
+          "usage": {
+            "model_calls": 1,
+            "input_tokens": 3119,
+            "output_tokens": 1091,
+            "retries": 0,
+            "usage_complete": true
+          },
+          "error": null,
+          "field_mismatches": []
+        }
+      ]
+    }
+  ]
+}
