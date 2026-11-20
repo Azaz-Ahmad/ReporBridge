@@ -107,6 +107,9 @@ def run_investigation(actor, request, write, trusted_decision=None, trusted_wind
         "calls": [], "tool_history": [], "evidence": [], "draft": None,
         "status": "running", "error": None, "steps": 0, "trace": [],
         "usage": run["detail"]["usage"]}
+    if trusted_window and trusted_window.get("history"):
+        from app.history_guard import prompt as history_prompt
+        state["messages"][0]["content"] += history_prompt(trusted_window)
     started = time.perf_counter()
 
     def persist(current, elapsed):
@@ -170,6 +173,10 @@ def sources_current(connection, actor, run):
         from app.prevention.window_grounding import current
         if not current(connection, actor, window):
             fail(409, "stale_review_packet", "Prevention window context changed. Start a fresh investigation.")
+    if window and window.get("history"):
+        from app.history_guard import current as history_current
+        if not history_current(connection,actor,window):
+            fail(409,"stale_review_packet","Earlier source or pending rule changed. Start a fresh investigation.")
     scope = authorize(connection, actor, run["patient_id"])
     tooling.synthetic_scope(connection, scope)
     retrieval = tooling.ClinicalTools(connection, scope).retrieval

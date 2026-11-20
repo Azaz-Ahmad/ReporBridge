@@ -61,6 +61,7 @@ class ClinicalEvidenceReviewPacket(StrictContract):
     uncertainty: list[str]
     recommended_review_actions: list[str]
     source_references: list[Source]
+    earlier_record_context: dict | None = None
     prevention_window: dict | None = None
     grounding_status: Literal["source_references_validated", "partially_grounded",
                               "insufficient_evidence", "conflicting_evidence", "validation_failed"]

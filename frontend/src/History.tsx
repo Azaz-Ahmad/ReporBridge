@@ -11,12 +11,16 @@ export function EarlierRecords({token,role,patientId}:{token:string;role:Role;pa
  const cache=useQueryClient();const [source,setSource]=useState<EarlierSource>();
  const query=useQuery({queryKey:['history',patientId,token],enabled:patientId==='demo-amira',queryFn:()=>api<HistoryState>(token,base+'/patients/'+patientId)});
  const action=useMutation({mutationFn:async()=>{await api(token,base+'/seed','POST');return api(token,base+'/patients/'+patientId+'/receive','POST');},onSuccess:()=>{for(const key of ['history','snapshot','prevention','clinical-explorer','tsp'])cache.invalidateQueries({queryKey:[key]});}});
+ const explain=useMutation({mutationFn:()=>api<{id:string;detail:{packet:{summary:string;findings:{statement:string}[];abstained:boolean}|null}}>(token,base+'/patients/'+patientId+'/investigations','POST',{request_id:crypto.randomUUID()})});
  const raw=useQuery({queryKey:['history-source',source?.id,token],enabled:!!source,queryFn:()=>api<{resource:Record<string,unknown>|null}>(token,source!.source_url.replace(/^\/api/,''))});
  if(patientId!=='demo-amira')return null;
  const data=query.data;
  let content='';if(raw.data?.resource){const resource=raw.data.resource as {content?:{attachment:{data?:string}}[]};const encoded=resource.content?.[0]?.attachment.data;content=encoded?new TextDecoder().decode(Uint8Array.from(atob(encoded),c=>c.charCodeAt(0))):JSON.stringify(resource,null,2);}
  return <Panel title="Found in earlier records"><p><strong>Simulated provider exchange</strong> · Hospital A → Hospital B · no live connection</p>
  {role==='coordinator'&&<Button disabled={action.isPending} onClick={()=>action.mutate()}>Receive earlier Hospital A records</Button>}
+ {role==='coordinator'&&!!data?.findings.length&&<Button variant="outline" disabled={explain.isPending} onClick={()=>explain.mutate()}>Explain cited earlier record</Button>}
+ {explain.error&&<Feedback message={explain.error.message} error/>}
+ {explain.data&&<div className="inset"><p>Investigation {explain.data.id} · mandatory human review</p><p>{explain.data.detail.packet?.summary}</p>{explain.data.detail.packet?.findings.map((finding,index)=><p key={index}>{finding.statement}</p>)}</div>}
  {action.error&&<Feedback message={action.error.message} error/>}{query.error&&<Feedback message={query.error.message} error/>}
  {!data?.findings.length&&<p>No earlier matching records received. This rule adds no trigger without the documented finding.</p>}
  {!!data?.findings.length&&<><p>Age {data.age_at_record} at the 2017 record; age {data.age_at_registration} at the 2026 pregnancy registration. Earlier documentation does not establish a current diagnosis or risk level.</p>

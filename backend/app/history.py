@@ -105,7 +105,7 @@ def view(connection,actor,patient_id,session_id=None):
             "clinical_confirmation":definition["clinical_confirmation"],
             "reason":"Exact documented source + open obligation + pregnancy + existing window" if triggered else "Rule prerequisites not met"})
     selected=[{key:item[key] for key in ("id","kind","resource_id","version","digest","clinical_time","citation","provenance","quality")}|
-        {"finding":item["resource"].get("valueString"),"source_url":"/api/v1/clinical/patients/"+patient_id+"/resources/"+item["kind"]+"/"+item["resource_id"]} for item in sources]
+        {"finding":item["resource"].get("valueString"),"source_url":"/api/v1/clinical/patients/"+patient_id+"/resources/"+item["kind"]+"/"+item["resource_id"]+"?version="+str(item["version"])} for item in sources]
     birth=date.fromisoformat(clinical.find(connection,db.patients,patient_id,required=True)["resource"]["birthDate"])
     return {"simulation":True,"label":"Simulated provider exchange — no live connection","patient_id":patient_id,
         "findings":selected,"rule_traces":traces,"window":windows,

@@ -176,9 +176,20 @@ def build(provider, settings, run, context, persist, initial_fingerprint, execut
         validation = grounding.validate(draft, evidence) if draft else {
             "status": "insufficient_evidence", "errors": [], "conflicting_evidence_ids": []}
         window = run["detail"].get("window_context")
+        if any(item.get("source")=="synthetic-history-hospital-a" for item in evidence) and not (window and window.get("history")):
+            errors.append("historical_rule_context_required")
         if window:
             from app.prevention import window_grounding
             errors.extend(window_grounding.validate(draft, window))
+            if window.get("history"):
+                from app import history_guard
+                errors.extend(history_guard.validate(draft))
+                try:
+                    with db.engine.begin() as connection:
+                        if not history_guard.current(connection,context.role,window):
+                            errors.append("historical_context_changed")
+                except Exception:
+                    errors.append("historical_context_unavailable")
             try:
                 with db.engine.begin() as connection:
                     if not window_grounding.current(connection, context.role, window):

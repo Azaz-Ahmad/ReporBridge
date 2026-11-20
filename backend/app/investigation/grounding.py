@@ -7,7 +7,8 @@ from app.clinical.normalize import digest
 
 
 def validate(draft, snapshots):
-    errors = []
+    from app.history_guard import risk_errors
+    errors = list(risk_errors(draft))
     interpretation = False
     source_map = {item["id"]: item for item in snapshots}
     cited = set()
@@ -95,6 +96,7 @@ def packet(run, draft, snapshots, validation, error=None):
         source_references=[Source(evidence_id=item["id"], version=item["version"], digest=item["digest"],
                                  citation=item["citation"], quality_state=item["quality"]["state"])
                            for item in {row["id"]: row for row in snapshots}.values()],
+        earlier_record_context=((run["detail"].get("window_context") or {}).get("history")),
         prevention_window=(run["detail"].get("window_context") or {}).get("result"),
         grounding_status=validation["status"], requires_human_review=True,
         abstained=not safe or draft.abstained, origin="model" if safe else "system_abstention",
