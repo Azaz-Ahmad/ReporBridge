@@ -119,3 +119,29 @@ def test_uncertain_fixture_is_attested_without_expanding_patient_grants(client,m
     with db.engine.begin() as connection:
         synthetic_scope(connection,authorize(connection,"coordinator","demo-tsp-uncertain"))
     assert client("/v1/tsp/patients/demo-tsp-uncertain/window",method="GET").json()["status"]=="HOLD_DATING_UNCERTAIN"
+
+
+@pytest.mark.parametrize("case",["tsp-amira","history-amira","tsp-uncertain"])
+def test_recorder_fixture_setup_has_no_model_calls(case,tmp_path):
+    import os,subprocess,sys
+    from pathlib import Path
+    root=Path(__file__).resolve().parents[2]
+    result=subprocess.run([sys.executable,str(root/"scripts/record_demo_llm.py"),"--setup-only","--execute",case,"--output",str(tmp_path)],env={**os.environ,"OPENAI_API_KEY":"synthetic-test-key-no-live-use"},capture_output=True,text=True)
+    assert result.returncode==0,result.stdout+result.stderr
+    assert '"live_calls": 0' in result.stdout
+    assert not list(tmp_path.glob("*.json"))
+
+
+
+def test_replay_ignores_ingestion_time_but_retains_clinical_content():
+    from app.investigation.replay import Binding
+    import copy
+    binding=Binding.__new__(Binding);binding.aliases={}
+    source={"id":"source","resource_id":"resource","digest":"d","version":1,"clinical_time":"2011-07-10","received":"one","event_time":"one","quality":{"state":"valid"},"normalized":{"source_event_time":"one","values":{"valueString":"documented"}}}
+    other=copy.deepcopy(source);other["received"]="two";other["event_time"]="two";other["normalized"]["source_event_time"]="two"
+    assert binding.canonical(source)==binding.canonical(other)
+    for key,value in [("version",2),("digest","changed"),("clinical_time","2012-07-10"),("quality",{"state":"unavailable"})]:
+        changed=copy.deepcopy(other);changed[key]=value
+        assert binding.canonical(source)!=binding.canonical(changed)
+    other["normalized"]["values"]["valueString"]="different"
+    assert binding.canonical(source)!=binding.canonical(other)

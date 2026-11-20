@@ -2,6 +2,8 @@
 import json
 import os
 import re
+import copy
+import itertools
 from dataclasses import asdict
 from pathlib import Path
 from sqlalchemy import select
@@ -73,8 +75,39 @@ class Binding:
         code=[(ROOT/"app"/name).read_text(encoding="utf-8") for name in ["investigation/graph.py","history_guard.py","history_policy_v1.json","prevention/window_grounding.py"]]
         context_value={"window":{k:v for k,v in window.items() if k not in {"session_id","hash","history_hash"}},
                        "evidence":evidence,"obligations":[{k:r[k] for k in ["id","rule_key","status","owner"]} for r in obligations]}
-        self.manifest=digest({"scenario":self.scenario,"context":self.canonical(context_value),"guard_sources":code})
+        self.descriptor={"scenario":self.scenario,"context":self.canonical(context_value),"guard_sources":code}
+        self.manifest=digest(self.descriptor)
         self.question=run["detail"]["question"]
+
+    def match_manifest(self,expected):
+        if self.manifest==expected:return True
+        # The server's inputs_used ordering can follow random evidence IDs. Match only
+        # permutations of the exact same complete inputs; never remove or alter an input.
+        paths=[]
+        def visit(v,path=()):
+            if isinstance(v,dict):
+                for k,x in v.items():
+                    if k=="inputs_used" and isinstance(x,list) and 1<len(x)<=3:paths.append(path+(k,))
+                    else:visit(x,path+(k,))
+            elif isinstance(v,list):
+                for i,x in enumerate(v):visit(x,path+(i,))
+        visit(self.descriptor)
+        if not paths or len(paths)>3:return False
+        variants=[copy.deepcopy(self.descriptor)]
+        for path in paths:
+            expanded=[]
+            for variant in variants:
+                node=variant
+                for key in path[:-1]:node=node[key]
+                for permutation in itertools.permutations(node[path[-1]]):
+                    candidate=copy.deepcopy(variant);target=candidate
+                    for key in path[:-1]:target=target[key]
+                    target[path[-1]]=list(permutation);expanded.append(candidate)
+            variants=expanded
+        if any(digest(v)==expected for v in variants):
+            self.manifest=expected
+            return True
+        return False
 
     def replace(self,text,mapping):
         for old,new in sorted(mapping.items(),key=lambda x:-len(x[0])):text=text.replace(old,new)
@@ -85,6 +118,8 @@ class Binding:
             # Only transport/receipt metadata is normalized, never values, quality, versions or clinical dates.
             evidence="digest" in v and "resource_id" in v
             result={k:self.canonical(x) for k,x in v.items() if not (evidence and k in {"received","event_time"}) and k not in {"received_at"}}
+            if evidence and "normalized" in result:
+                result["normalized"]={k:x for k,x in result["normalized"].items() if k!="source_event_time"}
             if evidence and "provenance" in result:
                 result["provenance"]={k:x for k,x in result["provenance"].items() if k not in {"received","event_time"}}
             return result
@@ -129,7 +164,7 @@ class RecordingProvider:
         return turn
     def finish_run(self,run):
         target=Path(os.environ["LLM_RECORD_DIR"]);target.mkdir(parents=True,exist_ok=True)
-        body={"format":1,"origin":"live-openai-responses","scenario":self.binding.scenario,"manifest":self.binding.manifest,
+        body={"format":2,"origin":"live-openai-responses","scenario":self.binding.scenario,"manifest":self.binding.manifest,"context_descriptor":self.binding.descriptor,
               "requested_model":self.settings.model,"base_url":self.settings.base_url,"frames":self.frames,
               "replayable":bool(self.frames),"result":{"status":run["status"],"validation":run["detail"].get("validation"),
               "usage":run["detail"]["usage"],"model_history":run["detail"].get("model_history",[]),"error":run["detail"].get("error"),"duration_ms":run["detail"]["duration_ms"]}}
@@ -144,12 +179,22 @@ class ReplayProvider:
         self.binding=Binding(run,context)
         try:
             self.record=json.loads((directory()/(self.binding.scenario+".json")).read_text(encoding="utf-8"))
-            if not self.record.get("replayable") or self.record.get("origin")!="live-openai-responses" or self.record.get("manifest")!=self.binding.manifest or self.record.get("requested_model")!=self.settings.model:
+            if not self.record.get("replayable") or self.record.get("origin")!="live-openai-responses" or not self.binding.match_manifest(self.record.get("manifest")) or self.record.get("requested_model")!=self.settings.model:
                 raise ValueError()
         except (OSError,ValueError):raise ProviderFailure("replay_recording_missing_or_context_changed") from None
     def invoke(self,messages,tools,final=False):
         try:frame=self.record["frames"][self.index]
-        except (KeyError,IndexError):raise ProviderFailure("replay_recording_exhausted") from None
+        except (KeyError,IndexError):
+            # A live provider failure has no Turn, but its actual persisted metadata is recorded.
+            result=self.record.get("result",{});history=result.get("model_history",[])
+            error=result.get("error")
+            if history and history[-1].get("error")==error and error:
+                original=history[-1]
+                failure=ProviderFailure(error,http_status=original.get("http_status"),model_name=original.get("reported_model"),response_id=original.get("response_id"))
+                failure.not_sent=True
+                failure.telemetry={"llm_mode":"replay","recorded_input_tokens":original["input_tokens"],"recorded_output_tokens":original["output_tokens"],"recorded_error":error}
+                raise failure
+            raise ProviderFailure("replay_recording_exhausted") from None
         if frame["key"]!=self.binding.key(messages,tools,final):raise ProviderFailure("replay_request_mismatch")
         self.index+=1;payload=self.binding.decode(frame["turn"])
         draft=Draft.model_validate(payload["draft"]) if payload.get("draft") else None
