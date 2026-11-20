@@ -1,0 +1,13 @@
+{
+  "patient_id": "demo-amira",
+  "record_id": "demo-history-finding",
+  "document_id": "demo-history-document",
+  "record_date": "2017-07-10T08:00:00+00:00",
+  "finding": "documented PCOS diagnosis",
+  "code_text": "Earlier documented finding (synthetic)",
+  "origin_facility": "Hospital A",
+  "receiving_facility": "Hospital B",
+  "registration_date": "2026-11-08",
+  "pregnancy_origin": "2026-08-19",
+  "clinical_confirmation": "pending clinical confirmation"
+}

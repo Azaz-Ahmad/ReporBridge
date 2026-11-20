@@ -21,6 +21,7 @@ from app.prevention.api import router as prevention_router
 from app.prevention import service as prevention
 from app.prevention.tsp_api import router as tsp_router
 from app.handoff_api import router as handoff_router
+from app.history_api import router as history_router
 from app.rules import DEMO_TAG, observation
 
 app = FastAPI(title="Ajyra AI â€” ReproBridge", version="0.6.0",
@@ -69,6 +70,7 @@ app.include_router(investigation_router(Reader, Coordinator, Reviewer, write))
 app.include_router(prevention_router(Reader, Coordinator, Reviewer, write))
 app.include_router(tsp_router(Reader, Coordinator, write))
 app.include_router(handoff_router(Reader, Coordinator, write))
+app.include_router(history_router(Reader, Coordinator, write))
 
 
 @app.exception_handler(HTTPException)

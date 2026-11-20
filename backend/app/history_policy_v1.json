@@ -1,0 +1,22 @@
+{
+  "id": "historical-finding-to-w1",
+  "version": "1",
+  "citation": "CITATION_PENDING_CLINICAL_CONFIRMATION",
+  "clinical_confirmation": "pending clinical confirmation",
+  "parent_policy_id": "glycemic-assessment-pregnancy",
+  "parent_policy_version": "1",
+  "rules": [
+    {
+      "id": "documented-finding-followup",
+      "source": "synthetic-history-hospital-a",
+      "resource_type": "Observation",
+      "status": "final",
+      "code_text": "Earlier documented finding (synthetic)",
+      "value_key": "valueString",
+      "equals": "documented PCOS diagnosis",
+      "requires_open_rule": "preconception-follow-up@1.0.0",
+      "requires_stage": "pregnancy",
+      "target_window": "W1"
+    }
+  ]
+}
