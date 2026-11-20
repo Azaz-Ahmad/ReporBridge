@@ -24,3 +24,23 @@ test('viewer sees a clock banner without mutation controls', async () => { vi.mo
   await screen.findByText('DEMO CLOCK — synthetic dates'); expect(screen.queryByRole('button')).toBeNull(); });
 test('disabled demo mode hides the clock controls', async () => { vi.mocked(api).mockResolvedValue({ ...clock, demo_mode: false }); mount(<DemoClock token="test" role="coordinator" />);
   await waitFor(() => expect(api).toHaveBeenCalled()); expect(screen.queryByLabelText('Demo clock banner')).toBeNull(); });
+
+
+test('TSP reset requires separate confirmation and cancellation does not reset', async()=>{
+ vi.mocked(api).mockImplementation(async(_token,path)=>path.endsWith('/clock')?clock:[]);
+ mount(<TspQueue token="test" role="coordinator"/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Reset TSP demo'}));
+ expect(vi.mocked(api).mock.calls.some(c=>c[1].endsWith('/demo/reset'))).toBe(false);
+ fireEvent.click(screen.getByRole('button',{name:'Cancel reset'}));
+ expect(screen.queryByRole('button',{name:'Confirm reset TSP demo'})).toBeNull();
+ fireEvent.click(screen.getByRole('button',{name:'Reset TSP demo'}));
+ fireEvent.click(screen.getByRole('button',{name:'Confirm reset TSP demo'}));
+ await waitFor(()=>expect(api).toHaveBeenCalledWith('test','/v1/tsp/demo/reset','POST'));
+});
+
+import {qualityWarning} from './ClinicalExplorer';
+test('synthetic date warning is explanatory while the raw non-demo warning is retained',()=>{
+ expect(qualityWarning('timestamp_after_receipt',true)).toBe('Synthetic source date follows import time; inspect the source date.');
+ expect(qualityWarning('timestamp_after_receipt',false)).toBe('Timestamp after receipt');
+ expect(qualityWarning('unknown_terminology',true)).toBe('Unknown terminology');
+});

@@ -11,7 +11,7 @@ async function signIn(page: Page, role: 'coordinator' | 'reviewer') {
 
 const preconception = 'Preconception metabolic assessment review · demo-amira';
 
-test('completes the patient journey through all five screens', async ({ page }, testInfo) => {
+test('completes the patient journey through all five screens', async ({ page, browser }, testInfo) => {
   test.setTimeout(210_000);
   const timings: Record<string, number> = {};
   await page.setViewportSize({ width: 1440, height: 1000 });
@@ -273,6 +273,7 @@ test('completes the patient journey through all five screens', async ({ page }, 
   await page.getByLabel('Demo as-of date').fill(upcoming.toISOString().slice(0, 10));
   await page.getByRole('button', { name: 'Apply demo date' }).click();
   await expect(amiraWindow.getByText('DUE SOON', { exact: true })).toBeVisible();
+  await expect(page.getByText(/future[- ]dated|date is in the future/i)).toHaveCount(0);
   await page.getByRole('button', { name: 'Reset demo date', exact: true }).click();
   await expect(amiraWindow.getByText('IN WINDOW', { exact: true })).toBeVisible();
   const tspObligation = initial.obligation_ids[0];
@@ -302,8 +303,20 @@ test('completes the patient journey through all five screens', async ({ page }, 
   await page.goto('/');
   if (!(await page.locator('.admin-drawer').evaluate(el => (el as HTMLDetailsElement).open))) await page.getByText('Admin', { exact: true }).click();
   await page.getByRole('button', { name: 'Reset TSP demo', exact: true }).click();
+  const tspResetResponse=page.waitForResponse(response=>response.request().method()==='POST'&&new URL(response.url()).pathname==='/api/v1/tsp/demo/reset');
+  await page.getByRole('button', { name: 'Confirm reset TSP demo', exact: true }).click();
+  expect((await tspResetResponse).ok()).toBeTruthy();
   await expect(amiraWindow.getByText('IN WINDOW', { exact: true })).toBeVisible();
   await expect(page.getByLabel('Demo clock banner')).toContainText('2026-11-22');
+
+  const freshProfile=await browser.newContext();
+  try {
+    const freshPage=await freshProfile.newPage();
+    await freshPage.goto(new URL('/',page.url()).href);
+    await signIn(freshPage,'coordinator');
+    await expect(freshPage.getByLabel('Demo clock banner')).toContainText('2026-11-22');
+    await expect(freshPage.getByLabel('Demo as-of date')).toHaveValue('2026-11-22');
+  } finally {await freshProfile.close();}
 
   // SIMULATED inter-facility handoff: genuine local feed/receipts and unchanged clinical gates.
   await page.getByRole('button', { name: 'Load simulated handoff demo' }).click();

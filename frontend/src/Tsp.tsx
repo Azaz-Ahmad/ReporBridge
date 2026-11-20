@@ -37,6 +37,7 @@ export function DemoClock({ token, role }: { token: string; role: Role }) {
 }
 
 export function TspQueue({ token, role }: { token: string; role?: Role }) {
+  const [confirmReset, setConfirmReset] = useState(false);
   const cache = useQueryClient();
   const clock = useQuery({ queryKey: ['tsp', 'clock', token], queryFn: () => api<Clock>(token, '/v1/tsp/clock') });
   const fixture = useMutation({ mutationFn: (reset: boolean) => api(token, '/v1/tsp/demo/' + (reset ? 'reset' : 'seed'), 'POST'),
@@ -45,7 +46,8 @@ export function TspQueue({ token, role }: { token: string; role?: Role }) {
   return <Panel title="Time-Sensitive Prevention Windows"><p className="muted">Illustrative policy · pending clinical confirmation</p>
     {clock.data?.demo_mode && role === 'coordinator' && <div className="actions">
       <Button disabled={fixture.isPending} onClick={() => fixture.mutate(false)}>Load TSP demo</Button>
-      <Button variant="outline" disabled={fixture.isPending} onClick={() => fixture.mutate(true)}>Reset TSP demo</Button>
+      <Button variant="outline" disabled={fixture.isPending} onClick={() => setConfirmReset(true)}>Reset TSP demo</Button>
+      {confirmReset && <div role="group" aria-label="Confirm TSP reset"><p>Restore synthetic fixtures and the default demo date. Amira’s previous demo run is archived.</p><Button variant="danger" disabled={fixture.isPending} onClick={() => fixture.mutate(true,{onSuccess:()=>setConfirmReset(false)})}>Confirm reset TSP demo</Button><Button variant="outline" disabled={fixture.isPending} onClick={()=>setConfirmReset(false)}>Cancel reset</Button></div>}
     </div>}{fixture.error && <Feedback message={fixture.error.message} error />}
     {query.error && <Feedback message={query.error.message} error />}
     {!query.data?.length && <p>No authorized synthetic windows available.</p>}

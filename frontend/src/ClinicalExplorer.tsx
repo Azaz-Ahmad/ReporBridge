@@ -30,7 +30,12 @@ type Page = { items: Evidence[]; next_offset: number | null; outcome: string };
 const kinds = ['Patient', 'Observation', 'Condition', 'Encounter', 'DiagnosticReport', 'DocumentReference',
   'MedicationRequest', 'MedicationStatement', 'ServiceRequest', 'CarePlan'];
 
+export function qualityWarning(warning:string,demoMode:boolean) {
+  return demoMode && warning === 'timestamp_after_receipt' ? 'Synthetic source date follows import time; inspect the source date.' : label(warning);
+}
+
 export function ClinicalExplorer({ patientId, token, coordinator }: { patientId: string; token: string; coordinator: boolean }) {
+  const session = useQuery({queryKey:["jury-session",token],queryFn:()=>api<{demo_mode:boolean}>(token,"/session")});
   const [expanded, setExpanded] = useState(false);
   const [draft, setDraft] = useState('');
   const [term, setTerm] = useState('');
@@ -93,7 +98,7 @@ export function ClinicalExplorer({ patientId, token, coordinator }: { patientId:
               <p>{item.citation} · Source status {label(item.status)}</p>
               <FacilityChips facility={item.provenance.facility} />
               <p>Clinical time {item.clinical_time ?? 'Unavailable'} · Received {item.received}</p>
-              {item.quality.warnings.length > 0 && <p>Quality flags {item.quality.warnings.map(label).join(', ')}</p>}
+              {item.quality.warnings.length > 0 && <p title={item.quality.warnings.join(', ')}>Quality flags {item.quality.warnings.map(warning=>qualityWarning(warning,!!session.data?.demo_mode)).join(', ')}</p>}
               {item.supersedes && <p>Supersedes evidence <code>{item.supersedes}</code></p>}
               {item.normalized.document?.content_ref && <p>Content reference <code>{item.normalized.document.content_ref}</code></p>}
               <p>Recorded by {label(item.provenance.authorization_role)} · Integrity hash <code>{item.digest}</code></p>
