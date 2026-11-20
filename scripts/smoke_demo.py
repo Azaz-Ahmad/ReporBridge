@@ -53,19 +53,26 @@ def checks(api,live_probe=None):
         return status.get("modes",{}).get("live",{}).get("available",False)
     check("Live adapter configured (no paid request; auth evidence is the live recording report)",provider_status)
     if live_probe is not None:check("Live API catalog reachable (read-only; no generation)",live_probe)
-    check("Replay adapter configured",lambda:status.get("modes",{}).get("replay",{}).get("available",False))
-    if status.get("llm_mode")!="replay":
+    check("Replay adapter configured",lambda:status.get("explanations",{}).get("status")=="available")
+    if status.get("explanations",{}).get("mode")!="replay":
         results.append({"check":"Replay is the active demo mode; restart with LLM_MODE=replay","passed":False});return results
     replay_metrics={}
-    def explanation(patient):
-        run=api.call("/v1/tsp/patients/"+patient+"/investigations",{"request_id":"smoke-"+str(time.time_ns())})
-        detail=run["detail"];packet=detail.get("packet") or {}
-        replay_metrics[patient]={"error":detail.get("error"),"validation":detail.get("validation"),"origin":packet.get("origin"),"live_model_calls":detail["usage"]["model_calls"]}
-        return detail["usage"]["model_calls"]==0 and packet.get("origin")=="model" and packet.get("grounding_status")!="validation_failed" and not detail.get("error")
-    check("Amira real-recorded replay explanation accepted",lambda:explanation("demo-amira"))
-    results[-1]["detail"]=replay_metrics.get("demo-amira")
-    check("Uncertain real-recorded replay explanation accepted",lambda:explanation("demo-tsp-uncertain"))
-    results[-1]["detail"]=replay_metrics.get("demo-tsp-uncertain")
+    def explanation(patient,kind="tsp",allow_fallback=False):
+        prefix="/v1/tsp" if kind=="tsp" else "/v1/history-handoff"
+        run=api.call(prefix+"/patients/"+patient+"/explanations",{"request_id":"smoke-"+str(time.time_ns())})
+        detail=run["detail"];packet=detail.get("packet") or {};projection=detail.get("explanation") or {}
+        replay_metrics[patient+kind]={"error":detail.get("error"),"validation":detail.get("validation"),"origin":packet.get("origin"),"live_model_calls":detail["usage"]["model_calls"],"agent_fields_accepted":projection.get("accepted"),"fallback_label":(projection.get("fallback") or {}).get("label")}
+        if detail["usage"]["model_calls"]!=0 or detail.get("tool_history"):return False
+        accepted=projection.get("accepted") and packet.get("origin")=="model" and packet.get("grounding_status")!="validation_failed" and not detail.get("error")
+        fallback=allow_fallback and projection.get("agent_abstained") and packet.get("origin")=="system_abstention" and packet.get("abstained") and (projection.get("fallback") or {}).get("label")=="Rule-generated explanation (agent abstained)"
+        return accepted or fallback
+    check("Amira accepted single-call replay fields",lambda:explanation("demo-amira"))
+    results[-1]["detail"]=replay_metrics.get("demo-amira"+"tsp")
+    check("Uncertain hold: validated replay or explicitly labelled rule fallback",lambda:explanation("demo-tsp-uncertain",allow_fallback=True))
+    results[-1]["detail"]=replay_metrics.get("demo-tsp-uncertain"+"tsp")
+    check("Historical source context ready",lambda:bool(api.call("/v1/history-handoff/seed",{}) and api.call("/v1/history-handoff/patients/demo-amira/receive",{})))
+    check("Historical accepted single-call replay fields",lambda:explanation("demo-amira","history"))
+    results[-1]["detail"]=replay_metrics.get("demo-amira"+"history")
     return results
 
 

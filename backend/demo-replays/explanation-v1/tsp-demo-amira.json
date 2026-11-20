@@ -1,0 +1,136 @@
+{
+  "format": "explanation-v1",
+  "accepted": true,
+  "model": "anthropic/claude-sonnet-5.5-20260928",
+  "reported_model": "anthropic/claude-sonnet-5.5",
+  "response_id": "gen-1795192238-3x2b0xDRh1lpWZvN2qsQ",
+  "context": {
+    "patient_id": "demo-amira",
+    "as_of": "2026-11-22",
+    "status": "IN_WINDOW",
+    "policy_id": "glycemic-assessment-pregnancy",
+    "policy_version": "1",
+    "citation": "CITATION_PENDING_CLINICAL_CONFIRMATION",
+    "windows": [
+      {
+        "id": "W1",
+        "label": "Early pregnancy",
+        "status": "IN_WINDOW",
+        "window_start": "2026-11-08",
+        "window_end": "2026-12-01",
+        "completion_date": null
+      },
+      {
+        "id": "W2",
+        "label": "Standard",
+        "status": "NOT_YET_DUE",
+        "window_start": "2027-02-03",
+        "window_end": "2027-03-09",
+        "completion_date": null
+      }
+    ],
+    "cited_records": [
+      {
+        "reference": "synthetic-tsp|Observation/demo-amira-tsp-lmp",
+        "version": 1,
+        "digest": "c10fbe252934e8930dde609c331a35c3ee4a86657a8a3945c9f42d26012d6aed",
+        "source_date": "2026-11-08T00:00:00.000000+00:00",
+        "facility": null,
+        "excerpt": "2026-08-19"
+      },
+      {
+        "reference": "synthetic-tsp|Observation/demo-amira-tsp-registration",
+        "version": 1,
+        "digest": "e1cc503bc56f0a6fbd037586ea4e6fffa0a88ac7b617b9543b674eb3e41849bc",
+        "source_date": "2026-11-08T00:00:00.000000+00:00",
+        "facility": null,
+        "excerpt": "registered"
+      },
+      {
+        "reference": "synthetic-tsp|Observation/demo-amira-tsp-us",
+        "version": 1,
+        "digest": "ce5c4ef400d475e56a6b92fde8459c6afd5647d1c7c8be8bdf8b310bb61f7389",
+        "source_date": "2026-11-08T00:00:00.000000+00:00",
+        "facility": null,
+        "excerpt": "2027-05-26"
+      }
+    ],
+    "rules": [],
+    "requires_human_review": true,
+    "abstained": false,
+    "reason": "none"
+  },
+  "context_hash": "90a43557adb73f8d724e52cd581dbaf4013cb8fe3fd7583b3bcdf016a45abcc5",
+  "schema_hash": "9d0d9c752b0a925449940fe62763b396011082fe68c8f3ccf2bb09bf111fbb04",
+  "fields": {
+    "patient_id": "demo-amira",
+    "as_of": "2026-11-22",
+    "status": "IN_WINDOW",
+    "policy_id": "glycemic-assessment-pregnancy",
+    "policy_version": "1",
+    "citation": "CITATION_PENDING_CLINICAL_CONFIRMATION",
+    "windows": [
+      {
+        "id": "W1",
+        "label": "Early pregnancy",
+        "status": "IN_WINDOW",
+        "window_start": "2026-11-08",
+        "window_end": "2026-12-01",
+        "completion_date": null
+      },
+      {
+        "id": "W2",
+        "label": "Standard",
+        "status": "NOT_YET_DUE",
+        "window_start": "2027-02-03",
+        "window_end": "2027-03-09",
+        "completion_date": null
+      }
+    ],
+    "cited_records": [
+      {
+        "reference": "synthetic-tsp|Observation/demo-amira-tsp-lmp",
+        "version": 1,
+        "digest": "c10fbe252934e8930dde609c331a35c3ee4a86657a8a3945c9f42d26012d6aed",
+        "source_date": "2026-11-08T00:00:00.000000+00:00",
+        "facility": null,
+        "excerpt": "2026-08-19"
+      },
+      {
+        "reference": "synthetic-tsp|Observation/demo-amira-tsp-registration",
+        "version": 1,
+        "digest": "e1cc503bc56f0a6fbd037586ea4e6fffa0a88ac7b617b9543b674eb3e41849bc",
+        "source_date": "2026-11-08T00:00:00.000000+00:00",
+        "facility": null,
+        "excerpt": "registered"
+      },
+      {
+        "reference": "synthetic-tsp|Observation/demo-amira-tsp-us",
+        "version": 1,
+        "digest": "ce5c4ef400d475e56a6b92fde8459c6afd5647d1c7c8be8bdf8b310bb61f7389",
+        "source_date": "2026-11-08T00:00:00.000000+00:00",
+        "facility": null,
+        "excerpt": "2027-05-26"
+      }
+    ],
+    "rules": [],
+    "requires_human_review": true,
+    "abstained": false,
+    "reason": "none"
+  },
+  "input_tokens": 2667,
+  "output_tokens": 655,
+  "duration_ms": 11424,
+  "validation": {
+    "status": "partially_grounded",
+    "errors": [],
+    "claim_checks": "Exact excerpts and structured values checked. Narrative requires human review.",
+    "interpretation_required": false,
+    "conflicting_evidence_ids": [],
+    "cited_ids": [
+      "8b76a08a93784f66846f8551db067547",
+      "9df0c95afa7c40e193dd70802faf34a0",
+      "fc877613438943228196dae321f61199"
+    ]
+  }
+}

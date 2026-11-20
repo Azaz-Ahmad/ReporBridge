@@ -167,9 +167,10 @@ def test_smoke_has_explicit_pass_fail_and_no_live_request(monkeypatch):
             if path=="/session":return {"demo_mode":True,"role":"coordinator"}
             if path.endswith("/demo/reset"):return {"clock":{"as_of":"2026-11-22"}}
             if path.endswith("/window"):return {"status":"HOLD_DATING_UNCERTAIN" if "uncertain" in path else "IN_WINDOW"}
-            if path.endswith("/status"):return {"llm_mode":"replay","modes":{m:{"available":True} for m in ["live","replay"]}}
-            assert path.endswith("/investigations")
-            return {"detail":{"usage":{"model_calls":0},"packet":{"origin":"model","grounding_status":"partially_grounded"},"error":None}}
+            if path.endswith("/status"):return {"llm_mode":"replay","explanations":{"mode":"replay","status":"available"},"modes":{m:{"available":True} for m in ["live","replay"]}}
+            if path.endswith("/seed") or path.endswith("/receive"):return {"ready":True}
+            assert path.endswith("/explanations")
+            return {"detail":{"usage":{"model_calls":0},"packet":{"origin":"model","grounding_status":"partially_grounded"},"explanation":{"accepted":True,"agent_abstained":False},"error":None}}
     assert all(item["passed"] for item in module.checks(API(),lambda:True))
     from app.investigation import provider
     from types import SimpleNamespace
@@ -192,10 +193,11 @@ def test_smoke_does_not_treat_recorded_failure_as_success():
             if path=="/session":return {"demo_mode":True,"role":"coordinator"}
             if path.endswith("/demo/reset"):return {"clock":{"as_of":"2026-11-22"}}
             if path.endswith("/window"):return {"status":"HOLD_DATING_UNCERTAIN" if "uncertain" in path else "IN_WINDOW"}
-            if path.endswith("/status"):return {"llm_mode":"replay","modes":{m:{"available":True} for m in ["live","replay"]}}
+            if path.endswith("/status"):return {"llm_mode":"replay","explanations":{"mode":"replay","status":"available"},"modes":{m:{"available":True} for m in ["live","replay"]}}
+            if path.endswith("/seed") or path.endswith("/receive"):return {"ready":True}
             return {"detail":{"usage":{"model_calls":0},"packet":{"origin":"system_abstention"},"error":"incomplete_response"}}
     results=module.checks(Failed())
-    assert sum(not r["passed"] for r in results)==2
+    assert sum(not r["passed"] for r in results)==3
 
 
 def test_smoke_never_sends_token_to_remote_host():

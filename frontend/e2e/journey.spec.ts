@@ -422,5 +422,16 @@ test('completes the patient journey through all five screens', async ({ page, br
   await expect(earlier.getByText('No trigger from this historical rule',{exact:true})).toBeVisible();
   await page.setViewportSize({width:390,height:844});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Earlier-record passport fits at 390 px').toBe(true);
+  const ruleFallbackResponse=page.waitForResponse(response=>response.request().method()==='POST'&&new URL(response.url()).pathname==='/api/v1/history-handoff/patients/demo-amira/explanations');
+  await earlier.getByRole('button',{name:'Explain cited earlier record'}).click();
+  const fallbackRun=await (await ruleFallbackResponse).json();
+  expect(fallbackRun.detail.usage.model_calls).toBe(0);
+  expect(fallbackRun.detail.tool_history).toEqual([]);
+  expect(fallbackRun.detail.packet.origin).toBe('system_abstention');
+  expect(fallbackRun.detail.explanation.accepted).toBe(false);
+  await expect(earlier.getByText('Rule-generated explanation (agent abstained)',{exact:true})).toBeVisible();
+  await expect(earlier.getByText('Agent abstained. Its result has not been accepted.',{exact:true})).toBeVisible();
+  await earlier.getByText('Explanation trace',{exact:true}).click();
+  await expect(earlier.locator('pre').filter({hasText:'provider_unavailable: disabled'})).toBeVisible();
   await testInfo.attach('SIMULATED earlier-record handoff',{body:JSON.stringify({received:historyState,closed:closedHistory}),contentType:'application/json'});
 });

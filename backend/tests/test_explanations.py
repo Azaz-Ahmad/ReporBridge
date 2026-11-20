@@ -150,3 +150,32 @@ def test_context_changed_during_model_call_withholds_stale_rule_fallback(client,
     assert 'tsp_window_context_changed' in d['validation']['errors']
     assert d['explanation']['fallback'] is None
     assert 'reload' in d['explanation']['label']
+
+
+
+def test_server_preparation_preserves_per_source_synthetic_tag_guard(client,monkeypatch):
+    from app import db
+    from app.clinical.access import authorize
+    from app.clinical.gateway import ClinicalRetrieval
+    from test_clinical_foundation import ingest
+    from datetime import datetime,UTC
+    calls=setup(client,monkeypatch);fake(monkeypatch,calls)
+    window=client('/v1/tsp/patients/demo-amira/window',method='GET').json()
+    identifier=window['inputs_used'][0]['source_id']
+    with db.engine.begin() as connection:
+        resource=ClinicalRetrieval(connection,authorize(connection,'coordinator','demo-amira')).get(evidence_id=identifier).resource
+    resource['meta']['tag']=[]
+    assert ingest(client,resource,'untagged-synthetic-source',version=2,source='synthetic-tsp',event_time=datetime.now(UTC).isoformat()).status_code==422
+    assert not calls
+    # Also defend the projection if an external provider ever supplies an untagged raw resource.
+    original_get=ClinicalRetrieval.get
+    def untagged(self,*args,**kwargs):
+        result=original_get(self,*args,**kwargs)
+        if result.resource is not None:
+            altered=copy.deepcopy(result.resource);altered['meta']['tag']=[]
+            result=result.model_copy(update={'resource':altered})
+        return result
+    monkeypatch.setattr(ClinicalRetrieval,'get',untagged)
+    response=request(client)
+    assert response.status_code==409,response.text
+    assert 'synthetic_scope_required' in response.text and not calls

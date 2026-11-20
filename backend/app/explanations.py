@@ -100,7 +100,11 @@ def prepare(connection,actor,binding):
     identifiers.update(i["id"] for i in (binding.get("history") or {}).get("findings",[]))
     records=[];snapshots=[];supports={}
     for identifier in sorted(identifiers):
-        found=retrieval.get(evidence_id=identifier);item=found.evidence.model_dump(mode="json")
+        found=retrieval.get(evidence_id=identifier)
+        from app.rules import DEMO_TAG
+        if found.resource is not None and DEMO_TAG not in (found.resource.get("meta") or {}).get("tag",[]):
+            fail(409,"synthetic_scope_required","Explanations require explicitly tagged synthetic source records.")
+        item=found.evidence.model_dump(mode="json")
         values=item["normalized"].get("values",{});key=next(iter(sorted(values)),None)
         if key:
             literal=str(values[key]);support=Support(evidence_id=item["id"],version=item["version"],excerpt="",value_key=key,value_json=json.dumps(values[key]))
