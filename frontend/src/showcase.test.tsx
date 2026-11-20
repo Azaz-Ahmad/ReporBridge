@@ -41,7 +41,7 @@ describe('persisted demo readouts', () => {
     expect(links.map((link) => link.getAttribute('href'))).toEqual([
       '/passport?obligation=prior#provenance', '/passport?obligation=later#provenance',
     ]);
-    expect(screen.getByText('Observation/flag')).toBeTruthy();
+    expect(screen.getByText('Observation')).toBeTruthy();
     expect(screen.getByText('must close before')).toBeTruthy();
   });
 

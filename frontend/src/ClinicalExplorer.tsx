@@ -88,9 +88,9 @@ export function ClinicalExplorer({ patientId, token, coordinator }: { patientId:
       {results.error && <Feedback message={results.error.message} error />}
       {results.data?.outcome === 'not_found' && <Empty>No matching evidence in the available records.</Empty>}
       <ul className="clinical-results">
-        {results.data?.items.map((item) => <li key={item.id + '/' + (item.position ?? 'record')}>
+        {results.data?.items.map((item) => <li data-source-reference={item.provenance.resource_reference} key={item.id + '/' + (item.position ?? 'record')}>
           <details>
-            <summary><strong>{item.provenance.resource_reference}</strong>
+            <summary><strong>{item.provenance.resource_reference.split('/')[0]} · source record</strong>
               <small>{item.source} · Version {item.version}{item.section ? ' · ' + item.section : ''}</small>
               <Status value={item.quality.state} />
             </summary>

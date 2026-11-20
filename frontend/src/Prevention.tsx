@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { demoPatient, displayJson } from './presentation';
 import { api } from './api';
 import { ClinicalInvestigation } from './ClinicalInvestigation';
 import { MultiAgent } from './MultiAgent';
@@ -60,7 +61,7 @@ export function PreventionQueue({ token, role }: Props) {
       </div>
       {visible.map((item) => <Link className="record-link decision-queue-row" key={item.id}
         to={'/passport?obligation=' + item.obligation_id + '&decision=' + item.id}>
-        <div><strong>{item.patient_id} · Prevention review</strong><small>{item.owner}</small>
+        <div><strong>{demoPatient(item.patient_id)} · Prevention review</strong><small>{item.owner}</small>
           <small>{item.timing_policy ? 'Illustrative timing policy · ' : ''}{item.timing.label}</small></div>
         <Status value={item.status} />
       </Link>)}
@@ -81,19 +82,19 @@ function DecisionFacts({ decision }: { decision: PreventionDecision }) {
       <div><dt>Timing</dt><dd>{decision.timing.label}
         {decision.timing.due_at && <small>{moment(decision.timing.due_at)}</small>}</dd></div>
       <div><dt>Timing policy</dt><dd>{decision.timing_policy
-        ? <>{decision.timing_policy.id} · Version {decision.timing_policy.version}
+        ? <>Illustrative policy · Version {decision.timing_policy.version}
           <small>{decision.timing_policy.source} · {label(decision.timing_policy.status)}</small></>
         : 'No approved timing policy is configured.'}</dd></div>
-      <div><dt>Rule provenance</dt><dd>{decision.rule_key}<small>Illustrative readiness registry · clinical review required</small></dd></div>
-      <div><dt>Linked obligation</dt><dd><Link to={'/passport?obligation=' + decision.obligation_id}>{decision.obligation_id}</Link></dd></div>
+      <div><dt>Rule provenance</dt><dd><details><summary>Rule details</summary>{decision.rule_key}</details><small>Illustrative readiness registry · clinical review required</small></dd></div>
+      <div><dt>Linked obligation</dt><dd><Link to={'/passport?obligation=' + decision.obligation_id}>Open obligation passport</Link></dd></div>
     </dl>
     <h3>Required evidence</h3>
     <p className="muted">Available evidence supports review. The clinician determines clinical sufficiency.</p>
     <ul className="decision-prerequisites">{decision.prerequisites.map((item) => <li key={item.id}>
       <strong>{item.category}</strong> <Status value={item.status} />
-      <small>{item.source_refs.join(', ') || 'No matching accessible source records'}</small>
+      <small>{item.source_refs.length} accessible source records</small>
       {item.issues.length > 0 && <small>{item.issues.map(label).join(', ')}</small>}
-      <small>Evaluated {moment(item.evaluated)} · {item.rule_key}</small>
+      <small>Evaluated {moment(item.evaluated)}</small>
     </li>)}</ul>
     <details><summary>Decision evidence snapshot</summary><p>Snapshot <code>{decision.snapshot_hash}</code></p>
       <p>Source evidence {decision.source_refs.join(', ')}</p>
@@ -103,7 +104,7 @@ function DecisionFacts({ decision }: { decision: PreventionDecision }) {
       <h3>Clinical decision recorded</h3><p><strong>{label(decision.record.outcome)}</strong> · {label(decision.record.actor)} · {moment(decision.record.recorded)}</p>
       <p>{decision.record.rationale}</p>
       {!decision.record_snapshot_current && <Feedback message="Decision context changed after recording. A clinician must assess whether further review is needed." error />}
-      <p>Supporting evidence {decision.record.source_refs.join(', ') || 'Deferral recorded with unresolved evidence'}</p>
+      <details><summary>Supporting evidence references</summary>{decision.record.source_refs.join(', ') || 'Deferral recorded with unresolved evidence'}</details>
       <p className="muted">Clinical obligation closure requires its evidence-specific approval and verification.</p>
     </div>}
   </>;
@@ -203,7 +204,7 @@ export function DecisionReadiness({ token, role, patientId }: Props & { patientI
           });
         }}>
           {!decision && <option value="" disabled>Choose a decision</option>}
-          {visible.map((item) => <option key={item.id} value={item.id}>{item.id} · {label(item.status)}</option>)}
+          {visible.map((item) => <option key={item.id} value={item.id}>{label(item.status)} · {moment(item.created)}</option>)}
         </select></label>
         {decision ? <><p>{decision.rationale}</p>
           <ul>{decision.prerequisites.map((item) => <li key={item.id}>{item.category} · {label(item.status)}</li>)}</ul>
@@ -251,9 +252,9 @@ export function DecisionHistory({ token }: { token: string }) {
   return <Panel title="Decision History"><div className="inset prevention">
     <p className="muted">Evidence retrieval, clinician review, decision recording, follow-up and verified obligation closure are recorded as separate events.</p>
     <ul className="timeline">{data.data?.history.slice().reverse().slice(0, 100).map((item) => <li key={item.sequence}>
-      <strong>{label(item.action)}</strong><small>{moment(item.recorded)} · {label(item.actor)} · {item.patient_id}</small>
-      <small>{item.decision_id}</small>
-      <details><summary>Inspect decision audit event</summary><pre>{JSON.stringify(item.detail, null, 2)}</pre></details>
+      <strong>{label(item.action)}</strong><small>{moment(item.recorded)} · {label(item.actor)} · {demoPatient(item.patient_id)}</small>
+      <details><summary>Decision identifier</summary>{item.decision_id}</details>
+      <details><summary>Inspect decision audit event</summary><pre>{displayJson(item.detail)}</pre></details>
     </li>)}</ul>
     {!data.data?.history.length && <Empty>No decision history recorded.</Empty>}
     {data.error && <Feedback message={data.error.message} error />}

@@ -9,7 +9,7 @@ async function signIn(page: Page, role: 'coordinator' | 'reviewer') {
   await expect(page.getByRole('navigation')).toBeVisible();
 }
 
-const preconception = 'Preconception metabolic assessment review · demo-amira';
+const preconception = 'Preconception metabolic assessment review · Amira Haddad';
 
 test('completes the patient journey through all five screens', async ({ page, browser }, testInfo) => {
   test.setTimeout(210_000);
@@ -30,7 +30,7 @@ test('completes the patient journey through all five screens', async ({ page, br
   const started = performance.now();
   await page.goto('/');
   await signIn(page, 'coordinator');
-  await expect(page.getByRole('heading', { name: 'ReproBridge', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Ajyra AI - ReproBridge', exact: true })).toBeVisible();
   timings.dashboardLoadAndSignInMs = Math.round(performance.now() - started);
   if (!(await page.locator('.admin-drawer').evaluate(el => (el as HTMLDetailsElement).open))) await page.getByText('Admin', { exact: true }).click();
   await page.getByRole('button', { name: 'Load demo patient' }).click();
@@ -40,7 +40,7 @@ test('completes the patient journey through all five screens', async ({ page, br
   await expect(page.locator('.decision-counts button').filter({ hasText: 'Awaiting evidence' }).locator('strong')).toHaveText('1');
   await expect(page.getByRole('link', { name: /0 Blocked or escalated/ })).toBeVisible();
   if (captureDir) {
-    await page.getByText('Six innovations', { exact: true }).click();
+    await page.getByText('Innovation showcase', { exact: true }).click();
     await page.getByText('Technical evaluation', { exact: true }).click();
     await capture('01-population');
   }
@@ -49,7 +49,7 @@ test('completes the patient journey through all five screens', async ({ page, br
   await expect(page.getByRole('heading', { name: 'Amira Haddad' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Decision Timeline' })).toBeVisible();
   timings.workspaceNavigationMs = Math.round(performance.now() - navigating);
-  await expect(page.getByText('Patient/demo-amira')).toBeVisible();
+  await expect(page.getByRole('combobox', {name:'Patient',exact:true})).toHaveValue('demo-amira');
   await page.getByRole('link', { name: /Preconception metabolic assessment review/ }).first().click();
   await expect(page.getByText('Required completion evidence is missing.')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Prevention Decision', exact: true })).toBeVisible();
@@ -69,7 +69,7 @@ test('completes the patient journey through all five screens', async ({ page, br
   await expect(page.getByText(/This prerequisite applies to closing the linked review/)).toBeVisible();
   await capture('02-patient-workspace');
   await capture('07-cross-pathway-dependencies', page.locator('#dependencies'));
-  await page.getByRole('link', { name: /Pregnancy handoff review.*Observation\/demo-amira-pregnancy/ }).click();
+  await page.locator('.dependency-node').filter({hasText:'Pregnancy handoff review'}).click();
   await expect(page.locator('#provenance')).toHaveAttribute('open', '');
   await expect(page.locator('#provenance')).toContainText('Observation/demo-amira-pregnancy');
   await page.getByRole('link', { name: 'Women’s health workspace' }).click();
@@ -190,8 +190,7 @@ test('completes the patient journey through all five screens', async ({ page, br
   await expect(page.getByText('Synthetic dataset available.')).toBeVisible();
   await page.getByLabel('Search evidence').fill('reconciliation');
   await page.getByRole('button', { name: 'Search', exact: true }).click();
-  const clinicalNote = page.locator('.clinical-results li')
-    .filter({ has: page.getByText('DocumentReference/demo-m08-note', { exact: true }) });
+  const clinicalNote = page.locator('.clinical-results li[data-source-reference="DocumentReference/demo-m08-note"]');
   await clinicalNote.locator('summary').click();
   await expect(clinicalNote.getByText('Source excerpt · untrusted clinical text')).toBeVisible();
   await expect(clinicalNote.getByText('Clinician reconciliation remains outstanding.', { exact: true })).toBeVisible();
@@ -261,9 +260,9 @@ test('completes the patient journey through all five screens', async ({ page, br
   // TSP extension uses the same real backend and existing clinical gates; no model calls.
   await page.getByRole('button', { name: 'Load TSP demo', exact: true }).click();
   const tspQueue = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Time-Sensitive Prevention Windows', exact: true }) });
-  const amiraWindow = tspQueue.getByRole('row').filter({ has: page.getByRole('cell', { name: 'demo-amira', exact: true }) });
+  const amiraWindow = tspQueue.getByRole('row').filter({ has: page.getByRole('cell', { name: 'Amira Haddad', exact: true }) });
   await expect(amiraWindow.getByText('IN WINDOW', { exact: true })).toBeVisible();
-  const uncertain = tspQueue.getByRole('row').filter({ has: page.getByRole('cell', { name: 'demo-tsp-uncertain', exact: true }) });
+  const uncertain = tspQueue.getByRole('row').filter({ has: page.getByRole('cell', { name: 'Uncertain dating patient', exact: true }) });
   await expect(uncertain.getByText('HOLD DATING UNCERTAIN')).toBeVisible();
   await expect(uncertain.getByText('No established window')).toBeVisible();
   const auth = { Authorization: 'Bearer ' + process.env.E2E_COORDINATOR_TOKEN };
@@ -335,7 +334,7 @@ test('completes the patient journey through all five screens', async ({ page, br
   await expect(handoffTimeline.getByText('Unresolved obligation surfaced in the receiving view')).toBeVisible();
   await page.getByText('Clinical evidence explorer', { exact: true }).click();
   await page.getByLabel('Resource type').selectOption('DocumentReference');
-  const exchangeNote = page.locator('.clinical-results li').filter({ has: page.getByText('DocumentReference/demo-handoff-received-note', { exact: true }) });
+  const exchangeNote = page.locator('.clinical-results li[data-source-reference="DocumentReference/demo-handoff-received-note"]');
   await exchangeNote.locator('summary').click();
   await expect(exchangeNote.getByText('SIMULATED · Hospital A', { exact: true })).toBeVisible();
   await expect(exchangeNote.getByText(/received via simulated exchange/)).toBeVisible();

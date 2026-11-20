@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Activity, ArrowRight, ClipboardList, HeartPulse, LayoutDashboard, LogOut, Network, ShieldCheck, Users, Workflow } from 'lucide-react';
 import { Link, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { PRODUCT_NAME } from './presentation';
 import { api } from './api';
 import { RoleSwitcher } from './Jury';
 import { DemoClock } from './Tsp';
@@ -19,7 +20,7 @@ const links = [
 
 function Brand() {
   return <Link to="/" className="brand"><span className="brand-mark"><Activity size={23} /></span>
-    <span><strong>ReproBridge</strong><small>AJYRA AI</small></span></Link>;
+    <span><strong>{PRODUCT_NAME}</strong></span></Link>;
 }
 
 export function App() {

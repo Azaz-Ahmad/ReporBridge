@@ -24,7 +24,7 @@ from app.handoff_api import router as handoff_router
 from app.history_api import router as history_router
 from app.rules import DEMO_TAG, observation
 
-app = FastAPI(title="Ajyra AI â€” ReproBridge", version="0.6.0",
+app = FastAPI(title="Ajyra AI - ReproBridge", version="0.6.0",
               description="Synthetic illustration of care coordination across a life-stage transition.")
 bearer = HTTPBearer(auto_error=False)
 

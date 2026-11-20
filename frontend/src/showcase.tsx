@@ -73,7 +73,7 @@ export function DependencyMap({ data, patientId, obligationId }: { data: Snapsho
     return <Link className="dependency-node" to={'/passport?obligation=' + item.id + '#provenance'}>
       <span className="field-kicker">{label(rule?.pathway_id || '')}</span>
       <strong>{obligationTitle(data, item)}</strong>
-      <small>{source ? source.resourceType + '/' + source.id : 'Source unavailable'}</small>
+      <small>{source ? source.code?.text || source.resourceType : 'Source unavailable'}</small>
       <Status value={item.status} />
     </Link>;
   }
@@ -81,7 +81,7 @@ export function DependencyMap({ data, patientId, obligationId }: { data: Snapsho
     {connections.length ? connections.map(({ edge, predecessor, successor }) => {
       const transition = data.life_stage_events.find((event) => event.patient_id === patientId && event.evidence_id === successor.source_id);
       return <div className="dependency-map" key={edge.id}>
-        {transition && <div className="transition-note"><CalendarDays size={16} /> {label(transition.stage)} registered · {moment(transition.recorded)}<small>Observation/{transition.evidence_id}</small></div>}
+        {transition && <div className="transition-note"><CalendarDays size={16} /> {label(transition.stage)} registered · {moment(transition.recorded)}<small>Pregnancy registration source</small></div>}
         <div className="dependency-grid">
           {node(predecessor)}
           <div className="dependency-edge"><ArrowRight size={21} /><strong>must close before</strong><small>{label(edge.kind)}</small></div>
@@ -159,7 +159,7 @@ const innovations = [
 ] as const;
 
 export function Innovations() {
-  return <details className="panel expandable"><summary>Six innovations</summary>
+  return <details className="panel expandable"><summary>Innovation showcase</summary>
     <div className="innovation-grid">
       {innovations.map(([name, href, Icon]) => <div key={name}><Icon size={17} />
         {href ? <Link className="text-link" to={href}>{name}</Link> : <><strong>{name}</strong><Status value="planned" /></>}

@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { ArrowDownToLine, ArrowRight, ArrowUpRight, CalendarDays, CircleAlert, ClipboardList, GitBranch, HeartPulse, Plus, RotateCcw, ShieldCheck, Users, Workflow } from 'lucide-react';
+import { PRODUCT_NAME, demoPatient, displayText } from './presentation';
 import { api } from './api';
 import { EarlierRecords } from './History';
 import { JuryOverview, DemoAdmin, JourneyStrip } from './Jury';
@@ -34,7 +35,7 @@ export function Dashboard({ data, role, token, busy, action }: ScreenProps) {
     { title: 'Blocked or escalated', value: counts.blocked, icon: CircleAlert, path: '/audit', tone: 'rose' },
   ];
   return <>
-    <div className="hero jury-hero"><div><h1>ReproBridge</h1><p>Keep unfinished care visible across pregnancy and care teams.</p></div>
+    <div className="hero jury-hero"><div><h1>{PRODUCT_NAME}</h1><p>Keep unfinished care visible across pregnancy and care teams.</p></div>
     {amira ? <Button asChild><Link to="/workspace?patient=demo-amira">Open Amira’s journey</Link></Button> : <Button disabled={busy} onClick={()=>action('/demo/seed','Synthetic patients are ready.')}>Open Amira’s journey</Button>}</div>
     <JuryOverview data={data} token={token} />
     <DemoAdmin token={token}>
@@ -49,7 +50,7 @@ export function Dashboard({ data, role, token, busy, action }: ScreenProps) {
     <Panel title="Patient registry">
       {data.patients.length ? <div className="table-wrap"><table><thead><tr><th>Patient</th><th>Life stage</th><th>Open obligations</th><th>Workspace</th></tr></thead>
         <tbody>{data.patients.map((patient) => <tr key={patient.id}>
-          <td><strong>{patientName(patient)}</strong><small>{patient.id}</small></td><td><Status value={patient.stage} /></td>
+          <td><strong>{patientName(patient)}</strong></td><td><Status value={patient.stage} /></td>
           <td>{data.clinical_obligations.filter((item) => item.patient_id === patient.id && item.status === 'open').length}</td>
           <td><Link className="text-link" to={'/workspace?patient=' + patient.id}>Open workspace <ArrowRight size={15} /></Link></td>
         </tr>)}</tbody></table></div>
@@ -95,7 +96,7 @@ export function Workspace({ data, role, token, busy, action }: ScreenProps) {
               : scenario.rationale}</p>
           <Link className="text-link" to={'/passport?obligation=' + assessment.id}>Open assessment passport <ArrowRight size={15} /></Link>
         </div>}
-        <dl className="details"><div><dt>Patient ID</dt><dd>{patient.id}</dd></div>
+        <dl className="details">
           <div><dt>Birth date</dt><dd>{patient.resource.birthDate}</dd></div><div><dt>Current pathway</dt><dd>{label(patient.stage)}</dd></div>
           <div><dt>Administrative gender</dt><dd>{label(patient.resource.gender || 'unknown')}</dd></div></dl>
         {role === 'coordinator' && <div className="actions inset">
@@ -108,7 +109,7 @@ export function Workspace({ data, role, token, busy, action }: ScreenProps) {
           {data.life_stage_events.filter((event) => event.patient_id === patient.id)
             .sort((first, later) => first.recorded.localeCompare(later.recorded)).map((event) => <li key={event.id}>
               <strong>{label(event.stage)}</strong><small>{moment(event.recorded)} · {event.evidence_id
-                ? 'Observation/' + event.evidence_id : 'Patient/' + patient.id}</small></li>)}
+                ? 'Source observation recorded' : 'Patient registration'}</small></li>)}
         </ul></Panel>
         <Panel title="Obligations">
           {obligations.map((item) =>
@@ -127,7 +128,7 @@ export function Workspace({ data, role, token, busy, action }: ScreenProps) {
       <Panel title="Clinical evidence">
         <div className="table-wrap clinical-table"><table role="table"><thead><tr><th>Resource</th><th>Finding</th><th>Value</th><th>Status</th></tr></thead>
           <tbody role="rowgroup">{data.clinical_evidence.filter((row) => row.patient_id === patient.id).map(({ resource }) => <tr role="row" key={resource.id}>
-            <td role="cell"><span className="mobile-cell-label" aria-hidden="true">Resource</span>{resource.resourceType}/{resource.id}</td>
+            <td role="cell"><span className="mobile-cell-label" aria-hidden="true">Resource</span>{resource.resourceType}</td>
             <td role="cell"><span className="mobile-cell-label" aria-hidden="true">Finding</span>{resource.code?.text || label(resource.code?.coding?.[0]?.code || '—')}</td>
             <td role="cell"><span className="mobile-cell-label" aria-hidden="true">Value</span>{resource.valueString || '—'}</td>
             <td role="cell"><span className="mobile-cell-label" aria-hidden="true">Status</span>{label(resource.status || '—')}</td></tr>)}</tbody></table></div>
@@ -149,7 +150,7 @@ export function Passport({ data, role, token, busy, action }: ScreenProps) {
   return <>
     <Heading title="Clinical obligation passport" subtitle="Source evidence, ownership, and closure requirements.">
       {!!item && <label className="field-inline">Passport obligation <select aria-label="Passport obligation" value={item.id} onChange={(event) => setParams({ obligation: event.target.value })}>
-        {data.clinical_obligations.map((entry) => <option key={entry.id} value={entry.id}>{titleFor(data, entry)} · {entry.patient_id}</option>)}
+        {data.clinical_obligations.map((entry) => <option key={entry.id} value={entry.id}>{titleFor(data, entry)} · {demoPatient(entry.patient_id)}</option>)}
       </select></label>}
     </Heading>
     {!item || !rule || !source ? <Empty>{obligationId ? 'This obligation is unavailable in the current run. ' : 'Evaluate a synthetic patient to create an obligation. '}
@@ -157,7 +158,7 @@ export function Passport({ data, role, token, busy, action }: ScreenProps) {
       <section className="passport-cover">
         <span className="passport-icon"><ClipboardList size={25} /></span>
         <div><p className="field-kicker">Clinical obligation passport</p><h2>{titleFor(data, item)}</h2>
-          <p>{patient ? patientName(patient) : item.patient_id} · {label(rule.pathway_id)} pathway</p></div>
+          <p>{patient ? patientName(patient) : demoPatient(item.patient_id)} · {label(rule.pathway_id)} pathway</p></div>
         <Status value={item.status} />
       </section>
       <EarlierRecords token={token} role={role} patientId={item.patient_id} />
@@ -234,10 +235,10 @@ export function Resolution({ data, role, token, busy, busyPath, action }: Screen
     <Panel title="Coordination case" action={ordered.length ? <label className="field-inline">Coordination obligation <select
       aria-label="Coordination obligation" value={selected?.id || ''} onChange={(event) => setParams({ obligation: event.target.value })}>
       {!selected && <option value="" disabled>Choose an obligation</option>}
-      {ordered.map((item) => <option key={item.id} value={item.id}>{titleFor(data, item)} · {item.patient_id}</option>)}
+      {ordered.map((item) => <option key={item.id} value={item.id}>{titleFor(data, item)} · {demoPatient(item.patient_id)}</option>)}
     </select></label> : undefined}>
       {selected ? <div className="inset coordination-case">
-        <div><strong>{patient ? patientName(patient) : selected.patient_id} · {titleFor(data, selected)}</strong>
+        <div><strong>{patient ? patientName(patient) : demoPatient(selected.patient_id)} · {titleFor(data, selected)}</strong>
           <p>{selected.status === 'closed' ? 'Verified closure has been recorded.' : !current
             ? 'A coordinator can run the workflow to prepare a proposal for human review.'
             : status === 'completed' ? 'A reviewer decision is recorded. Review completion and verified closure are separate.'
@@ -277,7 +278,7 @@ export function Resolution({ data, role, token, busy, busyPath, action }: Screen
           <div><dt>Routing</dt><dd>{label(execution.result.route)} required</dd></div>
           <div><dt>Authorization</dt><dd>{label(execution.actor)} request accepted by the API.</dd></div>
           <div><dt>Execution</dt><dd>{moment(execution.recorded)} · {label(execution.actor)}</dd></div>
-          <div><dt>Evidence reviewed by agent</dt><dd>{execution.result.evidence_refs.join(', ')}</dd></div>
+          <div><dt>Evidence reviewed by agent</dt><dd><details><summary>Source references</summary>{execution.result.evidence_refs.join(', ')}</details></dd></div>
           <div><dt>External tools invoked</dt><dd>None. Nodes use authorized records supplied by the backend.</dd></div>
           {review && <div><dt>Reviewer decision</dt><dd>{label(review.decision)}{review.note && ' · ' + review.note}
             <small>{review.evidence_refs.join(', ') || 'No completion evidence at decision time'}</small></dd></div>}
@@ -290,7 +291,7 @@ export function Resolution({ data, role, token, busy, busyPath, action }: Screen
         {role === 'reviewer' && task.status === 'pending' && <div className="inset review-controls">
           <strong>Current completion evidence</strong>
           {currentEvidence.length ? <ul>{currentEvidence.map((row) =>
-            <li key={row.id}>{row.resource.resourceType}/{row.id} · {row.resource.status} · {row.resource.valueString}</li>,
+            <li key={row.id}>{row.resource.code?.text || row.resource.resourceType} · {row.resource.status} · {row.resource.valueString}<details><summary>Source identifier</summary>{row.resource.resourceType}/{row.id}</details></li>,
           )}</ul> : <p>No completion evidence submitted.</p>}
           <label>Review note <input value={notes[task.id] || ''} maxLength={300} onChange={(event) => setNotes({ ...notes, [task.id]: event.target.value })} /></label>
           <div className="actions">{(['approve', 'reject', 'request_evidence'] as const).map((decision) =>
@@ -339,7 +340,7 @@ export function AuditScreen({ data, role, token, busy, action }: ScreenProps) {
     {error && <Feedback message={error} error />}
     {inspected && <Panel title="Closure evidence review" action={<label className="field-inline">Inspect obligation <select value={inspected.id}
       onChange={(event) => setInspectedId(event.target.value)}>
-      {data.clinical_obligations.map((item) => <option key={item.id} value={item.id}>{titleFor(data, item)} · {item.patient_id}</option>)}
+      {data.clinical_obligations.map((item) => <option key={item.id} value={item.id}>{titleFor(data, item)} · {demoPatient(item.patient_id)}</option>)}
     </select></label>}>
       <div className="verification-compare">
         <div><ClipboardList size={20} /><strong>Action initiated</strong>
@@ -353,12 +354,12 @@ export function AuditScreen({ data, role, token, busy, action }: ScreenProps) {
       </div>
       <dl className="details"><div><dt>Required evidence</dt><dd>{inspectedScenario?.completion || 'A qualifying final completion record.'} Evidence-specific approval and cleared prerequisites are required.</dd></div>
         <div><dt>Supporting records</dt><dd>{completionEvidence(data, inspected).map(({ resource }) =>
-          resource.resourceType + '/' + resource.id + ' · ' + resource.status).join(', ') || 'No completion evidence submitted'}</dd></div>
-        <div><dt>Reviewer evidence references</dt><dd>{review?.evidence_refs.join(', ') || 'None recorded'}</dd></div></dl>
+          (resource.code?.text || resource.resourceType) + ' · ' + resource.status).join(', ') || 'No completion evidence submitted'}</dd></div>
+        <div><dt>Reviewer evidence references</dt><dd><details><summary>Reviewed source references</summary>{review?.evidence_refs.join(', ') || 'None recorded'}</details></dd></div></dl>
     </Panel>}
     {role === 'coordinator' && current && <Panel title="Submit synthetic completion evidence">
       <div className="inset"><label className="field-inline">Completion evidence obligation <select aria-label="Completion evidence obligation" value={current.id} onChange={(event) => setSelected(event.target.value)}>
-        {open.map((item) => <option key={item.id} value={item.id}>{titleFor(data, item)} · {item.patient_id}</option>)}</select></label>
+        {open.map((item) => <option key={item.id} value={item.id}>{titleFor(data, item)} · {demoPatient(item.patient_id)}</option>)}</select></label>
         <div className="actions">
           <Button disabled={busy} onClick={() => action('/obligations/' + current.id + '/demo-completion', 'Verified fixture submitted. Reviewer approval is still required.', { scenario: 'verified' })}>Add verified evidence</Button>
           <Button disabled={busy} variant="danger" onClick={() => action('/obligations/' + current.id + '/demo-completion', 'Conflicting fixture submitted.', { scenario: 'conflicting' })}>Add conflicting evidence</Button>
@@ -387,6 +388,6 @@ function AuditTable({ events }: { events: Audit[] }) {
   if (!events.length) return <Empty>No events recorded yet.</Empty>;
   return <div className="table-wrap audit-table" role="region" aria-label="Scrollable audit table" tabIndex={0}><table><thead><tr><th>Action</th><th>Actor</th><th>Time</th><th>Evidence</th><th>Rule version</th></tr></thead>
     <tbody>{events.map((event) => <tr key={event.sequence}><td><strong>{label(event.action)}</strong>
-      <small>{event.detail.reason || event.patient_id}</small></td><td>{label(event.actor)}</td><td>{moment(event.recorded)}</td>
-      <td>{event.evidence_refs.join(', ') || '—'}</td><td>{event.rule_key || event.detail.evaluated_rule || '—'}</td></tr>)}</tbody></table></div>;
+      <small>{displayText(event.detail.reason || demoPatient(event.patient_id))}</small></td><td>{label(event.actor)}</td><td>{moment(event.recorded)}</td>
+      <td>{event.evidence_refs.length ? <details><summary>Source references ({event.evidence_refs.length})</summary>{event.evidence_refs.join(', ')}</details> : '—'}</td><td><details><summary>Rule details</summary>{event.rule_key || event.detail.evaluated_rule || '—'}</details></td></tr>)}</tbody></table></div>;
 }

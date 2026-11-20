@@ -1,3 +1,4 @@
+import { displayJson, displayText } from './presentation';
 import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { api } from './api';
@@ -98,10 +99,10 @@ export function ClinicalInvestigation({ patientId, token, role, decisionId }: {
         </details>
         {packet && <>
           <p>{packet.origin === 'model' ? 'Model-generated draft' : 'System-recorded abstention'} · <Status value={packet.grounding_status} /></p>
-          <p>{packet.summary}</p>
-          <details open><summary>View Findings</summary>
+          <p>{displayText(packet.summary)}</p>
+          <details><summary>View Findings</summary>
             {packet.findings.length ? <ul>{packet.findings.map((finding) => <li key={finding.finding_id}>
-              <p>{finding.statement}</p><small>{label(finding.evidence_status)} · {finding.requires_clinical_interpretation ? 'Clinical interpretation required' : 'Source statement'}</small>
+              <p>{displayText(finding.statement)}</p><small>{label(finding.evidence_status)} · {finding.requires_clinical_interpretation ? 'Clinical interpretation required' : 'Source statement'}</small>
               {finding.supporting_sources.map((support, index) => <div key={index}>
                 <small>{support.evidence_id} · Version {support.version}</small>
                 {support.excerpt && <blockquote>{support.excerpt}</blockquote>}
@@ -124,7 +125,7 @@ export function ClinicalInvestigation({ patientId, token, role, decisionId }: {
             {evidence.error && <Feedback message={evidence.error.message} error />}
             {source && evidence.data && <div><p>{evidence.data.citation} · Current status {evidence.data.status}</p>
               <p>{evidence.data.quality.warnings.map(label).join(', ')}</p>
-              <pre>{JSON.stringify(evidence.data.normalized.values ?? {}, null, 2)}</pre></div>}
+              <pre>{displayJson(evidence.data.normalized.values ?? {})}</pre></div>}
           </details>
           <p>{run.detail.validation?.claim_checks}</p>
           {run.detail.validation?.errors?.length ? <p>{run.detail.validation.errors.map(label).join(', ')}</p> : null}

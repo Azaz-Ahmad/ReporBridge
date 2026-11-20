@@ -2,6 +2,7 @@ import {ExplanationOutput,type ExplanationProjection} from './ExplanationOutput'
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
+import { demoPatient } from './presentation';
 import { api } from './api';
 import { Button, Feedback, Panel } from './ui';
 import type { Role } from './types';
@@ -53,7 +54,7 @@ export function TspQueue({ token, role }: { token: string; role?: Role }) {
     {query.error && <Feedback message={query.error.message} error />}
     {!query.data?.length && <p>No authorized synthetic windows available.</p>}
     {!!query.data?.length && <div className="table-wrap"><table><thead><tr><th>Patient</th><th>Status</th><th>Window dates</th><th>Review</th></tr></thead>
-      <tbody>{query.data.map((item) => <tr key={item.patient_id}><td>{item.patient_id}</td><td><WindowBadge value={item.status} /></td>
+      <tbody>{query.data.map((item) => <tr key={item.patient_id}><td>{demoPatient(item.patient_id)}</td><td><WindowBadge value={item.status} /></td>
         <td>{item.window_start ? `${item.window_start} – ${item.window_end}` : 'No established window'}</td>
         <td><Link className="text-link" to={item.obligation_ids[0] ? '/passport?obligation=' + item.obligation_ids[0] : '/workspace?patient=' + item.patient_id}>Review window</Link></td></tr>)}</tbody></table></div>}
   </Panel>;
@@ -71,21 +72,21 @@ export function TspWindow({ token, patientId, timeline = false, role }: { token:
     {role === 'coordinator' && !timeline && <Button disabled={explain.isPending} onClick={() => explain.mutate()}>Explain computed window</Button>}
     {explain.error && <Feedback message={explain.error.message} error />}
     {explain.data?.detail.error && <Feedback message={"Explanation unavailable: "+explain.data.detail.error} error />}
-    {explain.data && <div className="inset"><p>Investigation {explain.data.id} · mandatory human review</p><ExplanationOutput detail={explain.data.detail}/>{!explain.data.detail.explanation&&<p>{explain.data.detail.packet?.summary}</p>}</div>}
+    {explain.data && <div className="inset"><p>Explanation · mandatory human review</p><ExplanationOutput detail={explain.data.detail}/>{!explain.data.detail.explanation&&<p>{explain.data.detail.packet?.summary}</p>}</div>}
     {item?.clock.demo_mode && role === 'coordinator' && !timeline && patientId === 'demo-amira' && item.obligation_ids.length > 0 && <div className="actions">
       <Button variant="outline" disabled={fixture.isPending} onClick={() => fixture.mutate('completion')}>Add dated synthetic result</Button>
       <Button variant="outline" disabled={fixture.isPending} onClick={() => fixture.mutate('invalidate')}>Invalidate TSP result</Button>
     </div>}{fixture.error && <Feedback message={fixture.error.message} error />}
     {item && <><WindowBadge value={item.status} /><p>As of {item.as_of} · {item.clock.demo_mode ? 'DEMO CLOCK' : 'Asia/Dubai calendar'}</p>
-      <p>Policy {item.policy_id || 'not established'} · version {item.policy_version || 'none'}</p>
-      <p><strong>pending clinical confirmation</strong><br /><code className="tsp-citation">{item.citation}</code></p>
+      <details><summary>Policy details</summary>Policy {item.policy_id || 'not established'} · version {item.policy_version || 'none'}</details>
+      <p><strong className="tsp-citation">pending clinical confirmation</strong></p>
       <p>Dates are computed by the deterministic policy service. No glucose values are interpreted. Due soon means the seven days before a window opens; window endpoints are inclusive.</p>
       {item.windows.length ? <ol className="tsp-windows">{item.windows.map((window) => <li key={window.id}>
         <strong>{window.id} · {window.label}</strong> <WindowBadge value={window.status} />
         <p><time>{window.window_start}</time> – <time>{window.window_end}</time> (inclusive)</p>
         {window.completion_date && <p>Qualifying evidence date: {window.completion_date}. {item.completion_verified ? 'Closure verified through existing gates.' : 'Evidence presence does not close an obligation.'}</p>}
       </li>)}</ol> : <p>No established window</p>}
-      {!timeline && <><h3>Inputs used</h3>{item.inputs_used.map((input) => <p key={input.source_id}>{input.source_id} · version {input.version} · source {input.source_date} {input.due_date ? `· EDD ${input.due_date}` : '· registration date'}</p>)}
+      {!timeline && <><h3>Inputs used</h3>{item.inputs_used.map((input) => <div key={input.source_id}>Source dated {input.source_date} · version {input.version}<details><summary>Source reference</summary>{input.source_id}</details> {input.due_date ? `· EDD ${input.due_date}` : '· registration date'}</div>)}
         <h3>Missing evidence / reason for review</h3>{!item.missing_evidence.length && <p>No dating evidence gaps. Clinician review and approval remain required.</p>}
         {item.missing_evidence.map((message) => <p key={message}>{message}</p>)}
         {item.reviewer_questions.map((question) => <p key={question}>{question}</p>)}</>}

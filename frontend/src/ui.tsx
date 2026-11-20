@@ -1,3 +1,4 @@
+import { displayText } from './presentation';
 import { Slot } from '@radix-ui/react-slot';
 import type { ComponentProps, ReactNode } from 'react';
 import { CircleAlert, ShieldCheck } from 'lucide-react';
@@ -26,6 +27,6 @@ export function Empty({ children }: { children: ReactNode }) {
 
 export function Feedback({ message, error }: { message: string; error?: boolean }) {
   return <div className={'feedback ' + (error ? 'error' : '')} role={error ? 'alert' : 'status'}>
-    {error ? <CircleAlert size={18} /> : <ShieldCheck size={18} />}{message}
+    {error ? <CircleAlert size={18} /> : <ShieldCheck size={18} />}{displayText(message)}
   </div>;
 }

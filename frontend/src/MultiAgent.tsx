@@ -1,3 +1,4 @@
+import { displayJson, displayText } from './presentation';
 import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { api } from './api';
@@ -119,7 +120,7 @@ export function MultiAgent({ token, role, patientId, decisionId }: { token: stri
   return <Panel title="Multi-Agent Clinical Intelligence"><div className="inset investigation multi-agent">
     <p><strong>Source-grounded review support · human review is mandatory.</strong></p>
     <p>Specialists compare retrieved evidence, preserve chronology and explain configured prerequisites.</p>
-    {decisionId && <p className="multi-linked">Linked PreventionDecision · <strong>{decisionId}</strong></p>}
+    {decisionId && <details className="multi-linked"><summary>Linked prevention decision</summary>{decisionId}</details>}
     {provider.data && <p>{provider.data.configuration.model} · <Status value={provider.data.status} /></p>}
     {role === 'coordinator' && <form onSubmit={event => { event.preventDefault(); investigate.mutate(); }}>
       <label>Multi-agent investigation objective<textarea minLength={12} maxLength={800} value={question}
@@ -141,7 +142,7 @@ export function MultiAgent({ token, role, patientId, decisionId }: { token: stri
         const agent = run.detail.multi_agent?.agents[id];
         const stats = run.detail.multi_agent?.summary?.agents[id];
         return <article key={id} className={'agent-card ' + (agent?.state ?? 'pending')}>
-          <span className="field-kicker">{id}</span><h3>{names[id]}</h3>
+          <h3>{names[id]}</h3>
           <Status value={agent?.state ?? 'pending'} />
           {agent && <details><summary>Inspect {names[id]}</summary>
             <p>{label(agent.validation_status)} · {agent.execution_metadata.duration_ms ?? 0} ms</p>
@@ -153,7 +154,7 @@ export function MultiAgent({ token, role, patientId, decisionId }: { token: stri
             <SpecialistDetails agent={agent} />
             <ul>{agent.uncertainty.map((x, i) => <li key={i}>{x}</li>)}</ul>
             {agent.validated_output && <details><summary>Validated structured specialist output</summary>
-              <pre>{JSON.stringify(agent.validated_output, null, 2)}</pre></details>}
+              <pre>{displayJson(agent.validated_output)}</pre></details>}
           </details>}
         </article>;
       })}</div>
@@ -167,7 +168,7 @@ export function MultiAgent({ token, role, patientId, decisionId }: { token: stri
       </details>
       {packet && <section className="unified-packet">
         <h3>Unified clinical review packet</h3>
-        <p>{packet.summary}</p><p><Status value={packet.grounding_status} /> · {packet.packet_complete ? 'All selected agent outputs validated' : 'Partial packet — required output unavailable'}
+        <p>{displayText(packet.summary)}</p><p><Status value={packet.grounding_status} /> · {packet.packet_complete ? 'All selected agent outputs validated' : 'Partial packet — required output unavailable'}
           · {packet.abstained ? 'Abstained from a readiness conclusion' : 'Evidence summary proposed for review'}</p>
         <h3>Decision timing information</h3><p>{packet.timing.label}</p>
         {packet.timing_policy && <p>Illustrative policy {packet.timing_policy.id} · Version {packet.timing_policy.version} · {packet.timing.due_at}</p>}
@@ -180,7 +181,7 @@ export function MultiAgent({ token, role, patientId, decisionId }: { token: stri
           <Button variant="outline" onClick={() => setSourceId(s.evidence_id)}>{s.citation}</Button><small>Version {s.version} · {label(s.quality_state)}</small>
         </li>)}</ul>{source.isFetching && <p>Loading source…</p>}
           {source.error && <Feedback message={source.error.message} error />}
-          {source.data && <><p>{source.data.citation}</p><pre>{JSON.stringify({ normalized: source.data.normalized, quality: source.data.quality }, null, 2)}</pre></>}
+          {source.data && <><p>{source.data.citation}</p><pre>{displayJson({ normalized: source.data.normalized, quality: source.data.quality })}</pre></>}
         </details>
         <h3>Human review</h3><p>{run.review ? label(run.review.decision) + ' · ' + run.review.note : label(run.status)}</p>
         {role === 'coordinator' && ['awaiting_submission', 'abstained'].includes(run.status) &&
