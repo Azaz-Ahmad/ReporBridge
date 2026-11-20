@@ -25,6 +25,8 @@ def main():
   with (out/(name+'.log')).open('w',encoding='utf-8') as log:
    run=subprocess.run(['cmd.exe','/d','/c','npm.cmd','run','test:e2e','--','--reporter=line,json','--output='+str(art)],cwd=ROOT/'frontend',env=env,stdout=log,stderr=subprocess.STDOUT)
   redact(art,list(tokens.values()))
+  from redact_browser_artifacts import sanitize
+  sanitize(out)
   stats=json.loads(report.read_text(encoding='utf-8'))['stats'] if report.exists() else {}
   row={'run':i,'exit_code':run.returncode,'seconds':round(time.monotonic()-start,2),'stats':stats};rows.append(row)
   (out/'summary.json').write_text(json.dumps(rows,indent=2),encoding='utf-8');print(json.dumps(row),flush=True)

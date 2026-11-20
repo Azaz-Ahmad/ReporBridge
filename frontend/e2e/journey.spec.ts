@@ -182,6 +182,9 @@ test('completes the patient journey through all five screens', async ({ page, br
   await page.getByRole('row', { name: /Noor Demo/ }).getByRole('link', { name: 'Open workspace' }).click();
   await expect(page.getByRole('heading', { name: 'Noor Demo' })).toBeVisible();
   await expect(page.getByText('Observation/demo-initial-flag', { exact: true })).toHaveCount(0);
+  // Source IDs are now in technical details; also assert the clinical data itself is absent.
+  const noorEvidence = page.locator('section').filter({has:page.getByRole('heading',{name:'Clinical evidence',exact:true})});
+  await expect(noorEvidence.locator('tbody tr')).toHaveCount(0);
   await page.getByRole('combobox', { name: 'Patient' }).selectOption('demo-amira');
   await expect(page.getByRole('heading', { name: 'Amira Haddad' })).toBeVisible();
 

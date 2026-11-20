@@ -43,8 +43,6 @@ Select `LLM_MODE=live` or `replay` explicitly and restart. Successful-only capsu
 
 To deliberately record two new live calls, use `scripts/record_explanations.py --output <new-directory>` after selecting live mode. It costs credits, refuses overwrite and saves only accepted fields. `--replay-check` verifies offline. Details: `docs/EXPLANATION_V1.md`. Never expose environment values or credentials in recordings.
 
-## Release captures and replay reliability
+## Release verification
 
-From `frontend`, run `node capture-demo.mjs` against the explicitly replay-mode local server. It writes all five 1920×1080 screens and a scripted 90-second journey under `demo-assets/demo-v1/`. It requires the existing Playwright optional video binary (`npx.cmd playwright install ffmpeg`) and Edge; it adds no package dependency. The script authenticates in memory before opening a recorded page and writes no HAR or trace.
-
-From the root, `scripts/repeat_journey.py --count 30 --label <unused-label>` runs sequential full journeys with isolated synthetic SQLite, no live generation and per-run reports. Ports 8013/5183 must be free; `REPROBRIDGE_E2E_API_PORT` and `REPROBRIDGE_E2E_WEB_PORT` select isolated ports explicitly. The separate `scripts/reliability_explanations.py` makes exactly 20 paid calls (ten per type) and must be run deliberately; it refuses to overwrite an existing live summary.
+Capture/repeat commands, installation prerequisites and exact release results are in `RELEASE_NOTES.md`. Live reliability recording deliberately costs credits; never run it as an automatic demo fallback.
