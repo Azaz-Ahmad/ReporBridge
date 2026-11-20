@@ -16,7 +16,7 @@ DEFAULT_BASE_URL = "https://api.openai.com/v1"
 
 class Settings(BaseModel):
     base_url: str = Field(default=DEFAULT_BASE_URL, max_length=2048)
-    model: str = Field(default="gpt-4.1-mini", min_length=1, max_length=100)
+    model: str = Field(default="", max_length=100)
     timeout: float = Field(default=30, ge=1, le=60)
     output_tokens: int = Field(default=2400, ge=256, le=6000)
     max_tools: int = Field(default=8, ge=1, le=16)
@@ -52,7 +52,7 @@ def configuration():
     try:
         settings = Settings(
             base_url=os.getenv("OPENAI_BASE_URL", ""),
-            model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
+            model=os.getenv("OPENAI_MODEL", "").strip(),
             timeout=os.getenv("OPENAI_TIMEOUT_SECONDS", "30"),
             output_tokens=os.getenv("OPENAI_MAX_OUTPUT_TOKENS", "2400"),
             max_tools=os.getenv("OPENAI_MAX_TOOL_CALLS", "8"),
@@ -67,6 +67,8 @@ def configuration():
     # No maintained price catalog exists in this prototype. Never pretend a dollar ceiling is enforced.
     if os.getenv("OPENAI_MAX_RUN_COST_USD", "").strip():
         return settings, "cost_limit_unavailable"
+    if not settings.model:
+        return settings, "missing_model: set OPENAI_MODEL to an explicitly permitted model"
     return settings, "available"
 
 
@@ -189,5 +191,9 @@ class OpenAIProvider:
             except openai.APIConnectionError:
                 raise ProviderFailure("provider_connection", attempt) from None
             except openai.APIError as error:
-                raise ProviderFailure("provider_request_failed", attempt,
+                body = str(getattr(error, "body", "")).lower()
+                rejected = getattr(error, "status_code", None) in {400, 403, 404, 422} and "model" in body and any(
+                    word in body for word in ("not found", "not_found", "not allowed", "not permitted", "invalid", "access", "restricted", "not available"))
+                code = "configured_model_rejected: check OPENAI_MODEL against models permitted by the provider and API key" if rejected else "provider_request_failed"
+                raise ProviderFailure(code, attempt,
                                       http_status=getattr(error, "status_code", None)) from None

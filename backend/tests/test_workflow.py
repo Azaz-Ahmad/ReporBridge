@@ -23,6 +23,7 @@ ROLES = ("coordinator", "reviewer", "viewer")
 @pytest.fixture
 def client(tmp_path, monkeypatch, request):
     monkeypatch.setenv("REPROBRIDGE_TEST_MODE", "true")
+    monkeypatch.setenv("OPENAI_MODEL", os.getenv("OPENAI_MODEL") or "synthetic-test-model")
     database = os.getenv("TEST_POSTGRES_URL")
     admin = schema = None
     if database:
