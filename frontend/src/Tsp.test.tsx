@@ -52,3 +52,12 @@ test('window explanation displays actual provider or replay failure',async()=>{
  fireEvent.click(screen.getByRole('button',{name:'Explain computed window'}));
  expect((await screen.findByRole('alert')).textContent).toContain('configured_model_rejected: check OPENAI_MODEL');
 });
+
+
+test('dating evidence values are not labelled as source-record timestamps', async()=>{
+ const data=fixture();data.inputs_used=[{source_id:'synthetic-ultrasound',version:'1',source_date:'2027-05-26',due_date:'2027-05-26'}];
+ vi.mocked(api).mockResolvedValue(data);mount(<TspWindow token="test" patientId="demo-amira"/>);
+ await screen.findByText(/^Source date value 2027-05-26 · version 1/);
+ expect(screen.queryByText(/Source dated 2027/)).toBeNull();
+ expect(screen.getByText('synthetic-ultrasound')).toBeTruthy();
+});

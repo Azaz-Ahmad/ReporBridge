@@ -86,7 +86,7 @@ export function TspWindow({ token, patientId, timeline = false, role }: { token:
         <p><time>{window.window_start}</time> – <time>{window.window_end}</time> (inclusive)</p>
         {window.completion_date && <p>Qualifying evidence date: {window.completion_date}. {item.completion_verified ? 'Closure verified through existing gates.' : 'Evidence presence does not close an obligation.'}</p>}
       </li>)}</ol> : <p>No established window</p>}
-      {!timeline && <><h3>Inputs used</h3>{item.inputs_used.map((input) => <div key={input.source_id}>Source dated {input.source_date} · version {input.version}<details><summary>Source reference</summary>{input.source_id}</details> {input.due_date ? `· EDD ${input.due_date}` : '· registration date'}</div>)}
+      {!timeline && <><h3>Inputs used</h3>{item.inputs_used.map((input) => <div key={input.source_id}>Source date value {input.source_date} · version {input.version}<details><summary>Source reference</summary>{input.source_id}</details> {input.due_date ? `· EDD ${input.due_date}` : '· registration date'}</div>)}
         <h3>Missing evidence / reason for review</h3>{!item.missing_evidence.length && <p>No dating evidence gaps. Clinician review and approval remain required.</p>}
         {item.missing_evidence.map((message) => <p key={message}>{message}</p>)}
         {item.reviewer_questions.map((question) => <p key={question}>{question}</p>)}</>}
