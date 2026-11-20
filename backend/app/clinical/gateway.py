@@ -212,7 +212,8 @@ class ClinicalRetrieval:
         options = {"method": "document", "content": match["body"], "section": match["section"],
                    "position": match["position"], "score": match.get("score")} if match else {}
         from app.handoff_provenance import facility
-        facility_provenance = facility(self.connection, row)
+        from app.record_facilities import provenance as persisted_facility
+        facility_provenance = {**facility(self.connection, row), **persisted_facility(self.connection, row)}
         return EvidenceResult(
             **{key: row[key] for key in ("id", "patient_id", "source", "kind", "resource_id", "version",
                 "event_time", "clinical_time", "received", "status", "digest", "supersedes")},
