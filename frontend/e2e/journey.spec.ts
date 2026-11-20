@@ -240,7 +240,14 @@ test('completes the patient journey through all five screens', async ({ page }, 
   expect(decisionClinical.clinical_obligations[0].status).toBe('open');
   await page.getByRole('button', { name: 'Sign out' }).click();
   await signIn(page, 'coordinator');
+  // A full-document navigation can abort the mutation; a completed click is not a committed follow-up.
+  const followUpResponse = page.waitForResponse(response => response.request().method() === 'POST'
+    && /^\/api\/v1\/prevention\/decisions\/[^/]+\/follow-up\/0$/.test(new URL(response.url()).pathname));
   await page.getByRole('button', { name: 'Initiate follow-up 1' }).click();
+  const followUp = await followUpResponse;
+  expect(followUp.ok()).toBeTruthy();
+  const initiatedDecision = await followUp.json();
+  expect(initiatedDecision.record.follow_up).toContain('Obtain a synthetic clinician reconciliation note.');
   await page.goto('/audit');
   const decisionHistory = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Decision History' }) });
   await expect(decisionHistory.getByText('Decision recorded', { exact: true })).toBeVisible();
