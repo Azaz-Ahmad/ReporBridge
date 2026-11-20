@@ -118,3 +118,50 @@ def test_history_reads_require_server_rule_context_on_generic_agent(client,monke
     assert response.status_code==200,response.text
     assert "historical_rule_context_required" in response.json()["detail"]["validation"]["errors"]
     assert response.json()["detail"]["packet"]["abstained"]
+
+
+from test_workflow import agent, review, close, snapshot
+from app.rules import observation, PRE, RULES
+from app import history_guard
+from app.investigation import service as investigations
+from datetime import date, timedelta
+
+
+def test_history_review_does_not_close_then_existing_evidence_gate_closes(client,monkeypatch):
+    start(client,monkeypatch)
+    before=client("/v1/history-handoff/patients/demo-amira/receive").json()
+    obligation=before["rule_traces"][0]["obligation_ids"][0]
+    record=observation("demo-amira","demo-history-reviewed",RULES[PRE]["closure"],"verified")
+    record["effectiveDateTime"]=(date.fromisoformat(history.data()["registration_date"])+timedelta(days=7)).isoformat()
+    assert client("/fhir/import",body={"resources":[record]}).status_code==200
+    assert review(client,agent(client,obligation),"approve",["Observation/"+record["id"]]).status_code==200
+    assert next(x for x in snapshot(client)["clinical_obligations"] if x["id"]==obligation)["status"]=="open"
+    assert close(client,obligation).status_code==200
+    after=client("/v1/history-handoff/patients/demo-amira",method="GET").json()
+    assert not after["rule_traces"][0]["triggered"]
+    assert [x["digest"] for x in after["findings"]]==[x["digest"] for x in before["findings"]]
+    assert after["window"]["status"]=="COMPLETED_IN_WINDOW"
+
+
+def test_pending_rule_change_invalidates_review_without_altering_window(client,monkeypatch,tmp_path):
+    start(client,monkeypatch);client("/v1/history-handoff/patients/demo-amira/receive")
+    with db.engine.begin() as connection:
+        binding=history_guard.bind(connection,"coordinator","demo-amira",None)
+        assert history_guard.current(connection,"coordinator",binding)
+    changed=history.policy();changed["rules"][0]["equals"]="Different documented source value"
+    file=tmp_path/"policy.json";file.write_text(json.dumps(changed),encoding="utf-8")
+    monkeypatch.setattr(history,"POLICY_FILE",file)
+    with db.engine.begin() as connection:
+        assert not history_guard.current(connection,"coordinator",binding)
+        from app.prevention.window_grounding import current as window_current
+        assert window_current(connection,"coordinator",binding)
+        with pytest.raises(HTTPException) as failure:
+            investigations.sources_current(connection,"reviewer",{"patient_id":"demo-amira","detail":{"window_context":binding}})
+        assert failure.value.status_code==409
+
+
+
+@pytest.mark.parametrize("claim",["The risk is extremely high.","This finding is unrelated to pregnancy.","The patient qualifies for early testing."])
+def test_free_history_narrative_cannot_add_medical_judgements(claim):
+    draft=Draft(summary="Server-rendered summary",findings=[],missing_information=[],conflicting_evidence=[],uncertainty=[claim],recommended_review_actions=[],abstained=False,scope="evidence_review")
+    assert "historical_narrative_not_server_approved" in validate_history(draft)

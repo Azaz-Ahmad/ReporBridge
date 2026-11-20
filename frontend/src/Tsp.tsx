@@ -24,7 +24,7 @@ export function DemoClock({ token, role }: { token: string; role: Role }) {
   const [date, setDate] = useState('');
   const current = useQuery({ queryKey: ['tsp', 'clock', token], queryFn: () => api<Clock>(token, '/v1/tsp/clock') });
   const change = useMutation({ mutationFn: (reset: boolean) => api<Clock>(token, '/v1/tsp/clock' + (reset ? '/reset' : ''), 'POST', reset ? undefined : { as_of: date }),
-    onSuccess: () => { setDate(''); cache.invalidateQueries({ queryKey: ['tsp'] }); } });
+    onSuccess: () => { setDate(''); cache.invalidateQueries({ queryKey: ['tsp'] }); cache.invalidateQueries({ queryKey: ['history'] }); } });
   if (current.error) return <Feedback message={current.error.message} error />;
   if (!current.data?.demo_mode) return null;
   return <aside className="tsp-clock" aria-label="Demo clock banner"><div><strong>DEMO CLOCK — synthetic dates</strong>

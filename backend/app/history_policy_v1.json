@@ -18,5 +18,17 @@
       "requires_stage": "pregnancy",
       "target_window": "W1"
     }
-  ]
+  ],
+  "allowed_model_narrative": {
+    "missing_information": [],
+    "conflicting_evidence": [],
+    "uncertainty": [
+      "No clinical conclusion is authorized.",
+      "Clinical interpretation is reserved for the reviewer."
+    ],
+    "recommended_review_actions": [
+      "Inspect the cited sources.",
+      "Review the cited record and the pending rule with a clinician."
+    ]
+  }
 }

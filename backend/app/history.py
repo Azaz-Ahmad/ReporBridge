@@ -49,7 +49,7 @@ def seed(connection,actor):
     scope=authorize(connection,actor,config["patient_id"])
     existing=LocalFHIRProvider(connection).catalog(scope)
     origin=date.fromisoformat(config["pregnancy_origin"])
-    for suffix,code,value in [("lmp","tsp-lmp",origin.isoformat()),("us","tsp-ultrasound-edd",(origin+timedelta(days=280)).isoformat()),("registration","pregnancy-registration","registered")]:
+    for suffix,code,value in [("lmp","tsp-lmp",origin.isoformat()),("us","tsp-ultrasound-edd",config["estimated_due_date"]),("registration","pregnancy-registration","registered")]:
         identifier="demo-amira-tsp-"+suffix
         if any(row["resource_id"]==identifier for row in existing):continue
         resource={"resourceType":"Observation","id":identifier,"meta":{"tag":[DEMO_TAG]},"subject":{"reference":"Patient/demo-amira"},

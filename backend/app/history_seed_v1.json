@@ -9,5 +9,6 @@
   "receiving_facility": "Hospital B",
   "registration_date": "2026-11-08",
   "pregnancy_origin": "2026-08-19",
-  "clinical_confirmation": "pending clinical confirmation"
+  "clinical_confirmation": "pending clinical confirmation",
+  "estimated_due_date": "2027-05-26"
 }

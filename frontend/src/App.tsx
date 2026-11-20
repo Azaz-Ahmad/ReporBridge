@@ -57,6 +57,7 @@ export function App() {
       cache.invalidateQueries({ queryKey: ['prevention'] });
       cache.invalidateQueries({ queryKey: ['tsp'] });
       cache.invalidateQueries({ queryKey: ['handoff'] });
+      cache.invalidateQueries({ queryKey: ['history'] });
     },
   });
 

@@ -12,7 +12,7 @@ async function signIn(page: Page, role: 'coordinator' | 'reviewer') {
 const preconception = 'Preconception metabolic assessment review · demo-amira';
 
 test('completes the patient journey through all five screens', async ({ page }, testInfo) => {
-  test.setTimeout(180_000);
+  test.setTimeout(210_000);
   const timings: Record<string, number> = {};
   await page.setViewportSize({ width: 1440, height: 1000 });
   const captureDir = process.env.REPROBRIDGE_CAPTURE_DIR;
@@ -210,7 +210,9 @@ test('completes the patient journey through all five screens', async ({ page }, 
 
   if (!(await page.locator('.admin-drawer').evaluate(el => (el as HTMLDetailsElement).open))) await page.getByText('Admin', { exact: true }).click();
   await page.getByText('Reset Amira demo', { exact: true }).click();
+  const amiraResetResponse = page.waitForResponse(response => response.url().endsWith('/api/demo/reset-amira') && response.request().method()==='POST');
   await page.getByRole('button', { name: 'Confirm reset' }).click();
+  expect((await amiraResetResponse).ok()).toBeTruthy();
   await expect(page.getByRole('status')).toContainText('Amira is ready at preconception');
   await expect(page.getByRole('link', { name: /2 Synthetic patients/ })).toBeVisible();
   await expect(page.getByRole('link', { name: /1 Open obligations/ })).toBeVisible();
@@ -362,4 +364,43 @@ test('completes the patient journey through all five screens', async ({ page }, 
   await page.getByRole('button',{name:'Switch role',exact:true}).click();
   await expect(page.locator('.role')).toHaveText('Coordinator');
 
+  // Historical Amira source -> SIMULATED Hospital B view -> existing W1 -> human review -> closure.
+  await page.goto('/workspace?patient=demo-amira');
+  const earlier = page.locator('section').filter({has:page.getByRole('heading',{name:'Found in earlier records',exact:true})});
+  const windowBefore = await (await page.request.get('/api/v1/tsp/patients/demo-amira/window',{headers:auth})).json();
+  const historicalReceiptResponse = page.waitForResponse(response=>response.url().endsWith('/api/v1/history-handoff/patients/demo-amira/receive')&&response.request().method()==='POST');
+  await earlier.getByRole('button',{name:'Receive earlier Hospital A records'}).click();
+  const historicalReceipt = await historicalReceiptResponse;
+  expect(historicalReceipt.ok()).toBeTruthy();
+  expect((await historicalReceipt.json()).findings).toHaveLength(2);
+  await expect(earlier.getByText('documented PCOS diagnosis',{exact:true})).toBeVisible();
+  await expect(earlier.getByText('Recorded 2017-07-10 · version 1',{exact:true})).toHaveCount(2);
+  await expect(earlier.getByText('Documented finding linked to existing W1',{exact:true})).toBeVisible();
+  await expect(earlier.getByText(/Age 22 at the 2017 record; age 31/)).toBeVisible();
+  const historyState = await (await page.request.get('/api/v1/history-handoff/patients/demo-amira',{headers:auth})).json();
+  expect(historyState.window.status).toBe(windowBefore.status);
+  expect(historyState.rule_traces[0].triggered).toBe(true);
+  expect(historyState.findings.every((item:{provenance:{facility:{origin:string;receiving:string}}})=>item.provenance.facility.origin==='Hospital A'&&item.provenance.facility.receiving==='Hospital B')).toBe(true);
+  await earlier.getByRole('button',{name:'Open source document',exact:true}).click();
+  await expect(earlier.locator('.history-document')).toContainText('Hospital A recorded: documented PCOS diagnosis');
+  await earlier.getByRole('button',{name:'Close source',exact:true}).click();
+  const historicalObligation = historyState.rule_traces[0].obligation_ids[0];
+  await page.goto('/passport?obligation='+historicalObligation);
+  await expect(earlier.getByText('documented PCOS diagnosis',{exact:true})).toBeVisible();
+  const historicalCompletion = {resourceType:'Observation',id:'demo-browser-history-reviewed',meta:{tag:[{system:'https://reprobridge.example/fhir/CodeSystem/demo',code:'synthetic'}]},subject:{reference:'Patient/demo-amira'},status:'final',code:{coding:[{system:'https://reprobridge.example/fhir/CodeSystem/demo',code:'follow-up-reconciled'}]},valueString:'verified',effectiveDateTime:'2026-11-15'};
+  expect((await page.request.post('/api/fhir/import',{headers:auth,data:{resources:[historicalCompletion]}})).ok()).toBeTruthy();
+  const historicalTask = await (await page.request.post('/api/obligations/'+historicalObligation+'/agent',{headers:auth})).json();
+  expect((await page.request.post('/api/tasks/'+historicalTask.id+'/review',{headers:{Authorization:'Bearer '+process.env.E2E_REVIEWER_TOKEN},data:{decision:'approve',evidence_refs:['Observation/'+historicalCompletion.id],note:'Reviewed the simulated earlier source and pending rule; no risk conclusion.'}})).ok()).toBeTruthy();
+  const reviewedHistory = await (await page.request.get('/api/v1/history-handoff/patients/demo-amira',{headers:auth})).json();
+  expect(reviewedHistory.rule_traces[0].triggered).toBe(true); // Approval alone leaves work open.
+  expect((await page.request.post('/api/obligations/'+historicalObligation+'/close',{headers:auth})).ok()).toBeTruthy();
+  const closedHistory = await (await page.request.get('/api/v1/history-handoff/patients/demo-amira',{headers:auth})).json();
+  expect(closedHistory.rule_traces[0].triggered).toBe(false);
+  expect(closedHistory.window.status).toBe('COMPLETED_IN_WINDOW');
+  expect(closedHistory.findings.map((item:{digest:string})=>item.digest)).toEqual(historyState.findings.map((item:{digest:string})=>item.digest));
+  await page.reload();
+  await expect(earlier.getByText('No trigger from this historical rule',{exact:true})).toBeVisible();
+  await page.setViewportSize({width:390,height:844});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Earlier-record passport fits at 390 px').toBe(true);
+  await testInfo.attach('SIMULATED earlier-record handoff',{body:JSON.stringify({received:historyState,closed:closedHistory}),contentType:'application/json'});
 });
