@@ -49,10 +49,10 @@ class Settings(BaseModel):
                 "cost_estimate_usd": None, "cost_estimation": "unavailable"}
 
 
-def configuration():
+def configuration(mode=None):
     try:
         settings = Settings(
-            llm_mode=os.getenv("LLM_MODE", "live"),
+            llm_mode=mode if mode is not None else os.getenv("LLM_MODE", "live"),
             base_url=os.getenv("OPENAI_BASE_URL", ""),
             model=os.getenv("OPENAI_MODEL", "").strip(),
             timeout=os.getenv("OPENAI_TIMEOUT_SECONDS", "30"),

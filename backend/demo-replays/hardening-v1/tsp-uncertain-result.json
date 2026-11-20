@@ -1,0 +1,80 @@
+{
+  "case": "tsp-uncertain",
+  "status": "abstained",
+  "model": "google/gemini-3.8-flash-20260902",
+  "model_history": [
+    {
+      "requested_model": "google/gemini-3.8-flash-20260902",
+      "reported_model": "google/gemini-3.8-flash",
+      "response_id": "gen-1795187689-wEOK5Qa4XVCON90BK3hm",
+      "api": "responses",
+      "input_tokens": 2687,
+      "output_tokens": 647,
+      "retries": 0
+    },
+    {
+      "requested_model": "google/gemini-3.8-flash-20260902",
+      "reported_model": "google/gemini-3.8-flash",
+      "response_id": "gen-1795187694-IGkLo6NdIAJRNkeSkQGh",
+      "api": "responses",
+      "input_tokens": 5577,
+      "output_tokens": 62,
+      "retries": 0
+    },
+    {
+      "requested_model": "google/gemini-3.8-flash-20260902",
+      "reported_model": "google/gemini-3.8-flash",
+      "response_id": "gen-1795187708-QVBx8T7rMkDfckTq231k",
+      "api": "responses",
+      "input_tokens": 5715,
+      "output_tokens": 59,
+      "retries": 0
+    },
+    {
+      "requested_model": "google/gemini-3.8-flash-20260902",
+      "reported_model": "google/gemini-3.8-flash",
+      "response_id": "gen-1795187710-FjeEiE1jMYG28H4CgMYJ",
+      "api": "responses",
+      "input_tokens": 6110,
+      "output_tokens": 66,
+      "retries": 0
+    },
+    {
+      "requested_model": "google/gemini-3.8-flash-20260902",
+      "reported_model": "google/gemini-3.8-flash",
+      "response_id": "gen-1795187713-bxykJokAiEgNtTnQNKx9",
+      "api": "responses",
+      "input_tokens": 6175,
+      "output_tokens": 319,
+      "retries": 0
+    },
+    {
+      "requested_model": "google/gemini-3.8-flash-20260902",
+      "reported_model": "google/gemini-3.8-flash",
+      "response_id": "gen-1795187733-NYeEXT3w6eZc82t7rZY8",
+      "api": "responses",
+      "input_tokens": 6120,
+      "output_tokens": 2385,
+      "retries": 0,
+      "error": "incomplete_response",
+      "http_status": null
+    }
+  ],
+  "latency_ms": 60354,
+  "usage": {
+    "model_calls": 6,
+    "input_tokens": 32384,
+    "output_tokens": 3538,
+    "retries": 0,
+    "usage_complete": false
+  },
+  "grounding": {
+    "status": "insufficient_evidence",
+    "errors": [],
+    "conflicting_evidence_ids": []
+  },
+  "abstained": true,
+  "origin": "system_abstention",
+  "error": "incomplete_response",
+  "tool_count": 5
+}

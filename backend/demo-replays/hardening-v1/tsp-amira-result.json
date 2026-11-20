@@ -1,0 +1,87 @@
+{
+  "case": "tsp-amira",
+  "status": "abstained",
+  "model": "google/gemini-3.8-flash-20260902",
+  "model_history": [
+    {
+      "requested_model": "google/gemini-3.8-flash-20260902",
+      "reported_model": "google/gemini-3.8-flash",
+      "response_id": "gen-1795188095-Hnlz33IxVndeNrynTNFs",
+      "api": "responses",
+      "input_tokens": 2893,
+      "output_tokens": 530,
+      "retries": 0
+    },
+    {
+      "requested_model": "google/gemini-3.8-flash-20260902",
+      "reported_model": "google/gemini-3.8-flash",
+      "response_id": "gen-1795188100-VLAHU2BLJ0dWboFeMIcw",
+      "api": "responses",
+      "input_tokens": 5560,
+      "output_tokens": 42,
+      "retries": 0
+    },
+    {
+      "requested_model": "google/gemini-3.8-flash-20260902",
+      "reported_model": "google/gemini-3.8-flash",
+      "response_id": "gen-1795188103-OBQluIU50VnLM6VYf6Yx",
+      "api": "responses",
+      "input_tokens": 5734,
+      "output_tokens": 151,
+      "retries": 0
+    },
+    {
+      "requested_model": "google/gemini-3.8-flash-20260902",
+      "reported_model": "google/gemini-3.8-flash",
+      "response_id": "gen-1795188111-YZIWypEYuTrm6sjHQwfz",
+      "api": "responses",
+      "input_tokens": 6353,
+      "output_tokens": 78,
+      "retries": 0
+    },
+    {
+      "requested_model": "google/gemini-3.8-flash-20260902",
+      "reported_model": "google/gemini-3.8-flash",
+      "response_id": "gen-1795188115-AiJXWowgAth8ilQJ8RFf",
+      "api": "responses",
+      "input_tokens": 6428,
+      "output_tokens": 66,
+      "retries": 0
+    },
+    {
+      "requested_model": "google/gemini-3.8-flash-20260902",
+      "reported_model": "google/gemini-3.8-flash",
+      "response_id": "gen-1795188118-m4YsO21MR6BhTrVjc0Iz",
+      "api": "responses",
+      "input_tokens": 5630,
+      "output_tokens": 795,
+      "retries": 0
+    }
+  ],
+  "latency_ms": 32816,
+  "usage": {
+    "model_calls": 6,
+    "input_tokens": 32598,
+    "output_tokens": 1662,
+    "retries": 0,
+    "usage_complete": true
+  },
+  "grounding": {
+    "status": "validation_failed",
+    "errors": [
+      "tsp_window_or_policy_mismatch"
+    ],
+    "claim_checks": "Exact excerpts and structured values checked. Narrative requires human review.",
+    "interpretation_required": true,
+    "conflicting_evidence_ids": [],
+    "cited_ids": [
+      "481f87ca996a4e509cbf5a1c816069ce",
+      "c3cc0f557d0d4e0d9b623f09ac662ae9",
+      "c826657a9c454ff09eca56594062b526"
+    ]
+  },
+  "abstained": true,
+  "origin": "system_abstention",
+  "error": null,
+  "tool_count": 5
+}

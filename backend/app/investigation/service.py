@@ -24,7 +24,8 @@ def provider_factory(settings):
 
 def status():
     settings, availability = provider.configuration()
-    return {"provider": "openai", "api": "responses", "status": availability,
+    modes = {mode:{"status":state,"available":state=="available"} for mode in ("live","replay") for _,state in [provider.configuration(mode)]}
+    return {"provider": "openai", "api": "responses", "status": availability,"modes":modes,
             "available": availability == "available", "configuration": settings.public(),
             "synthetic_only": True, "llm_mode": settings.llm_mode,
             "message": availability, "live_verification": "requires_actual_api_run"}

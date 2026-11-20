@@ -109,6 +109,9 @@ def test_replay_missing_never_contacts_live(monkeypatch,tmp_path):
     monkeypatch.setenv("LLM_REPLAY_DIR",str(tmp_path));monkeypatch.delenv("OPENAI_API_KEY",raising=False)
     monkeypatch.setenv("CLINICAL_EVIDENCE_AGENT_ENABLED","true");monkeypatch.setenv("OPENAI_MODEL","recorded-model")
     assert provider.configuration()[1].startswith("replay_unavailable")
+    from app.investigation.replay import ReplayProvider
+    with pytest.raises(provider.ProviderFailure) as error:ReplayProvider(provider.Settings(llm_mode="replay")).invoke([],[])
+    assert error.value.not_sent and error.value.code=="replay_scenario_not_supported"
 
 
 def test_uncertain_fixture_is_attested_without_expanding_patient_grants(client,monkeypatch):
@@ -119,6 +122,7 @@ def test_uncertain_fixture_is_attested_without_expanding_patient_grants(client,m
     with db.engine.begin() as connection:
         synthetic_scope(connection,authorize(connection,"coordinator","demo-tsp-uncertain"))
     assert client("/v1/tsp/patients/demo-tsp-uncertain/window",method="GET").json()["status"]=="HOLD_DATING_UNCERTAIN"
+    assert client("/v1/tsp/patients/demo-tsp-uncertain/window",method="GET",role="viewer").status_code==404
 
 
 @pytest.mark.parametrize("case",["tsp-amira","history-amira","tsp-uncertain"])
@@ -145,3 +149,68 @@ def test_replay_ignores_ingestion_time_but_retains_clinical_content():
         assert binding.canonical(source)!=binding.canonical(changed)
     other["normalized"]["values"]["valueString"]="different"
     assert binding.canonical(source)!=binding.canonical(other)
+
+
+
+def smoke_module():
+    import importlib.util
+    from pathlib import Path
+    spec=importlib.util.spec_from_file_location("smoke_demo",Path(__file__).resolve().parents[2]/"scripts/smoke_demo.py")
+    module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module);return module
+
+
+def test_smoke_has_explicit_pass_fail_and_no_live_request():
+    module=smoke_module()
+    class API:
+        def call(self,path,body=None):
+            if path=="/health":return {"status":"ready"}
+            if path=="/session":return {"demo_mode":True,"role":"coordinator"}
+            if path.endswith("/demo/reset"):return {"clock":{"as_of":"2026-11-22"}}
+            if path.endswith("/window"):return {"status":"HOLD_DATING_UNCERTAIN" if "uncertain" in path else "IN_WINDOW"}
+            if path.endswith("/status"):return {"llm_mode":"replay","modes":{m:{"available":True} for m in ["live","replay"]}}
+            assert path.endswith("/investigations")
+            return {"detail":{"usage":{"model_calls":0},"packet":{"origin":"model","grounding_status":"partially_grounded"},"error":None}}
+    assert all(item["passed"] for item in module.checks(API()))
+
+
+def test_smoke_does_not_treat_recorded_failure_as_success():
+    module=smoke_module()
+    class Failed:
+        def call(self,path,body=None):
+            if path=="/health":return {"status":"ready"}
+            if path=="/session":return {"demo_mode":True,"role":"coordinator"}
+            if path.endswith("/demo/reset"):return {"clock":{"as_of":"2026-11-22"}}
+            if path.endswith("/window"):return {"status":"HOLD_DATING_UNCERTAIN" if "uncertain" in path else "IN_WINDOW"}
+            if path.endswith("/status"):return {"llm_mode":"replay","modes":{m:{"available":True} for m in ["live","replay"]}}
+            return {"detail":{"usage":{"model_calls":0},"packet":{"origin":"system_abstention"},"error":"incomplete_response"}}
+    results=module.checks(Failed())
+    assert sum(not r["passed"] for r in results)==2
+
+
+def test_smoke_never_sends_token_to_remote_host():
+    import time
+    with pytest.raises(ValueError):smoke_module().LocalAPI("https://example.com","secret",time.monotonic()+60)
+
+
+
+def test_replay_pagination_compatibility_requires_original_request_hash():
+    from app.investigation.replay import Binding
+    binding=Binding.__new__(Binding);binding.aliases={};binding.system="trusted";binding.manifest="snapshot";binding.question="question"
+    pool=[{"id":x,"resource_id":x,"digest":"digest-"+x,"version":1,"content":None} for x in ["a","b","c"]]
+    def messages(items):return [{"role":"system","content":"trusted"},{"type":"function_call_output","call_id":"one","output":json.dumps({"result":{"items":items,"next_offset":2,"outcome":"found"}})}]
+    original=binding.key(messages(pool[:2]),[],False)
+    assert binding.match_request(original,messages(pool[1:]),[],False,{"context":{"evidence":pool}})
+    assert not binding.match_request(original,messages(pool[1:]),[],True,{"context":{"evidence":pool}})
+    binding.manifest="changed-clinical-snapshot"
+    assert not binding.match_request(original,messages(pool[1:]),[],False,{"context":{"evidence":pool}})
+
+
+
+def test_recorder_parent_setup_only_never_invokes_live(tmp_path):
+    import os,subprocess,sys
+    from pathlib import Path
+    root=Path(__file__).resolve().parents[2]
+    result=subprocess.run([sys.executable,str(root/"scripts/record_demo_llm.py"),"--setup-only","--cases","tsp-amira","history-amira","--output",str(tmp_path)],env={**os.environ,"OPENAI_API_KEY":"synthetic-test-key-no-live-use"},capture_output=True,text=True)
+    assert result.returncode==0,result.stdout+result.stderr
+    assert result.stdout.count('"live_calls": 0')==2
+    assert not list(tmp_path.glob("*.json"))

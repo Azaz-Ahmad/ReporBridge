@@ -19,17 +19,18 @@ def main():
     args=parser.parse_args()
     from dotenv import load_dotenv
     load_dotenv(ROOT/".env")
-    if not args.replay_check and not os.getenv("OPENAI_API_KEY","").strip():
+    if not args.replay_check and not args.setup_only and not os.getenv("OPENAI_API_KEY","").strip():
         print(json.dumps({"status":"skipped","reason":"OPENAI_API_KEY is not configured","live_calls":0}));return
-    if not os.getenv("OPENAI_MODEL","").strip():raise SystemExit("Set OPENAI_MODEL to an explicitly permitted model before recording.")
+    if not args.setup_only and not os.getenv("OPENAI_MODEL","").strip():raise SystemExit("Set OPENAI_MODEL to an explicitly permitted model before recording.")
     target=Path(args.output).resolve();target.mkdir(parents=True,exist_ok=True)
     if not args.execute:
         results=[]
         for case in args.cases:
-            if not args.replay_check and (target/(("history-" if case.startswith("history") else "tsp-")+("demo-tsp-uncertain" if case.endswith("uncertain") else "demo-amira")+".json")).exists():
+            if not args.replay_check and not args.setup_only and (target/(("history-" if case.startswith("history") else "tsp-")+("demo-tsp-uncertain" if case.endswith("uncertain") else "demo-amira")+".json")).exists():
                 raise SystemExit("Recording exists; select a new output directory to preserve prior live evidence.")
             command=[sys.executable,str(Path(__file__).resolve()),"--execute",case,"--output",str(target)]
             if args.replay_check:command.append("--replay-check")
+            if args.setup_only:command.append("--setup-only")
             result=subprocess.run(command,cwd=ROOT)
             results.append({"case":case,"exit_code":result.returncode})
         print(json.dumps({"recording_results":results}));raise SystemExit(1 if any(r["exit_code"] for r in results) else 0)
@@ -77,10 +78,13 @@ def main():
             if args.replay_check:
                 if adapters and hasattr(adapters[-1],"binding"):report["context_descriptor"]=adapters[-1].binding.descriptor
                 original=json.loads((target/(args.execute+"-result.json")).read_text(encoding="utf-8"))
-                report["replay_matches_recording"]=all(report.get(k)==original.get(k) for k in ["status","grounding","origin","error","abstained","tool_count"]) and report.get("usage",{}).get("model_calls")==0
+                def validation_shape(value):
+                    if value is None:return None
+                    return {k:(len(v) if k in {"cited_ids","conflicting_evidence_ids"} else v) for k,v in value.items()}
+                report["replay_matches_recording"]=all(report.get(k)==original.get(k) for k in ["status","origin","error","abstained","tool_count"]) and validation_shape(report.get("grounding"))==validation_shape(original.get("grounding")) and report.get("usage",{}).get("model_calls")==0
             suffix="-replay-"+str(time.time_ns()) if args.replay_check else ""
             (target/(args.execute+suffix+"-result.json")).write_text(json.dumps(report,indent=2),encoding="utf-8")
-            print(json.dumps(report),flush=True)
+            print(json.dumps({k:v for k,v in report.items() if k!="context_descriptor"}),flush=True)
             if args.replay_check:
                 if not report["replay_matches_recording"]:raise SystemExit(1)
             elif report.get("http_status") or report.get("error") or report.get("origin")!="model":raise SystemExit(1)

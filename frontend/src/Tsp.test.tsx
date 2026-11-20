@@ -44,3 +44,11 @@ test('synthetic date warning is explanatory while the raw non-demo warning is re
  expect(qualityWarning('timestamp_after_receipt',false)).toBe('Timestamp after receipt');
  expect(qualityWarning('unknown_terminology',true)).toBe('Unknown terminology');
 });
+
+
+test('window explanation displays actual provider or replay failure',async()=>{
+ vi.mocked(api).mockImplementation(async(_token,path)=>path.endsWith('/investigations')?{id:'failed',detail:{packet:null,error:'configured_model_rejected: check OPENAI_MODEL'}}:fixture());
+ mount(<TspWindow token="test" patientId="demo-amira" role="coordinator"/>);
+ fireEvent.click(screen.getByRole('button',{name:'Explain computed window'}));
+ expect((await screen.findByRole('alert')).textContent).toContain('configured_model_rejected: check OPENAI_MODEL');
+});

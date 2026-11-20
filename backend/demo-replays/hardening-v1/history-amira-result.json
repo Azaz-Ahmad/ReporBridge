@@ -1,0 +1,71 @@
+{
+  "case": "history-amira",
+  "status": "abstained",
+  "model": "google/gemini-3.8-flash-20260902",
+  "model_history": [
+    {
+      "requested_model": "google/gemini-3.8-flash-20260902",
+      "reported_model": "google/gemini-3.8-flash",
+      "response_id": "gen-1795188138-ldOBwcklfVOepNzPS0WW",
+      "api": "responses",
+      "input_tokens": 5273,
+      "output_tokens": 466,
+      "retries": 0
+    },
+    {
+      "requested_model": "google/gemini-3.8-flash-20260902",
+      "reported_model": "google/gemini-3.8-flash",
+      "response_id": "gen-1795188143-k6jGp3NID86lA5TwguBd",
+      "api": "responses",
+      "input_tokens": 8103,
+      "output_tokens": 74,
+      "retries": 0
+    },
+    {
+      "requested_model": "google/gemini-3.8-flash-20260902",
+      "reported_model": "google/gemini-3.8-flash",
+      "response_id": "gen-1795188146-Yx5uyR2bSsxwGMm7wpnI",
+      "api": "responses",
+      "input_tokens": 8866,
+      "output_tokens": 66,
+      "retries": 0
+    },
+    {
+      "requested_model": "google/gemini-3.8-flash-20260902",
+      "reported_model": "google/gemini-3.8-flash",
+      "response_id": "gen-1795188149-MdWDkwODY1CamRkjA895",
+      "api": "responses",
+      "input_tokens": 9435,
+      "output_tokens": 75,
+      "retries": 0
+    },
+    {
+      "requested_model": "google/gemini-3.8-flash-20260902",
+      "reported_model": "google/gemini-3.8-flash",
+      "response_id": "gen-1795188152-oozutLKJjn8UTTJdT7sk",
+      "api": "responses",
+      "input_tokens": 9524,
+      "output_tokens": 2393,
+      "retries": 0,
+      "error": "incomplete_response",
+      "http_status": null
+    }
+  ],
+  "latency_ms": 32756,
+  "usage": {
+    "model_calls": 5,
+    "input_tokens": 41201,
+    "output_tokens": 3074,
+    "retries": 0,
+    "usage_complete": false
+  },
+  "grounding": {
+    "status": "insufficient_evidence",
+    "errors": [],
+    "conflicting_evidence_ids": []
+  },
+  "abstained": true,
+  "origin": "system_abstention",
+  "error": "incomplete_response",
+  "tool_count": 7
+}

@@ -13,4 +13,6 @@ test-results-db/
 test-reports/
 
 # Local sanitized live recordings are reviewed before any deliberate inclusion.
-backend/demo-replays/
+backend/demo-replays/*
+!backend/demo-replays/hardening-v1/
+backend/demo-replays/hardening-v1/*-replay-*-result.json

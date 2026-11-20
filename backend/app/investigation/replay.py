@@ -14,7 +14,7 @@ from app.clinical.tools import ClinicalTools
 from app.investigation.provider import Draft, ProviderFailure, Turn
 
 ROOT=Path(__file__).resolve().parents[2]
-DEFAULT_DIR=ROOT/"demo-replays"
+DEFAULT_DIR=ROOT/"demo-replays"/"hardening-v1"
 
 
 def directory():return Path(os.getenv("LLM_REPLAY_DIR") or DEFAULT_DIR)
@@ -26,7 +26,7 @@ def available():
     for file in directory().glob("*.json"):
         try:
             value=json.loads(file.read_text(encoding="utf-8"))
-            if value.get("origin")=="live-openai-responses" and value.get("replayable") and value.get("frames"):return True
+            if value.get("origin")=="live-openai-responses" and value.get("replayable") and value.get("frames") and value.get("requested_model")==os.getenv("OPENAI_MODEL","").strip():return True
         except (OSError,ValueError):pass
     return False
 
@@ -62,6 +62,8 @@ class Binding:
             scope=authorize(connection,context.role,context.patient_id);tooling.synthetic_scope(connection,scope)
             retrieval=ClinicalTools(connection,scope).retrieval
             rows=retrieval.provider.catalog(scope)
+            from app.rules import DEMO_TAG
+            if any(DEMO_TAG not in row["resource"].get("meta",{}).get("tag",[]) for row in rows):raise ProviderFailure("replay_synthetic_scope_required")
             obligations=[dict(r) for r in connection.execute(select(db.obligations).where(db.obligations.c.patient_id==context.patient_id)).mappings()]
             for row in rows:
                 self.aliases[row["id"]]="@evidence:"+digest([row["patient_id"],row["source"],row["kind"],row["resource_id"],row["version"],row["digest"]])
@@ -132,9 +134,38 @@ class Binding:
             except (ValueError,TypeError):return self.replace(v,self.aliases)
         return v
 
-    def key(self,messages,tools,final):
+    def payload(self,messages,tools,final):
         if messages[0]!={"role":"system","content":self.system}:raise ProviderFailure("replay_prompt_mismatch")
-        return digest({"manifest":self.manifest,"question":self.question,"messages":self.canonical([m for m in messages[1:] if m.get("type")!="reasoning"]),"tools":tools,"final":final})
+        return {"manifest":self.manifest,"question":self.question,"messages":self.canonical([m for m in messages[1:] if m.get("type")!="reasoning"]),"tools":tools,"final":final}
+
+    def key(self,messages,tools,final):return digest(self.payload(messages,tools,final))
+
+    def match_request(self,expected,messages,tools,final,descriptor):
+        payload=self.payload(messages,tools,final)
+        if digest(payload)==expected:return True
+        # Fresh UUIDs can change a page boundary for equal-time records. Reconstruct
+        # only exact pages from the recorded, fully matched snapshot and require the
+        # ORIGINAL request hash. Nothing is injected into actual tool results/grounding.
+        pool=(descriptor or {}).get("context",{}).get("evidence",[])
+        if not pool or len(pool)>8:return False
+        variants=[payload]
+        for index,message in enumerate(payload["messages"]):
+            if message.get("type")!="function_call_output":continue
+            try:body=json.loads(message["output"]);items=body["result"]["items"]
+            except (ValueError,KeyError,TypeError):continue
+            if not items or not all(isinstance(x,dict) and "digest" in x and not x.get("content") for x in items):continue
+            if len(items)>len(pool):return False
+            count=len(items);combinations=list(itertools.combinations(pool,count))
+            if len(variants)*len(combinations)>256:return False
+            expanded=[]
+            for variant in variants:
+                for combination in combinations:
+                    candidate=copy.deepcopy(variant);replacement=copy.deepcopy(body)
+                    replacement["result"]["items"]=sorted(combination,key=lambda x:str(x["id"]))
+                    candidate["messages"][index]["output"]=json.dumps(replacement,sort_keys=True,separators=(",",":"))
+                    expanded.append(candidate)
+            variants=expanded
+        return any(digest(v)==expected for v in variants)
 
     def encode(self,v):
         if isinstance(v,dict):return {k:self.encode(x) for k,x in v.items()}
@@ -183,6 +214,18 @@ class ReplayProvider:
                 raise ValueError()
         except (OSError,ValueError):raise ProviderFailure("replay_recording_missing_or_context_changed") from None
     def invoke(self,messages,tools,final=False):
+        try:
+            if not hasattr(self,"binding"):raise ProviderFailure("replay_scenario_not_supported")
+            return self._invoke(messages,tools,final)
+        except ProviderFailure as error:
+            error.not_sent=True
+            error.telemetry={"llm_mode":"replay",**getattr(error,"telemetry",{})}
+            raise
+        except (KeyError,ValueError,TypeError):
+            error=ProviderFailure("replay_recording_invalid");error.not_sent=True;error.telemetry={"llm_mode":"replay"};raise error from None
+    def invoke_structured(self,messages,contract):
+        error=ProviderFailure("replay_scenario_not_supported");error.not_sent=True;error.telemetry={"llm_mode":"replay"};raise error
+    def _invoke(self,messages,tools,final=False):
         try:frame=self.record["frames"][self.index]
         except (KeyError,IndexError):
             # A live provider failure has no Turn, but its actual persisted metadata is recorded.
@@ -195,7 +238,8 @@ class ReplayProvider:
                 failure.telemetry={"llm_mode":"replay","recorded_input_tokens":original["input_tokens"],"recorded_output_tokens":original["output_tokens"],"recorded_error":error}
                 raise failure
             raise ProviderFailure("replay_recording_exhausted") from None
-        if frame["key"]!=self.binding.key(messages,tools,final):raise ProviderFailure("replay_request_mismatch")
+        if not self.binding.match_request(frame["key"],messages,tools,final,self.record.get("context_descriptor")):
+            error=ProviderFailure("replay_request_mismatch");error.not_sent=True;error.telemetry={"llm_mode":"replay"};raise error
         self.index+=1;payload=self.binding.decode(frame["turn"])
         draft=Draft.model_validate(payload["draft"]) if payload.get("draft") else None
         turn=Turn(**{**payload,"draft":draft,"input_tokens":0,"output_tokens":0,"retries":0})

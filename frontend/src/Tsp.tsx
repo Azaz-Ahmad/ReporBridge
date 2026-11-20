@@ -63,12 +63,13 @@ export function TspWindow({ token, patientId, timeline = false, role }: { token:
   const cache = useQueryClient();
   const fixture = useMutation({ mutationFn: (action: string) => api(token, '/v1/tsp/demo/obligations/' + query.data?.obligation_ids[0] + '/' + action, 'POST'),
     onSuccess: () => { cache.invalidateQueries({ queryKey: ['tsp'] }); cache.invalidateQueries({ queryKey: ['snapshot'] }); cache.invalidateQueries({ queryKey: ['prevention'] }); } });
-  const explain = useMutation({ mutationFn: () => api<{ id: string; detail: { packet: { summary: string; abstained: boolean } | null } }>(token, '/v1/tsp/patients/' + patientId + '/investigations', 'POST', { request_id: crypto.randomUUID() }) });
+  const explain = useMutation({ mutationFn: () => api<{ id: string; detail: { error?: string | null; packet: { summary: string; abstained: boolean } | null } }>(token, '/v1/tsp/patients/' + patientId + '/investigations', 'POST', { request_id: crypto.randomUUID() }) });
   const item = query.data;
   return <Panel title={timeline ? 'Prevention window timeline' : 'Time-Sensitive Prevention Window'}>
     {query.error && <Feedback message={query.error.message} error />}
     {role === 'coordinator' && !timeline && <Button disabled={explain.isPending} onClick={() => explain.mutate()}>Explain computed window</Button>}
     {explain.error && <Feedback message={explain.error.message} error />}
+    {explain.data?.detail.error && <Feedback message={"Explanation unavailable: "+explain.data.detail.error} error />}
     {explain.data && <div className="inset"><p>Investigation {explain.data.id} · mandatory human review</p><p>{explain.data.detail.packet?.summary}</p></div>}
     {item?.clock.demo_mode && role === 'coordinator' && !timeline && patientId === 'demo-amira' && item.obligation_ids.length > 0 && <div className="actions">
       <Button variant="outline" disabled={fixture.isPending} onClick={() => fixture.mutate('completion')}>Add dated synthetic result</Button>
