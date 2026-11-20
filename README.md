@@ -1,4 +1,4 @@
-# Ajyra AI — ReproBridge
+# Ajyra AI - ReproBridge
 
 A synthetic-data prototype for HealthX Ajyal on 22 November 2026. Follow a preconception obligation into pregnancy, route it for human review, and verify closure against the evidence and applicable illustrative rule.
 
@@ -32,7 +32,7 @@ Set-Location F:\ReproBridge\frontend
 npm.cmd run dev
 ```
 
-Open [ReproBridge](http://127.0.0.1:5173), [API docs](http://127.0.0.1:8000/docs), or [health](http://127.0.0.1:8000/api/health). Sign in using the `COORDINATOR_TOKEN` from `.env`. Use the separate `REVIEWER_TOKEN` at the review step. Start with the [demo script](docs/DEMO_SCRIPT.md).
+Open [Ajyra AI - ReproBridge](http://127.0.0.1:5173), [API docs](http://127.0.0.1:8000/docs), or [health](http://127.0.0.1:8000/api/health). Sign in using the `COORDINATOR_TOKEN` from `.env`. Use the separate `REVIEWER_TOKEN` at the review step. Start with the [demo script](docs/DEMO_SCRIPT.md).
 
 ## Verify
 

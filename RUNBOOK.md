@@ -1,4 +1,4 @@
-# ReproBridge synthetic demo runbook
+# Ajyra AI - ReproBridge synthetic demo runbook
 
 **Scope:** Synthetic data only. Timing policies and the historical finding remain pending clinical confirmation. Agents never decide timing, diagnosis, eligibility, relevance or closure. Wait for action confirmations before navigating.
 

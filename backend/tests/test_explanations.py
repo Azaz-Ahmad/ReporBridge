@@ -179,3 +179,17 @@ def test_server_preparation_preserves_per_source_synthetic_tag_guard(client,monk
     response=request(client)
     assert response.status_code==409,response.text
     assert 'synthetic_scope_required' in response.text and not calls
+
+
+def test_shipped_accepted_capsules_preserve_exact_context_and_schema():
+    import json
+    from app.clinical.normalize import digest
+    capsules=list(ex.DEFAULT_REPLAYS.glob("*.json"))
+    accepted=[json.loads(p.read_text(encoding="utf-8")) for p in capsules if "-result-" not in p.name]
+    assert len(accepted)>=3
+    for record in accepted:
+        assert record["accepted"] is True
+        assert record["schema_hash"]==ex.schema_hash()
+        assert record["context_hash"]==digest(record["context"])
+        assert not ex.mismatches(record["context"],ex.ExplanationFields.model_validate(record["fields"]).model_dump())
+        assert not record["validation"]["errors"]
