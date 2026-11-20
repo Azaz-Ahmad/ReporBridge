@@ -1,0 +1,674 @@
+{
+  "release": "demo-v1",
+  "decision": "GO for the local synthetic replay demo only",
+  "clinical_confirmation": "pending clinical confirmation",
+  "frozen_application_commit": "9f097d81bff7bd5dcfc315f35dea850c13940d60",
+  "fresh_clone_application_identical": true,
+  "regression_invocations": [
+    {
+      "location": "original",
+      "report": "capsule.xml",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "location": "original",
+      "report": "postgres.xml",
+      "tests": 272,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "location": "original",
+      "report": "react-audit-retry.xml",
+      "tests": 48,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "location": "original",
+      "report": "react-audit.xml",
+      "tests": 48,
+      "failures": 2,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "location": "original",
+      "report": "react-date-label-retry.xml",
+      "tests": 53,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "location": "original",
+      "report": "react-date-label.xml",
+      "tests": 53,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "location": "original",
+      "report": "react-final-audit.xml",
+      "tests": 52,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "location": "original",
+      "report": "react-reviewer-audit.xml",
+      "tests": 52,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "location": "original",
+      "report": "sqlite-retry.xml",
+      "tests": 272,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "location": "original",
+      "report": "sqlite.xml",
+      "tests": 13,
+      "failures": 0,
+      "errors": 13,
+      "skipped": 0
+    },
+    {
+      "location": "fresh clone",
+      "report": "postgres.xml",
+      "tests": 273,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "location": "fresh clone",
+      "report": "react-final.xml",
+      "tests": 53,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "location": "fresh clone",
+      "report": "react-frozen.xml",
+      "tests": 52,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "location": "fresh clone",
+      "report": "react.xml",
+      "tests": 52,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "location": "fresh clone",
+      "report": "sqlite.xml",
+      "tests": 273,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "release_tool_checks": {
+    "original": {
+      "passed": 2,
+      "failed": 0
+    },
+    "fresh_clone": {
+      "passed": 2,
+      "failed": 0
+    }
+  },
+  "browser_invocation_groups": [
+    {
+      "group": "Initial UI-selector attempts",
+      "invocations": 3,
+      "passed_tests": 0,
+      "failed_tests": 3,
+      "startup_failures": 0,
+      "skipped": 0,
+      "flaky": 0
+    },
+    {
+      "group": "Corrected UI selectors",
+      "invocations": 1,
+      "passed_tests": 1,
+      "failed_tests": 0,
+      "startup_failures": 0,
+      "skipped": 0,
+      "flaky": 0
+    },
+    {
+      "group": "Earlier batch: interrupted for reviewer audit",
+      "invocations": 7,
+      "passed_tests": 7,
+      "failed_tests": 0,
+      "startup_failures": 0,
+      "skipped": 0,
+      "flaky": 0
+    },
+    {
+      "group": "Earlier batch: interrupted for date-label audit",
+      "invocations": 22,
+      "passed_tests": 20,
+      "failed_tests": 0,
+      "startup_failures": 2,
+      "skipped": 0,
+      "flaky": 0
+    },
+    {
+      "group": "Fresh-clone journeys",
+      "invocations": 3,
+      "passed_tests": 3,
+      "failed_tests": 0,
+      "startup_failures": 0,
+      "skipped": 0,
+      "flaky": 0
+    },
+    {
+      "group": "Final frozen application: thirty consecutive",
+      "invocations": 30,
+      "passed_tests": 30,
+      "failed_tests": 0,
+      "startup_failures": 0,
+      "skipped": 0,
+      "flaky": 0
+    }
+  ],
+  "final_browser_invocations": [
+    {
+      "run": 1,
+      "exit_code": 0,
+      "seconds": 95.02,
+      "stats": {
+        "startTime": "2026-11-20T18:17:55.168Z",
+        "duration": 85972.657,
+        "expected": 1,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    {
+      "run": 2,
+      "exit_code": 0,
+      "seconds": 86.03,
+      "stats": {
+        "startTime": "2026-11-20T18:19:25.088Z",
+        "duration": 81978.576,
+        "expected": 1,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    {
+      "run": 3,
+      "exit_code": 0,
+      "seconds": 91.25,
+      "stats": {
+        "startTime": "2026-11-20T18:20:55.185Z",
+        "duration": 83210.76,
+        "expected": 1,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    {
+      "run": 4,
+      "exit_code": 0,
+      "seconds": 95.73,
+      "stats": {
+        "startTime": "2026-11-20T18:22:24.029Z",
+        "duration": 90201.81599999999,
+        "expected": 1,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    {
+      "run": 5,
+      "exit_code": 0,
+      "seconds": 69.69,
+      "stats": {
+        "startTime": "2026-11-20T18:23:57.695Z",
+        "duration": 66133.087,
+        "expected": 1,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    {
+      "run": 6,
+      "exit_code": 0,
+      "seconds": 72.11,
+      "stats": {
+        "startTime": "2026-11-20T18:25:09.820Z",
+        "duration": 66205.345,
+        "expected": 1,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    {
+      "run": 7,
+      "exit_code": 0,
+      "seconds": 74.48,
+      "stats": {
+        "startTime": "2026-11-20T18:26:19.695Z",
+        "duration": 70808.281,
+        "expected": 1,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    {
+      "run": 8,
+      "exit_code": 0,
+      "seconds": 66.11,
+      "stats": {
+        "startTime": "2026-11-20T18:27:35.937Z",
+        "duration": 60565.863,
+        "expected": 1,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    {
+      "run": 9,
+      "exit_code": 0,
+      "seconds": 72.58,
+      "stats": {
+        "startTime": "2026-11-20T18:28:42.720Z",
+        "duration": 66287.57,
+        "expected": 1,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    {
+      "run": 10,
+      "exit_code": 0,
+      "seconds": 73.23,
+      "stats": {
+        "startTime": "2026-11-20T18:29:56.055Z",
+        "duration": 66374.469,
+        "expected": 1,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    {
+      "run": 11,
+      "exit_code": 0,
+      "seconds": 69.28,
+      "stats": {
+        "startTime": "2026-11-20T18:31:07.648Z",
+        "duration": 64079.842000000004,
+        "expected": 1,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    {
+      "run": 12,
+      "exit_code": 0,
+      "seconds": 72.66,
+      "stats": {
+        "startTime": "2026-11-20T18:32:16.389Z",
+        "duration": 67994.40599999999,
+        "expected": 1,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    {
+      "run": 13,
+      "exit_code": 0,
+      "seconds": 72.33,
+      "stats": {
+        "startTime": "2026-11-20T18:33:28.739Z",
+        "duration": 67956.818,
+        "expected": 1,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    {
+      "run": 14,
+      "exit_code": 0,
+      "seconds": 70.41,
+      "stats": {
+        "startTime": "2026-11-20T18:34:41.022Z",
+        "duration": 66085.96900000001,
+        "expected": 1,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    {
+      "run": 15,
+      "exit_code": 0,
+      "seconds": 69.56,
+      "stats": {
+        "startTime": "2026-11-20T18:35:51.804Z",
+        "duration": 64870.702000000005,
+        "expected": 1,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    {
+      "run": 16,
+      "exit_code": 0,
+      "seconds": 69.86,
+      "stats": {
+        "startTime": "2026-11-20T18:37:01.757Z",
+        "duration": 64590.27100000001,
+        "expected": 1,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    {
+      "run": 17,
+      "exit_code": 0,
+      "seconds": 70.7,
+      "stats": {
+        "startTime": "2026-11-20T18:38:11.847Z",
+        "duration": 65332.954,
+        "expected": 1,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    {
+      "run": 18,
+      "exit_code": 0,
+      "seconds": 67.3,
+      "stats": {
+        "startTime": "2026-11-20T18:39:24.216Z",
+        "duration": 60138.922999999995,
+        "expected": 1,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    {
+      "run": 19,
+      "exit_code": 0,
+      "seconds": 73.76,
+      "stats": {
+        "startTime": "2026-11-20T18:40:28.503Z",
+        "duration": 69738.325,
+        "expected": 1,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    {
+      "run": 20,
+      "exit_code": 0,
+      "seconds": 82.16,
+      "stats": {
+        "startTime": "2026-11-20T18:41:44.528Z",
+        "duration": 75697.554,
+        "expected": 1,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    {
+      "run": 21,
+      "exit_code": 0,
+      "seconds": 86.44,
+      "stats": {
+        "startTime": "2026-11-20T18:43:06.170Z",
+        "duration": 80639.446,
+        "expected": 1,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    {
+      "run": 22,
+      "exit_code": 0,
+      "seconds": 83.31,
+      "stats": {
+        "startTime": "2026-11-20T18:44:32.013Z",
+        "duration": 78161.481,
+        "expected": 1,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    {
+      "run": 23,
+      "exit_code": 0,
+      "seconds": 77.84,
+      "stats": {
+        "startTime": "2026-11-20T18:45:55.555Z",
+        "duration": 72447.638,
+        "expected": 1,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    {
+      "run": 24,
+      "exit_code": 0,
+      "seconds": 72.86,
+      "stats": {
+        "startTime": "2026-11-20T18:47:14.126Z",
+        "duration": 66776.25,
+        "expected": 1,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    {
+      "run": 25,
+      "exit_code": 0,
+      "seconds": 73.2,
+      "stats": {
+        "startTime": "2026-11-20T18:48:25.050Z",
+        "duration": 69039.545,
+        "expected": 1,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    {
+      "run": 26,
+      "exit_code": 0,
+      "seconds": 72.62,
+      "stats": {
+        "startTime": "2026-11-20T18:49:38.943Z",
+        "duration": 67792.413,
+        "expected": 1,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    {
+      "run": 27,
+      "exit_code": 0,
+      "seconds": 72.45,
+      "stats": {
+        "startTime": "2026-11-20T18:50:51.671Z",
+        "duration": 67513.147,
+        "expected": 1,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    {
+      "run": 28,
+      "exit_code": 0,
+      "seconds": 75.88,
+      "stats": {
+        "startTime": "2026-11-20T18:52:03.970Z",
+        "duration": 71120.614,
+        "expected": 1,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    {
+      "run": 29,
+      "exit_code": 0,
+      "seconds": 70.58,
+      "stats": {
+        "startTime": "2026-11-20T18:53:20.754Z",
+        "duration": 64871.896,
+        "expected": 1,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    {
+      "run": 30,
+      "exit_code": 0,
+      "seconds": 72.56,
+      "stats": {
+        "startTime": "2026-11-20T18:54:32.551Z",
+        "duration": 65627.357,
+        "expected": 1,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    }
+  ],
+  "fresh_smoke": {
+    "passed": 12,
+    "failed": 0,
+    "duration_ms": 12625
+  },
+  "main_smoke": {
+    "passed": 12,
+    "failed": 0,
+    "duration_ms": 24813
+  },
+  "live_explanations": {
+    "tsp_accepted": 10,
+    "history_accepted": 10,
+    "generation_calls": 20,
+    "retries": 0,
+    "tools": 0,
+    "grounding": "partially_grounded",
+    "human_review_required": true
+  },
+  "capture": {
+    "viewport": "1920x1080",
+    "mode": "replay",
+    "synthetic_only": true,
+    "screens": [
+      "01-dashboard",
+      "02-workspace",
+      "06-simulated-history",
+      "07-history-replay",
+      "03-passport",
+      "08-window-replay",
+      "04-resolution",
+      "09-clinician-review",
+      "10-evidence-verified-closure",
+      "05-evidence-audit"
+    ],
+    "steps": [
+      {
+        "screen": "01-dashboard",
+        "elapsed_ms": 3276
+      },
+      {
+        "screen": "02-workspace",
+        "elapsed_ms": 8286
+      },
+      {
+        "screen": "06-simulated-history",
+        "elapsed_ms": 9034
+      },
+      {
+        "screen": "07-history-replay",
+        "elapsed_ms": 20310
+      },
+      {
+        "screen": "03-passport",
+        "elapsed_ms": 30406
+      },
+      {
+        "screen": "08-window-replay",
+        "elapsed_ms": 31866
+      },
+      {
+        "screen": "04-resolution",
+        "elapsed_ms": 50382
+      },
+      {
+        "screen": "09-clinician-review",
+        "elapsed_ms": 52225
+      },
+      {
+        "screen": "10-evidence-verified-closure",
+        "elapsed_ms": 66655
+      },
+      {
+        "screen": "05-evidence-audit",
+        "elapsed_ms": 76911
+      }
+    ],
+    "explanation_model": "anthropic/claude-sonnet-5.5-20260928",
+    "live_provider_configured": false,
+    "live_generation_requests": 0,
+    "recording_seconds": 90,
+    "accepted_replays": {
+      "tsp": true,
+      "history": true
+    },
+    "closure_verified": true
+  }
+}
