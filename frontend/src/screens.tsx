@@ -253,7 +253,7 @@ export function Resolution({ data, role, token, busy, busyPath, action }: Screen
     {runs.filter((execution) => execution.result.finding === 'failed').map((execution) =>
       <Panel key={execution.id} title="Coordination run failed" action={<Status value="failed" />}>
         <div className="inset"><p>{moment(execution.recorded)} · {execution.result.action}</p>
-          <p>Evidence references: {execution.result.evidence_refs.join(', ') || 'None recorded'}.</p>
+          <details><summary>Evidence references</summary>{execution.result.evidence_refs.join(', ') || 'None recorded'}</details>
           <RunTrace trace={execution.result.trace} />
           <Link className="text-link" to={'/passport?obligation=' + execution.obligation_id}>Open passport</Link></div>
       </Panel>)}
@@ -281,7 +281,7 @@ export function Resolution({ data, role, token, busy, busyPath, action }: Screen
           <div><dt>Evidence reviewed by agent</dt><dd><details><summary>Source references</summary>{execution.result.evidence_refs.join(', ')}</details></dd></div>
           <div><dt>External tools invoked</dt><dd>None. Nodes use authorized records supplied by the backend.</dd></div>
           {review && <div><dt>Reviewer decision</dt><dd>{label(review.decision)}{review.note && ' · ' + review.note}
-            <small>{review.evidence_refs.join(', ') || 'No completion evidence at decision time'}</small></dd></div>}
+            <details><summary>Reviewed source references</summary>{review.evidence_refs.join(', ') || 'No completion evidence at decision time'}</details></dd></div>}
         </dl>
         {task.status === 'pending' && stale && <div className="inset">
           <Feedback message="Evidence changed. Run coordination again before approving this proposal." error />

@@ -133,9 +133,9 @@ function ReviewControls({ decision, token, role }: Props & { decision: Preventio
           <option value="reconciled">Reconciled by clinician</option><option value="not_applicable">Not applicable</option>
         </select></label>
         <fieldset><legend>Supporting evidence reviewed</legend>
-          {candidates.map((id) => <label className="decision-checkbox" key={id}><input type="checkbox" checked={refs.includes(id)}
+          {candidates.map((id,index) => <div key={id}><label className="decision-checkbox"><input type="checkbox" checked={refs.includes(id)}
             disabled={unavailable.has(id)} onChange={(event) => setRefs(event.target.checked ? [...refs, id] : refs.filter((value) => value !== id))} />
-            <span>{id}{unavailable.has(id) ? ' · Unavailable content' : ''}</span></label>)}
+            <span>{decision.prerequisites.find(item=>item.source_refs.includes(id))?.category || 'Supporting evidence'} · source {index+1}{unavailable.has(id) ? ' · Unavailable content' : ''}</span></label><details><summary>Source reference {index+1}</summary>{id}</details></div>)}
           {!candidates.length && <p>No prerequisite evidence is currently accessible.</p>}
         </fieldset>
         <label>Outstanding follow-up actions, one per line<textarea value={followUp} maxLength={5000} onChange={(event) => setFollowUp(event.target.value)} /></label>
