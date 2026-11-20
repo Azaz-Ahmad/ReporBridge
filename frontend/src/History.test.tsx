@@ -1,0 +1,13 @@
+// @vitest-environment jsdom
+import {cleanup,render,screen,fireEvent} from '@testing-library/react';
+import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
+import {afterEach,expect,test,vi} from 'vitest';
+import {EarlierRecords,type HistoryState} from './History';
+import {api} from './api';
+vi.mock('./api',()=>({api:vi.fn()}));
+afterEach(()=>{cleanup();vi.resetAllMocks();});
+function mount(role:'viewer'|'coordinator'='viewer'){render(<QueryClientProvider client={new QueryClient({defaultOptions:{queries:{retry:false}}})}><EarlierRecords token="test" role={role} patientId="demo-amira"/></QueryClientProvider>);}
+const state:HistoryState={age_at_record:22,age_at_registration:31,findings:[{id:'source-1',kind:'Observation',resource_id:'demo-history',version:1,digest:'hash',clinical_time:'2017-07-10',finding:'documented PCOS diagnosis',source_url:'/api/v1/clinical/source',provenance:{facility:{simulation:true,origin:'Hospital A',receiving:'Hospital B',received_at:'2026-11-22T08:00:00Z'}}}],rule_traces:[{rule_id:'finding-w1',policy_id:'history',policy_version:'1',triggered:true,target_window:'W1',citation:'CITATION_PENDING_CLINICAL_CONFIRMATION',clinical_confirmation:'pending clinical confirmation',reason:'Exact source match'}]};
+test('shows dated source facility and server-rendered rule without clinical inference',async()=>{vi.mocked(api).mockResolvedValue(state);mount();await screen.findByText('documented PCOS diagnosis');expect(screen.getByText('Documented finding linked to existing W1')).toBeTruthy();expect(screen.getByText('SIMULATED · Hospital A')).toBeTruthy();expect(screen.queryByRole('button',{name:'Receive earlier Hospital A records'})).toBeNull();});
+test('empty earlier records do not claim a trigger',async()=>{vi.mocked(api).mockResolvedValue({...state,findings:[],rule_traces:[{...state.rule_traces[0],triggered:false}]});mount();await screen.findByText('No trigger from this historical rule');expect(screen.queryByText('documented PCOS diagnosis')).toBeNull();});
+test('source viewer uses the authorized API with the source version',async()=>{vi.mocked(api).mockImplementation(async(_token,path)=>path==='/v1/clinical/source'?{resource:{resourceType:'Observation',valueString:'documented PCOS diagnosis'}}:state);mount();fireEvent.click(await screen.findByRole('button',{name:'Open source finding'}));await screen.findByText(/"valueString": "documented PCOS diagnosis"/);expect(api).toHaveBeenCalledWith('test','/v1/clinical/source');});

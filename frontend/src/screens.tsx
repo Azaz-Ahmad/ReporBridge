@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { ArrowDownToLine, ArrowRight, ArrowUpRight, CalendarDays, CircleAlert, ClipboardList, GitBranch, HeartPulse, Plus, RotateCcw, ShieldCheck, Users, Workflow } from 'lucide-react';
 import { api } from './api';
+import { EarlierRecords } from './History';
 import { JuryOverview, DemoAdmin, JourneyStrip } from './Jury';
 import { HANDOFF_PATIENT, HandoffSetup, HandoffPanel, HandoffTimeline } from './Handoff';
 import { TspQueue, TspWindow } from './Tsp';
@@ -116,6 +117,7 @@ export function Workspace({ data, role, token, busy, action }: ScreenProps) {
           {!obligations.length && <Empty>No obligations recorded.</Empty>}
         </Panel>
       </div>
+      <EarlierRecords token={token} role={role} patientId={patient.id} />
       <HandoffPanel token={token} role={role} patientId={patient.id} />
       <HandoffTimeline token={token} patientId={patient.id} />
       <DecisionTimeline token={token} patientId={patient.id} />
@@ -158,6 +160,7 @@ export function Passport({ data, role, token, busy, action }: ScreenProps) {
           <p>{patient ? patientName(patient) : item.patient_id} · {label(rule.pathway_id)} pathway</p></div>
         <Status value={item.status} />
       </section>
+      <EarlierRecords token={token} role={role} patientId={item.patient_id} />
       <HandoffPanel token={token} role={role} patientId={item.patient_id} />
       <PreventionPassport obligationId={item.id} token={token} role={role} />
       <TspWindow token={token} patientId={item.patient_id} role={role} />
