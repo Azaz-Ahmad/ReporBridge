@@ -433,5 +433,6 @@ test('completes the patient journey through all five screens', async ({ page, br
   await expect(earlier.getByText('Agent abstained. Its result has not been accepted.',{exact:true})).toBeVisible();
   await earlier.getByText('Explanation trace',{exact:true}).click();
   await expect(earlier.locator('pre').filter({hasText:'provider_unavailable: disabled'})).toBeVisible();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Explanation fallback and expanded trace fit at 390 px').toBe(true);
   await testInfo.attach('SIMULATED earlier-record handoff',{body:JSON.stringify({received:historyState,closed:closedHistory}),contentType:'application/json'});
 });

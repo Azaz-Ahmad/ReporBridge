@@ -324,3 +324,5 @@ body { font-size: 18px; color: #17213a; } .jury-hero { padding: 24px; min-height
 .history-sources{display:grid;gap:16px;padding-left:20px;overflow-wrap:anywhere}.history-document{white-space:pre-wrap;overflow-wrap:anywhere;max-height:340px;overflow:auto;}
 
 .history-model-citation{display:block;overflow-wrap:anywhere;}
+
+.explanation-output{min-width:0;overflow-wrap:anywhere}.explanation-output pre{white-space:pre-wrap;overflow-wrap:anywhere;max-width:100%;}
