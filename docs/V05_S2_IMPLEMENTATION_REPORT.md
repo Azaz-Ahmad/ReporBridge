@@ -1,4 +1,4 @@
-# ReproBridge v0.5 Sprint 2 implementation
+# Ajyra AI - ReproBridge v0.5 Sprint 2 implementation
 
 ## Release decision
 

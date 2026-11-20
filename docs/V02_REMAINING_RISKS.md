@@ -1,4 +1,4 @@
-# ReproBridge v0.2 remaining risks
+# Ajyra AI - ReproBridge v0.2 remaining risks
 
 - The two rule definitions are illustrative and have no clinical approval. The prototype must use synthetic records.
 - Demo role tokens identify roles in one local synthetic workspace. Individual identities, per-patient access grants, a multi-tenant boundary, and audited production credential management are future work.

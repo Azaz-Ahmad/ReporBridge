@@ -1,4 +1,4 @@
-# ReproBridge v0.3 implementation report
+# Ajyra AI - ReproBridge v0.3 implementation report
 
 The release extends the existing five React routes. It retains FastAPI, PostgreSQL, the clinical rule versions, the authorization model, and the original evidence-verification gate.
 

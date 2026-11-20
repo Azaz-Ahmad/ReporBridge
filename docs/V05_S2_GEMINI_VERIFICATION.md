@@ -1,6 +1,6 @@
 # Gemini live verification and release
 
-**GO for the local synthetic ReproBridge v0.5 Sprint 2 scope.** All three real model investigations and the mandatory automated safety gates passed.
+**GO for the local synthetic Ajyra AI - ReproBridge v0.5 Sprint 2 scope.** All three real model investigations and the mandatory automated safety gates passed.
 
 The starting commit is d60c46d95c2ba243f56292f85aa95b793f03a5b7. The release commit is recorded by git log -1 and the delivery message.
 

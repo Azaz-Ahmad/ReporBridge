@@ -1,4 +1,4 @@
-# ReproBridge v0.3 UI review
+# Ajyra AI - ReproBridge v0.3 UI review
 
 The five views use a navy sidebar, white and soft-gray surfaces, and teal and blue accents for actionable state. Text labels accompany every workflow status. The synthetic demonstration banner remains visible in the shared header. The passport labels illustrative rule definitions as unapproved beside their care requirements.
 

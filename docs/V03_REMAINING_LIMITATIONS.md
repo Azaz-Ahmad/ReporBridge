@@ -1,4 +1,4 @@
-# ReproBridge v0.3 remaining limitations
+# Ajyra AI - ReproBridge v0.3 remaining limitations
 
 - The two illustrative rule definitions are unapproved. Use fabricated data. Clinical effectiveness and patient outcomes have not been established.
 - The local demo uses shared role credentials. Individual identity, per-patient grants, and production audit protection remain future work.

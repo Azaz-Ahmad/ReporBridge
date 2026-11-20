@@ -1,4 +1,4 @@
-# ReproBridge v0.2 baseline audit
+# Ajyra AI - ReproBridge v0.2 baseline audit
 
 The audit started at `F:\ReproBridge` on 17 November 2026 with a clean Git worktree at `bdd195c`. The baseline review covered the README and all nine existing reports and design documents, the five React routes, FastAPI routes and authorization, SQLAlchemy and Alembic, LangGraph, the FHIR schema and mapping, Docker Compose, and the test runners.
 

@@ -1,4 +1,4 @@
-# ReproBridge v0.2 defect register
+# Ajyra AI - ReproBridge v0.2 defect register
 
 The audit recorded nine defect groups. Each has a regression check or a repeatable verification procedure.
 

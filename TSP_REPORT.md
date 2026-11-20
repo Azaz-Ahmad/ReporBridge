@@ -54,7 +54,7 @@ The local backend was restarted, ignored `.env` DEMO_MODE enabled, and the autho
 One-command reset (executed successfully): `powershell -File scripts/Reset-TspDemo.ps1` (backend default port 8000). UI **Reset TSP demo** also restores the calling browser's demo date. Clocks are session-local, not global; the script gets its own session. Load/seed does not shift an existing pregnancy when the clock advances.
 
 ## Defaults requiring clinical confirmation
-All policy values retain `CITATION_PENDING_CLINICAL_CONFIRMATION` and the visible label **pending clinical confirmation**:
+All policy values retain `pending clinical confirmation` and the visible label **pending clinical confirmation**:
 - W1: pregnancy registration through GA 104 inclusive, only for a carried unresolved preconception obligation.
 - W2: GA 168–202 inclusive.
 - Due soon: seven calendar days before a window opens; in-window endpoints remain IN_WINDOW.

@@ -1,4 +1,4 @@
-# ReproBridge v0.4 baseline review
+# Ajyra AI - ReproBridge v0.4 baseline review
 
 The checkout at `F:\ReproBridge` was clean at `7e51eec` before changes. The review inspected the five React routes, Amira’s seed, rule definitions and provenance, graph nodes and execution payload, dependency and closure logic, archive/reset implementation, and test suites.
 

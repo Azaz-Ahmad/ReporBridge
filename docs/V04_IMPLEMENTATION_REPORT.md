@@ -1,4 +1,4 @@
-# ReproBridge v0.4 implementation report
+# Ajyra AI - ReproBridge v0.4 implementation report
 
 The application keeps its five routes, existing schema, coordinator and reviewer permissions, and clinical decision rules.
 

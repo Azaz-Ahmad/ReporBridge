@@ -1,4 +1,4 @@
-# ReproBridge v0.2 demo readiness
+# Ajyra AI - ReproBridge v0.2 demo readiness
 
 **CONDITIONAL GO for the synthetic HealthX Ajyal walkthrough.** The mandatory prototype workflow and safety checks passed. Operate on loopback with the fabricated dataset and use the documented review sequence. Full FHIR validation, production identity and clinical approval remain outside this demonstration’s assurance.
 

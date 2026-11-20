@@ -1,6 +1,6 @@
-# ReproBridge v0.2 FHIR validation
+# Ajyra AI - ReproBridge v0.2 FHIR validation
 
-The validation target is HL7 FHIR R4 4.0.1. ReproBridge uses python-jsonschema 4.26.0 with Draft 6 against the official HL7 R4 JSON schema stored in `backend/app/schema/fhir-r4-schema.zip`. Imports add bounded synthetic identity, vocabularies, and reference checks. Export uses `application/fhir+json` and validates the collection before serving it. [HL7 R4 JSON schema](https://hl7.org/fhir/R4/fhir.schema.json.zip)
+The validation target is HL7 FHIR R4 4.0.1. Ajyra AI - ReproBridge uses python-jsonschema 4.26.0 with Draft 6 against the official HL7 R4 JSON schema stored in `backend/app/schema/fhir-r4-schema.zip`. Imports add bounded synthetic identity, vocabularies, and reference checks. Export uses `application/fhir+json` and validates the collection before serving it. [HL7 R4 JSON schema](https://hl7.org/fhir/R4/fhir.schema.json.zip)
 
 | Scope | Method |
 | --- | --- |

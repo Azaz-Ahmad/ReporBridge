@@ -1,4 +1,4 @@
-# ReproBridge v0.5 Sprint 1 test report
+# Ajyra AI - ReproBridge v0.5 Sprint 1 test report
 
 Baseline `6a3dfb7` passed 39 checks on each database, nine React tests, the build and two PostgreSQL journeys. The final Sprint 1 run is `test-reports/20261118-002726-756e5c55`.
 

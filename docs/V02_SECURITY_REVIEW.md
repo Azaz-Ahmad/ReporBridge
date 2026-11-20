@@ -1,4 +1,4 @@
-# ReproBridge v0.2 security review
+# Ajyra AI - ReproBridge v0.2 security review
 
 The local synthetic demo uses random coordinator, reviewer, and viewer bearer tokens from the ignored root environment file. The server rejects missing, invalid, and ambiguous credentials. The browser ships no token and stores a manually entered token in session storage. Tokens are cleared on sign-out.
 

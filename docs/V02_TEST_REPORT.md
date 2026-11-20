@@ -1,4 +1,4 @@
-# ReproBridge v0.2 test report
+# Ajyra AI - ReproBridge v0.2 test report
 
 Verification ran on Windows with Python 3.12.10, Node.js 26.5.0, Microsoft Edge, and a local Docker PostgreSQL 17 instance. The baseline was `bdd195c`. The earlier [baseline audit](V02_BASELINE_AUDIT.md) records the original passing suite and independent defect reproductions.
 

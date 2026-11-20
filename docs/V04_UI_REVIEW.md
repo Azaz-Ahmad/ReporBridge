@@ -1,4 +1,4 @@
-# ReproBridge v0.4 UI review
+# Ajyra AI - ReproBridge v0.4 UI review
 
 Actual Playwright captures from the PostgreSQL walkthrough are stored in `docs/screenshots/v04`.
 

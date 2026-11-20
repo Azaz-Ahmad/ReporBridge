@@ -1,4 +1,4 @@
-# ReproBridge v0.3 demo readiness
+# Ajyra AI - ReproBridge v0.3 demo readiness
 
 **GO for the synthetic HealthX Ajyal demonstration.** All mandatory demo and safety checks passed. The live application runs against PostgreSQL on loopback with Amira at preconception.
 

@@ -1,4 +1,4 @@
-# ReproBridge v0.3 test report
+# Ajyra AI - ReproBridge v0.3 test report
 
 The baseline at `d97b4cf` passed 36 Python tests on each database, three React tests, the production build, and two PostgreSQL browser journeys. The full v0.3 run is recorded in `test-reports/20261117-224751-7d95bc0a`.
 

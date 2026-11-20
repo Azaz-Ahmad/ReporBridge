@@ -1,4 +1,4 @@
-# ReproBridge v0.3 baseline review
+# Ajyra AI - ReproBridge v0.3 baseline review
 
 The checkout at `F:\ReproBridge` started clean at `d97b4cf`. The product scope, architecture, demo script, v0.2 test report and defect register, known limitations, five React routes, API handlers, database schema and agent pipeline were inspected before changes.
 

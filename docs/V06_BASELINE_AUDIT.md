@@ -17,4 +17,4 @@ Baseline command scripts/Test-Demo.ps1 -PostgreSQL completed successfully before
 - Both PostgreSQL browser journeys passed.
 - Both FHIR downloads validated.
 
-The implementation adds a separate persisted decision lifecycle, immutable reviewer records, prerequisite registry, timing policies and decision audit. It reuses M08 retrieval and the existing agent, role dependencies and transaction serialization. The existing six innovations and all five screen entry points are retained.
+The implementation adds a separate persisted decision lifecycle, immutable reviewer records, prerequisite registry, timing policies and decision audit. It reuses M08 retrieval and the existing agent, role dependencies and transaction serialization. The existing original innovations and all five screen entry points are retained.

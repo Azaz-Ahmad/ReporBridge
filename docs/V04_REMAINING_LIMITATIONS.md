@@ -1,4 +1,4 @@
-# ReproBridge v0.4 remaining limitations
+# Ajyra AI - ReproBridge v0.4 remaining limitations
 
 - The scenario and rules are illustrative and clinically unapproved. The neutral metabolic assessment establishes neither a diagnosis nor any clinical benefit.
 - The graph runs locally and deterministically. External LLM reasoning, external tools and outbound dispatch are future capabilities.
