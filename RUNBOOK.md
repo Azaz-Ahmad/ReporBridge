@@ -22,7 +22,7 @@ In a second shell, run `npm.cmd --prefix frontend run dev -- --host 127.0.0.1`; 
 
 ## Reset and smoke (under 60 seconds)
 
-Run `.venv\Scripts\python.exe scripts/smoke_demo.py`. It confirms health/migrations, resets only the guarded synthetic fixtures, checks Amira **IN_WINDOW** and the uncertain patient **HOLD_DATING_UNCERTAIN**, checks adapter configuration and exercises actual recorded replay. It prints PASS/FAIL and never spends model credits. Its live check is configuration readiness; authenticated live reachability is evidenced separately by the recording results, not claimed as a new smoke call. Missing or rejected explanations cause FAIL.
+Run `.venv\Scripts\python.exe scripts/smoke_demo.py`. It confirms health/migrations, resets only the guarded synthetic fixtures, checks Amira **IN_WINDOW** and the uncertain patient **HOLD_DATING_UNCERTAIN**, checks configuration, makes a read-only live catalog request and exercises recorded replay. It prints PASS/FAIL without generation requests. Catalog reachability does not establish selected-model permission; the real recording reports establish that. Missing or rejected explanations cause FAIL.
 
 Alternatively expand Admin, choose Reset TSP demo, then Confirm reset TSP demo. Wait for completion and **2026-11-22**. Amira-only reset is separately nested and requires Confirm reset; it restores preconception rather than the TSP scene. Reset demo date changes only the calendar. A fresh browser profile starts at the default demo date.
 

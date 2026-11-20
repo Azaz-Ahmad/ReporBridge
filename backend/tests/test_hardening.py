@@ -159,7 +159,7 @@ def smoke_module():
     module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module);return module
 
 
-def test_smoke_has_explicit_pass_fail_and_no_live_request():
+def test_smoke_has_explicit_pass_fail_and_no_live_request(monkeypatch):
     module=smoke_module()
     class API:
         def call(self,path,body=None):
@@ -170,7 +170,18 @@ def test_smoke_has_explicit_pass_fail_and_no_live_request():
             if path.endswith("/status"):return {"llm_mode":"replay","modes":{m:{"available":True} for m in ["live","replay"]}}
             assert path.endswith("/investigations")
             return {"detail":{"usage":{"model_calls":0},"packet":{"origin":"model","grounding_status":"partially_grounded"},"error":None}}
-    assert all(item["passed"] for item in module.checks(API()))
+    assert all(item["passed"] for item in module.checks(API(),lambda:True))
+    from app.investigation import provider
+    from types import SimpleNamespace
+    calls=[]
+    class CatalogOnly:
+        def __init__(self,settings):self.client=SimpleNamespace(models=SimpleNamespace(list=lambda:(calls.append("catalog") or SimpleNamespace(data=[]))))
+        def close(self):calls.append("close")
+    monkeypatch.setattr(provider,"OpenAIProvider",CatalogOnly)
+    monkeypatch.setenv("OPENAI_MODEL","configured-model");monkeypatch.setenv("OPENAI_API_KEY","test-key")
+    import time
+    assert module.live_catalog_probe(time.monotonic()+60)
+    assert calls==["catalog","close"]
 
 
 def test_smoke_does_not_treat_recorded_failure_as_success():
