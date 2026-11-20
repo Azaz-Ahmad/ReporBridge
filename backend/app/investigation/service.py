@@ -15,14 +15,19 @@ from app.prevention.window_grounding import prompt as window_prompt
 
 
 def provider_factory(settings):
-    return provider.OpenAIProvider(settings)
+    from app.investigation.replay import ReplayProvider, RecordingProvider
+    import os
+    if settings.llm_mode == "replay":return ReplayProvider(settings)
+    live = provider.OpenAIProvider(settings)
+    return RecordingProvider(live, settings) if os.getenv("LLM_RECORD_DIR") else live
 
 
 def status():
     settings, availability = provider.configuration()
     return {"provider": "openai", "api": "responses", "status": availability,
             "available": availability == "available", "configuration": settings.public(),
-            "synthetic_only": True, "live_verification": "requires_actual_api_run"}
+            "synthetic_only": True, "llm_mode": settings.llm_mode,
+            "message": availability, "live_verification": "requires_actual_api_run"}
 
 
 def get(connection, actor, run_id):
@@ -118,8 +123,12 @@ def run_investigation(actor, request, write, trusted_decision=None, trusted_wind
     model_provider = None
     try:
         model_provider = provider_factory(settings)
+        if callable(getattr(model_provider,"bind_run",None)):model_provider.bind_run(run,context)
         graph = build(model_provider, settings, run, context, persist, fingerprint)
         graph.invoke(state, config={"recursion_limit": 2 * settings.max_steps + 12})
+    except provider.ProviderFailure as error:
+        state.update(error=error.code,status="abstained")
+        write(save,actor,run["id"],state,round((time.perf_counter()-started)*1000))
     except Exception:
         # Persist failure after interruption/provider initialization failure without raw exception text.
         with db.engine.begin() as connection:
@@ -132,7 +141,10 @@ def run_investigation(actor, request, write, trusted_decision=None, trusted_wind
         if model_provider is not None and callable(getattr(model_provider, "close", None)):
             model_provider.close()
     with db.engine.begin() as connection:
-        return get(connection, actor, run["id"])
+        result = get(connection, actor, run["id"])
+    if callable(getattr(model_provider,"finish_run",None)) and hasattr(model_provider,"binding"):
+        model_provider.finish_run(result)
+    return result
 
 
 def mark_failure(connection, actor, run_id, detail):

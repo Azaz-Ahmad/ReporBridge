@@ -14,6 +14,10 @@ SOURCE = "synthetic-tsp"
 UNCERTAIN = "demo-tsp-uncertain"
 
 
+def uncertain_patient():
+    return {**seed_records()[0], "id": UNCERTAIN, "name": [{"given": ["Uncertain"], "family": "Dating Demo"}]}
+
+
 def enabled():
     if not tsp.demo_enabled():
         fail(403, "demo_disabled", "TSP fixtures require DEMO_MODE.")
@@ -48,8 +52,7 @@ def load(connection, actor, session_id, reset=False):
     if old and not reset:
         anchor = date.fromisoformat(max(old, key=lambda event: event["sequence"])["detail"]["anchor"])
     clinical.seed(connection, actor)
-    patient = {**seed_records()[0], "id": UNCERTAIN,
-               "name": [{"given": ["Uncertain"], "family": "Dating Demo"}]}
+    patient = uncertain_patient()
     existing = clinical.find(connection, db.patients, UNCERTAIN)
     if existing and existing["resource"] != patient:
         fail(409, "fixture_mismatch", "The uncertain-dating fixture identifier is already in use.")

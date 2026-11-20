@@ -15,6 +15,7 @@ DEFAULT_BASE_URL = "https://api.openai.com/v1"
 
 
 class Settings(BaseModel):
+    llm_mode: Literal["live", "replay"] = "live"
     base_url: str = Field(default=DEFAULT_BASE_URL, max_length=2048)
     model: str = Field(default="", max_length=100)
     timeout: float = Field(default=30, ge=1, le=60)
@@ -51,6 +52,7 @@ class Settings(BaseModel):
 def configuration():
     try:
         settings = Settings(
+            llm_mode=os.getenv("LLM_MODE", "live"),
             base_url=os.getenv("OPENAI_BASE_URL", ""),
             model=os.getenv("OPENAI_MODEL", "").strip(),
             timeout=os.getenv("OPENAI_TIMEOUT_SECONDS", "30"),
@@ -62,6 +64,11 @@ def configuration():
         return Settings(), "invalid_configuration"
     if os.getenv("CLINICAL_EVIDENCE_AGENT_ENABLED", "false").lower() != "true":
         return settings, "disabled"
+    if settings.llm_mode == "replay":
+        from app.investigation.replay import available
+        if not settings.model:
+            return settings, "missing_model: set OPENAI_MODEL to the recorded model"
+        return settings, "available" if available() else "replay_unavailable: no real recording installed or DEMO_MODE disabled"
     if not os.getenv("OPENAI_API_KEY", "").strip():
         return settings, "missing_api_key"
     # No maintained price catalog exists in this prototype. Never pretend a dollar ceiling is enforced.

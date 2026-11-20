@@ -11,3 +11,6 @@ test-results/
 .env.local
 test-results-db/
 test-reports/
+
+# Local sanitized live recordings are reviewed before any deliberate inclusion.
+backend/demo-replays/

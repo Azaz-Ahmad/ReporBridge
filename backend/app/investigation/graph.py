@@ -76,6 +76,9 @@ def build(provider, settings, run, context, persist, initial_fingerprint, execut
             turn = provider.invoke(state["messages"], tooling.definitions(),
                                    final=(state["steps"] >= settings.max_steps - 1
                                           or len(state["tool_history"]) >= settings.max_tools))
+            if getattr(turn,"telemetry",{}).get("llm_mode")=="replay":
+                usage["model_calls"] -= 1
+                usage["replay_turns"] = usage.get("replay_turns",0)+1
             usage["input_tokens"] += turn.input_tokens
             usage["output_tokens"] += turn.output_tokens
             usage["retries"] += turn.retries

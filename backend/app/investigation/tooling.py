@@ -29,8 +29,10 @@ def synthetic_scope(connection, context):
     from app.clinical.schema_v1 import identities
     patient = connection.execute(select(db.patients.c.resource).where(
         db.patients.c.id == context.patient_id)).scalar_one_or_none()
-    if context.patient_id != "demo-amira" or patient != seed_records()[0]:
-        fail(409, "synthetic_scope_required", "Investigations require the canonical synthetic Amira patient.")
+    from app.prevention.tsp_demo import UNCERTAIN, uncertain_patient
+    expected = {"demo-amira":seed_records()[0], UNCERTAIN:uncertain_patient()}.get(context.patient_id)
+    if expected is None or patient != expected:
+        fail(409, "synthetic_scope_required", "Investigations require an exact canonical synthetic demo fixture.")
     claims = connection.execute(select(identities.c.namespace, identities.c.external_id).where(
         identities.c.patient_id == context.patient_id)).all()
     for namespace, external_id in claims:
