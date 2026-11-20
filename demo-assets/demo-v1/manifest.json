@@ -17,54 +17,52 @@
   "steps": [
     {
       "screen": "01-dashboard",
-      "elapsed_ms": 6354
+      "elapsed_ms": 3276
     },
     {
       "screen": "02-workspace",
-      "elapsed_ms": 9142
+      "elapsed_ms": 8286
     },
     {
       "screen": "06-simulated-history",
-      "elapsed_ms": 10223
+      "elapsed_ms": 9034
     },
     {
       "screen": "07-history-replay",
-      "elapsed_ms": 20789
+      "elapsed_ms": 20310
     },
     {
       "screen": "03-passport",
-      "elapsed_ms": 30380
+      "elapsed_ms": 30406
     },
     {
       "screen": "08-window-replay",
-      "elapsed_ms": 31931
+      "elapsed_ms": 31866
     },
     {
       "screen": "04-resolution",
-      "elapsed_ms": 50011
+      "elapsed_ms": 50382
     },
     {
       "screen": "09-clinician-review",
-      "elapsed_ms": 51451
+      "elapsed_ms": 52225
     },
     {
       "screen": "10-evidence-verified-closure",
-      "elapsed_ms": 66469
+      "elapsed_ms": 66655
     },
     {
       "screen": "05-evidence-audit",
-      "elapsed_ms": 77041
+      "elapsed_ms": 76911
     }
   ],
+  "explanation_model": "anthropic/claude-sonnet-5.5-20260928",
+  "live_provider_configured": false,
+  "live_generation_requests": 0,
   "recording_seconds": 90,
   "accepted_replays": {
     "tsp": true,
     "history": true
   },
-  "closure_verified": true,
-  "explanation_model": "anthropic/claude-sonnet-5.5-20260928",
-  "live_provider_configured": false,
-  "live_generation_requests": 0,
-  "codec": "VP9",
-  "fps": 25
+  "closure_verified": true
 }
