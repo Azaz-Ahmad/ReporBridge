@@ -374,9 +374,9 @@ test('completes the patient journey through all five screens', async ({ page }, 
   expect(historicalReceipt.ok()).toBeTruthy();
   expect((await historicalReceipt.json()).findings).toHaveLength(2);
   await expect(earlier.getByText('documented PCOS diagnosis',{exact:true})).toBeVisible();
-  await expect(earlier.getByText('Recorded 2017-07-10 · version 1',{exact:true})).toHaveCount(2);
+  await expect(earlier.getByText('Recorded 2011-07-10 · version 1',{exact:true})).toHaveCount(2);
   await expect(earlier.getByText('Documented finding linked to existing W1',{exact:true})).toBeVisible();
-  await expect(earlier.getByText(/Age 22 at the 2017 record; age 31/)).toBeVisible();
+  await expect(earlier.getByText(/Age 16 at the 2011 record; age 31/)).toBeVisible();
   const historyState = await (await page.request.get('/api/v1/history-handoff/patients/demo-amira',{headers:auth})).json();
   expect(historyState.window.status).toBe(windowBefore.status);
   expect(historyState.rule_traces[0].triggered).toBe(true);

@@ -38,7 +38,7 @@ def test_receive_source_provenance_rule_and_replay(client,monkeypatch):
     assert not initial["rule_traces"][0]["triggered"]
     r=client("/v1/history-handoff/patients/demo-amira/receive");assert r.status_code==200,r.text
     result=r.json();assert result["rule_traces"][0]["triggered"]
-    assert result["age_at_record"]==22 and result["age_at_registration"]==31
+    assert result["age_at_record"]==16 and result["age_at_registration"]==31
     assert result["window"]["status"]==initial["window"]["status"]
     assert all(item["provenance"]["facility"]["origin"]=="Hospital A" for item in result["findings"])
     assert client("/v1/history-handoff/patients/demo-amira/receive").json()==result
@@ -83,7 +83,7 @@ def test_existing_agent_retrieves_cites_and_rejects_risk(client,monkeypatch,conf
     def wrapped(*args,**kwargs):
         turn=invoke(*args,**kwargs)
         if turn.calls:
-            arguments=json.dumps({"kind":"Observation","start":"2017-01-01T00:00:00+00:00","end":"2018-01-01T00:00:00+00:00","limit":8})
+            arguments=json.dumps({"kind":"Observation","start":"2011-01-01T00:00:00+00:00","end":"2012-01-01T00:00:00+00:00","limit":8})
             turn.calls[0]["arguments"]=arguments;turn.messages[0]["arguments"]=arguments
         if turn.draft:
             turn.draft.summary=explanation(state["window"])
@@ -110,7 +110,7 @@ def test_history_reads_require_server_rule_context_on_generic_agent(client,monke
     def wrapped(*args,**kwargs):
         turn=invoke(*args,**kwargs)
         if turn.calls:
-            arguments=json.dumps({"kind":"Observation","start":"2017-01-01T00:00:00+00:00","end":"2018-01-01T00:00:00+00:00","limit":8})
+            arguments=json.dumps({"kind":"Observation","start":"2011-01-01T00:00:00+00:00","end":"2012-01-01T00:00:00+00:00","limit":8})
             turn.calls[0]["arguments"]=arguments;turn.messages[0]["arguments"]=arguments
         return turn
     configured.invoke=wrapped
