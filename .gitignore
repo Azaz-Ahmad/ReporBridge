@@ -16,3 +16,6 @@ test-reports/
 backend/demo-replays/*
 !backend/demo-replays/hardening-v1/
 backend/demo-replays/hardening-v1/*-replay-*-result.json
+
+!backend/demo-replays/explanation-v1/
+backend/demo-replays/explanation-v1/*-result-*.json

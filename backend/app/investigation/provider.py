@@ -163,8 +163,12 @@ class OpenAIProvider:
                                      "strict": True, "schema": provider_schema(strict_schema(contract.model_json_schema()),
                                                                self.settings.schema_profile)}})
                 if response.status != "completed":
-                    raise ProviderFailure("incomplete_response", attempt, response.usage,
-                                          model_name=response.model, response_id=response.id)
+                    failure = ProviderFailure("incomplete_response", attempt, response.usage,
+                                              model_name=response.model, response_id=response.id)
+                    failure.telemetry = {"response_status":response.status,"incomplete_reason":getattr(getattr(response,"incomplete_details",None),"reason",None),
+                        "output_token_limit":self.settings.output_tokens,
+                        "reasoning_tokens":getattr(getattr(response.usage,"output_tokens_details",None),"reasoning_tokens",None)}
+                    raise failure
                 calls = []
                 output = []
                 for item in response.output:

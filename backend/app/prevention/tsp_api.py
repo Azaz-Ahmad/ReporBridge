@@ -52,6 +52,14 @@ def router(Reader, Coordinator, write):
             question="Review synthetic source evidence and explain the backend-computed prevention result for clinician review.",
             request_id="tsp-" + body.request_id, synthetic_only=True), write, trusted_window=binding)
 
+    @api.post("/patients/{patient_id}/explanations")
+    def explain(patient_id: str, body: InvestigationRequest, request: Request, response: Response, actor: Coordinator):
+        from app import explanations
+        from app.prevention.window_grounding import bind
+        from app.investigation.contracts import RunRequest
+        binding=write(bind,actor,patient_id,session(request,response))
+        return explanations.run(actor,RunRequest(patient_id=patient_id,question="Validate the exact server-prepared synthetic prevention explanation fields.",request_id="fields-tsp-"+body.request_id,synthetic_only=True),write,binding)
+
     @api.post("/demo/seed")
     def seed(request: Request, response: Response, actor: Coordinator):
         from app.prevention.tsp_demo import load

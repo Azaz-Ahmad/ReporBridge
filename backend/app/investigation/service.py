@@ -24,8 +24,11 @@ def provider_factory(settings):
 
 def status():
     settings, availability = provider.configuration()
+    from app.explanations import configuration as explanation_configuration
+    explanation_settings,explanation_state=explanation_configuration()
     modes = {mode:{"status":state,"available":state=="available"} for mode in ("live","replay") for _,state in [provider.configuration(mode)]}
     return {"provider": "openai", "api": "responses", "status": availability,"modes":modes,
+            "explanations":{"status":explanation_state,"model":explanation_settings.model,"mode":explanation_settings.llm_mode,"tools":0,"output_tokens":explanation_settings.output_tokens},
             "available": availability == "available", "configuration": settings.public(),
             "synthetic_only": True, "llm_mode": settings.llm_mode,
             "message": availability, "live_verification": "requires_actual_api_run"}
@@ -44,7 +47,7 @@ def get(connection, actor, run_id):
     return result
 
 
-def reserve(connection, actor, request, settings, availability, binding=None, workflow='single_agent', window_context=None):
+def reserve(connection, actor, request, settings, availability, binding=None, workflow='single_agent', window_context=None, permit_rule_fallback=False):
     context = authorize(connection, actor, request.patient_id)
     tooling.synthetic_scope(connection, context)
     existing = connection.execute(select(runs).where(
@@ -58,7 +61,7 @@ def reserve(connection, actor, request, settings, availability, binding=None, wo
         if existing["fingerprint"] != fingerprint:
             fail(409, "idempotency_conflict", "Request ID already belongs to a different question.")
         return get(connection, actor, existing["id"]), False, None
-    if availability != "available":
+    if availability != "available" and not permit_rule_fallback:
         fail(503, "provider_unavailable", "Clinical Evidence Agent unavailable. Provider status is " + availability + ".")
     stamp = now()
     run = {"id": "investigation-" + uuid4().hex, "patient_id": request.patient_id,

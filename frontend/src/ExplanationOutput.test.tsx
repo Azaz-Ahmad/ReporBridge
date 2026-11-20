@@ -1,0 +1,7 @@
+// @vitest-environment jsdom
+import {render,screen,cleanup,fireEvent} from '@testing-library/react';
+import {afterEach,expect,test} from 'vitest';
+import {ExplanationOutput} from './ExplanationOutput';
+afterEach(cleanup);
+test('accepted fields are labelled as server-rendered',()=>{render(<ExplanationOutput detail={{explanation:{accepted:true,agent_abstained:false,label:'Model-validated fields; server-rendered explanation',text:'Server window text',fallback:null}}}/>);expect(screen.getByText('Server window text')).toBeTruthy();expect(screen.queryByText(/Agent abstained/)).toBeNull();});
+test('rule fallback never appears as accepted agent output and keeps the trace',()=>{render(<ExplanationOutput detail={{error:'explanation_fields_mismatch',trace:['investigate','human_review_queue'],explanation:{accepted:false,agent_abstained:true,label:'Rule-generated explanation (agent abstained)',text:null,fallback:{label:'Rule-generated explanation (agent abstained)',text:'Authoritative rule text'},field_mismatches:['/windows/0/window_end']}}}/>);expect(screen.getByText('Rule-generated explanation (agent abstained)')).toBeTruthy();expect(screen.getByText('Agent abstained. Its result has not been accepted.')).toBeTruthy();fireEvent.click(screen.getByText('Explanation trace'));expect(screen.getByText(/explanation_fields_mismatch/)).toBeTruthy();expect(screen.getByText('Authoritative rule text')).toBeTruthy();});

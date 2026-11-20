@@ -1,3 +1,4 @@
+import {ExplanationOutput,type ExplanationProjection} from './ExplanationOutput';
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from './api';
@@ -11,7 +12,7 @@ export function EarlierRecords({token,role,patientId}:{token:string;role:Role;pa
  const cache=useQueryClient();const [source,setSource]=useState<EarlierSource>();
  const query=useQuery({queryKey:['history',patientId,token],enabled:patientId==='demo-amira',queryFn:()=>api<HistoryState>(token,base+'/patients/'+patientId)});
  const action=useMutation({mutationFn:async()=>{await api(token,base+'/seed','POST');return api<HistoryState>(token,base+'/patients/'+patientId+'/receive','POST');},onMutate:async()=>{await cache.cancelQueries({queryKey:['history',patientId,token]});},onSuccess:result=>{cache.setQueryData(['history',patientId,token],result);for(const key of ['history','snapshot','prevention','clinical-explorer','tsp'])cache.invalidateQueries({queryKey:[key]});}});
- const explain=useMutation({mutationFn:()=>api<{id:string;detail:{error?:string|null;packet:{summary:string;findings:{statement:string;supporting_sources:{evidence_id:string;version:number}[]}[];abstained:boolean}|null}}>(token,base+'/patients/'+patientId+'/investigations','POST',{request_id:crypto.randomUUID()})});
+ const explain=useMutation({mutationFn:()=>api<{id:string;detail:{explanation?:ExplanationProjection;trace?:string[];error?:string|null;packet:{summary:string;findings:{statement:string;supporting_sources:{evidence_id:string;version:number}[]}[];abstained:boolean}|null}}>(token,base+'/patients/'+patientId+'/explanations','POST',{request_id:crypto.randomUUID()})});
  useEffect(()=>{explain.reset();},[query.data]);
  const raw=useQuery({queryKey:['history-source',source?.id,token],enabled:!!source,queryFn:()=>api<{resource:Record<string,unknown>|null}>(token,source!.source_url.replace(/^\/api/,''))});
  if(patientId!=='demo-amira')return null;
@@ -22,7 +23,7 @@ export function EarlierRecords({token,role,patientId}:{token:string;role:Role;pa
  {role==='coordinator'&&!!data?.findings.length&&<Button variant="outline" disabled={explain.isPending} onClick={()=>explain.mutate()}>Explain cited earlier record</Button>}
  {explain.error&&<Feedback message={explain.error.message} error/>}
  {explain.data?.detail.error&&<Feedback message={"Explanation unavailable: "+explain.data.detail.error} error/>}
- {explain.data&&<div className="inset"><p>Investigation {explain.data.id} · mandatory human review</p><p>{explain.data.detail.packet?.summary}</p>{explain.data.detail.packet?.findings.map((finding,index)=><p key={index}>{finding.statement}<small className="history-model-citation">Sources: {finding.supporting_sources.map(source=>`${source.evidence_id} · version ${source.version}`).join('; ')}</small></p>)}</div>}
+ {explain.data&&<div className="inset"><p>Investigation {explain.data.id} · mandatory human review</p><ExplanationOutput detail={explain.data.detail}/>{!explain.data.detail.explanation&&<p>{explain.data.detail.packet?.summary}</p>}{explain.data.detail.packet?.findings.map((finding,index)=><p key={index}>{finding.statement}<small className="history-model-citation">Sources: {finding.supporting_sources.map(source=>`${source.evidence_id} · version ${source.version}`).join('; ')}</small></p>)}</div>}
  {action.error&&<Feedback message={action.error.message} error/>}{query.error&&<Feedback message={query.error.message} error/>}
  {!data?.findings.length&&<p>No earlier matching records received. This rule adds no trigger without the documented finding.</p>}
  {!!data?.findings.length&&<><p>Age {data.age_at_record} at the 2011 record; age {data.age_at_registration} at the 2026 pregnancy registration. Earlier documentation does not establish a current diagnosis or risk level.</p>
