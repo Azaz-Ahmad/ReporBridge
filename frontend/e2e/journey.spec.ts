@@ -189,7 +189,9 @@ test('completes the patient journey through all five screens', async ({ page, br
   await expect(page.getByRole('heading', { name: 'Amira Haddad' })).toBeVisible();
 
   await page.getByText('Clinical evidence explorer', { exact: true }).click();
+  const datasetResponse=page.waitForResponse(response=>response.request().method()==='POST'&&new URL(response.url()).pathname==='/api/v1/clinical/demo/dataset');
   await page.getByRole('button', { name: 'Load Amira’s synthetic dataset' }).click();
+  expect((await datasetResponse).ok()).toBeTruthy();
   await expect(page.getByText('Synthetic dataset available.')).toBeVisible();
   await page.getByLabel('Search evidence').fill('reconciliation');
   await page.getByRole('button', { name: 'Search', exact: true }).click();
