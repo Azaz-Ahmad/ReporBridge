@@ -23,8 +23,10 @@ def reset_amira(connection, actor):
     if patient["resource"] != seed_patient or patient["stage"] not in {"preconception", "pregnancy"}:
         raise HTTPException(409, "Reset applies only to the canonical Amira fixture.")
 
+    from app import historical_candidates
+    candidate_allowlist = historical_candidates.reset_allowlist(connection, patient_id)
     obligations = service.rows(connection, db.obligations, db.obligations.c.patient_id == patient_id)
-    if any(item["rule_key"] not in {PRE, PREG} for item in obligations):
+    if any(item["rule_key"] not in {PRE, PREG} and item["id"] not in candidate_allowlist for item in obligations):
         raise HTTPException(409, "Amira has obligations outside the reset fixture.")
     ids = [item["id"] for item in obligations]
     events = service.rows(connection, db.events, db.events.c.patient_id == patient_id)
@@ -33,7 +35,14 @@ def reset_amira(connection, actor):
         pregnancy = observation(patient_id, f"{patient_id}-pregnancy", "pregnancy-registration", "registered")
         allowed[pregnancy["id"]] = pregnancy
     for item in obligations:
-        code = RULES[item["rule_key"]]["closure"]
+        candidate = candidate_allowlist.get(item["id"])
+        if candidate:
+            configured = service.find(connection, db.rules, item["rule_key"], required=True)["definition"]
+            expected = {key:value for key,value in candidate["rule_snapshot"]["lifecycle_rule"].items() if key!="id"}
+            if configured != expected or candidate["confirmation_resource"] is None:
+                raise HTTPException(409, "Candidate lifecycle attestation differs; records were preserved.")
+            allowed[candidate["confirmation_resource"]["id"]] = candidate["confirmation_resource"]
+        code = (candidate["rule_snapshot"]["lifecycle_rule"] if candidate else RULES[item["rule_key"]])["closure"]
         for scenario, value in (("verified", "verified"), ("conflicting", "unresolved")):
             identifier = f"demo-{item['id']}-{scenario}"
             allowed[identifier] = observation(patient_id, identifier, code, value)
@@ -72,8 +81,9 @@ def reset_amira(connection, actor):
 
     prevention.archive_for_reset(connection, actor)
     archive_id = uuid4().hex
+    candidate_archive = historical_candidates.archive_for_reset(connection, patient_id)
     archived = {
-        **related_rows, db.patients.name: [patient], db.obligations.name: obligations,
+        "historical_obligation_candidates": candidate_archive, **related_rows, db.patients.name: [patient], db.obligations.name: obligations,
         db.events.name: events, db.evidence.name: evidence, db.audit.name: audit_events,
     }
     connection.execute(db.demo_archive.insert().values(

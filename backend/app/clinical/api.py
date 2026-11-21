@@ -1,7 +1,7 @@
 """Register versioned clinical endpoints using existing authentication and transactions."""
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy import select
 
@@ -97,8 +97,8 @@ def router(reader, coordinator, write):
         return scoped(role, body.patient_id, lambda db, ctx: ClinicalRetrieval(db, ctx).search(body))
 
     @routes.post(patient + "/events", response_model=IngestionResult)
-    def ingest(patient_id: PatientId, body: Event, role: coordinator):
-        return scoped(role, patient_id, lambda db, ctx: process(db, ctx, body))
+    def ingest(patient_id: PatientId, body: Event, request: Request, role: coordinator):
+        return scoped(role, patient_id, lambda db, ctx: process(db, ctx, body, request.cookies.get("reprobridge-demo-session")))
 
     @routes.post(patient + "/identity/claims", response_model=IdentityResult)
     def identity_claim(patient_id: PatientId, body: Identity, role: coordinator):

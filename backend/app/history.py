@@ -59,7 +59,7 @@ def seed(connection,actor):
     return view(connection,actor,config["patient_id"])
 
 
-def receive(connection,actor,patient_id):
+def receive(connection,actor,patient_id,session_id=None):
     if not tsp.demo_enabled():fail(403,"demo_disabled","Simulated provider exchange requires DEMO_MODE.")
     authorize(connection,actor,patient_id)
     config=data()
@@ -75,8 +75,10 @@ def receive(connection,actor,patient_id):
             continue  # Never revive invalidated evidence or create a duplicate receipt.
         version=prior["version"]+1 if prior else 1
         result=process(connection,scope,Event(source=SOURCE,event_id=resource["id"]+"-v"+str(version),
-            event_time=now(),resource=resource,version=version))
+            event_time=now(),resource=resource,version=version),session_id=session_id)
         assign(connection,actor,patient_id,result["evidence_id"],config["origin_facility"],config["receiving_facility"])
+    from app.historical_candidates import evaluate as identify_candidates
+    identify_candidates(connection,actor,patient_id,session_id)
     return view(connection,actor,patient_id)
 
 

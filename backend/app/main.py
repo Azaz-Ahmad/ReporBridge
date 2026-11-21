@@ -1,8 +1,9 @@
+from app.historical_candidates_api import router as historical_candidates_router
 import os
 from hmac import compare_digest
 from typing import Annotated, Literal
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.exception_handlers import http_exception_handler, request_validation_exception_handler
@@ -71,6 +72,7 @@ app.include_router(prevention_router(Reader, Coordinator, Reviewer, write))
 app.include_router(tsp_router(Reader, Coordinator, write))
 app.include_router(handoff_router(Reader, Coordinator, write))
 app.include_router(history_router(Reader, Coordinator, write))
+app.include_router(historical_candidates_router(Reader, Reviewer, write))
 
 
 @app.exception_handler(HTTPException)
@@ -191,8 +193,8 @@ def evaluate(patient_id: str, actor: Coordinator):
 
 
 @app.post("/api/patients/{patient_id}/pregnancy")
-def pregnancy(patient_id: str, actor: Coordinator):
-    write(authorized_patient_action, actor, patient_id, service.register_pregnancy)
+def pregnancy(patient_id: str, request: Request, actor: Coordinator):
+    write(authorized_patient_action, actor, patient_id, lambda connection, role, identifier: service.register_pregnancy(connection, role, identifier, request.cookies.get("reprobridge-demo-session")))
     return {"stage": "pregnancy"}
 
 

@@ -8,7 +8,7 @@ def router(Reader,Coordinator,write):
     @api.post("/seed")
     def seed(actor:Coordinator):return write(history.seed,actor)
     @api.post("/patients/{patient_id}/receive")
-    def receive(patient_id:str,actor:Coordinator):return write(history.receive,actor,patient_id)
+    def receive(patient_id:str,request:Request,actor:Coordinator):return write(history.receive,actor,patient_id,request.cookies.get("reprobridge-demo-session"))
     @api.get("/patients/{patient_id}")
     def view(patient_id:str,request:Request,actor:Reader):
         return write(history.view,actor,patient_id,request.cookies.get("reprobridge-demo-session"))

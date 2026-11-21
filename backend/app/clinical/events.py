@@ -15,7 +15,7 @@ from app.fhir import references, TARGET_TYPES
 from app.rules import code_matches
 
 
-def process(connection, context, event):
+def process(connection, context, event, session_id=None):
     from app import service
 
     context = authorize(connection, context.role, context.patient_id)
@@ -110,6 +110,8 @@ def process(connection, context, event):
     action = "invalidated" if event.action == "invalidate" else "corrected" if prior else "created"
     connection.execute(changes.insert().values(patient_id=patient_id, evidence_id=evidence_id,
         action=action, received=received, related_obligations=affected))
+    from app.historical_candidates import observe_event
+    observe_event(connection, context.role, patient_id, event.source, session_id)
     return {"status": action, "evidence_id": evidence_id}
 
 

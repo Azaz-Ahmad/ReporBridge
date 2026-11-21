@@ -230,9 +230,11 @@ def evaluate(connection, actor, patient_id):
     return existing
 
 
-def register_pregnancy(connection, actor, patient_id):
+def register_pregnancy(connection, actor, patient_id, session_id=None):
     patient = find(connection, db.patients, patient_id, required=True)
     if patient["stage"] == "pregnancy":
+        from app.historical_candidates import evaluate as identify_candidates
+        identify_candidates(connection, actor, patient_id, session_id)
         return
     if patient["stage"] != "preconception":
         raise HTTPException(409, "Pregnancy requires a preconception record.")
@@ -249,6 +251,8 @@ def register_pregnancy(connection, actor, patient_id):
             source = find(connection, db.evidence, item["source_id"])["resource"]
             audit(connection, actor, "obligation_retained_at_transition", patient_id, item, [ref(source), ref(resource)])
     evaluate(connection, actor, patient_id)
+    from app.historical_candidates import evaluate as identify_candidates
+    identify_candidates(connection, actor, patient_id, session_id)
 
 
 def closure_candidates(connection, obligation):

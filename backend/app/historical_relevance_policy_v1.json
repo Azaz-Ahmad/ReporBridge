@@ -1,0 +1,42 @@
+{
+  "id": "historical-relevance-candidates",
+  "version": "1",
+  "clinical_confirmation": "pending clinical confirmation",
+  "rules": [
+    {
+      "id": "earlier-documented-finding-screening-review",
+      "version": "1",
+      "requires_stage": "pregnancy",
+      "source": "synthetic-history-hospital-a",
+      "resource_type": "Observation",
+      "status": "final",
+      "code_text": "Earlier documented finding (synthetic)",
+      "value_key": "valueString",
+      "equals": "documented PCOS diagnosis",
+      "supporting_resource_types": [
+        "DocumentReference"
+      ],
+      "target_window": "W1",
+      "window_policy_id": "glycemic-assessment-pregnancy",
+      "window_policy_version": "1",
+      "title": "Early-pregnancy glycemic screening review - identified from earlier record",
+      "owner_role": "Reviewer",
+      "eligibility_criteria": [
+        "A pregnancy transition is recorded.",
+        "An authorized, valid final Hospital A observation documents exactly: documented PCOS diagnosis.",
+        "Identification is a policy-data match only; a clinician must confirm or dismiss the candidate.",
+        "Use the existing calculator's W1 result; no new window or timing inference is permitted."
+      ],
+      "lifecycle_rule": {
+        "id": "historical-screening-review@1.0.0",
+        "pathway": "pregnancy",
+        "trigger": "historical-screening-review-confirmed",
+        "value": "confirmed",
+        "closure": "historical-screening-review-reconciled",
+        "description": "Coordinate a clinician review of the cited synthetic earlier record and obtain a final reconciliation record.",
+        "title": "Early-pregnancy glycemic screening review - identified from earlier record",
+        "source": "pending clinical confirmation"
+      }
+    }
+  ]
+}
