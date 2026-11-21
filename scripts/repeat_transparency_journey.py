@@ -5,7 +5,7 @@ from contextlib import nullcontext
 ROOT=Path(__file__).resolve().parents[1]
 
 def main():
- p=argparse.ArgumentParser();p.add_argument('--count',type=int,default=30);p.add_argument('--postgres',action='store_true');p.add_argument('--label',required=True);p.add_argument('--capture-dir');p.add_argument('--video',action='store_true');a=p.parse_args()
+ p=argparse.ArgumentParser();p.add_argument('--count',type=int,default=30);p.add_argument('--postgres',action='store_true');p.add_argument('--label',required=True);p.add_argument('--capture-dir');p.add_argument('--video',action='store_true');p.add_argument('--api-port',type=int,default=8017);p.add_argument('--web-port',type=int,default=5187);a=p.parse_args()
  out=ROOT/'test-reports/transparency'/a.label;out.mkdir(parents=True,exist_ok=False)
  sys.path.insert(0,str(ROOT/'backend'))
  from dotenv import dotenv_values
@@ -17,7 +17,7 @@ def main():
   with (scratch_schema() if a.postgres else nullcontext(None)) as database:
    report=out/f'run-{i:02d}.json';art=out/f'run-{i:02d}-artifacts'
    env={**os.environ,'OPENAI_API_KEY':'synthetic-test-key-no-live-use','LLM_MODE':'replay','E2E_BROWSER_CHANNEL':'msedge','PLAYWRIGHT_JSON_OUTPUT_FILE':str(report),
-        'REPROBRIDGE_E2E_API_PORT':'8017','REPROBRIDGE_E2E_WEB_PORT':'5187',
+        'REPROBRIDGE_E2E_API_PORT':str(a.api_port),'REPROBRIDGE_E2E_WEB_PORT':str(a.web_port),
         **{'E2E_'+role+'_TOKEN':secrets.token_hex(32) for role in ['COORDINATOR','REVIEWER','VIEWER']}}
    if values.get('EXPLANATION_MODEL'):env['EXPLANATION_MODEL']=values['EXPLANATION_MODEL']
    if database:
