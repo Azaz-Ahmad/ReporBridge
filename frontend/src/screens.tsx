@@ -1,5 +1,5 @@
 import {ModelPayload} from './ModelPayload';
-import {SourceDocumentsLink} from './SourceDocuments';
+import {SourceDocumentsLink,LatestSourceDocuments} from './SourceDocuments';
 import { HistoricalCandidates, HistoricalDetectionTimeline, HistoricalIdentificationBadge } from './HistoricalCandidates';
 import { DemoCorrection } from './DemoCorrection';
 import { CoordinationNextAction, GuidelineTraceability } from './Coordination';
@@ -233,6 +233,7 @@ export function Resolution({ data, role, token, busy, busyPath, action }: Screen
   const status = workflowStatus(current, currentTask?.status, !!agentPath && agentPath === busyPath);
   return <>
     <Heading title="Care-resolution center" subtitle="Coordinate reviewable care actions while clinicians retain decision authority." />
+    {patient&&<LatestSourceDocuments token={token} patientId={patient.id}/>}
     {patient && <DecisionReadiness key={patient.id + "-decision"} patientId={patient.id} token={token} role={role} />}
     {patient && <ClinicalInvestigation key={patient.id} patientId={patient.id} token={token} role={role} />}
     <Panel title="Workflow overview" action={<Status value={status} />}>

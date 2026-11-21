@@ -38,8 +38,9 @@ def list_documents(connection,actor,patient_id):
     for row in rows:
         if row["kind"]!="DocumentReference":continue
         found=ClinicalRetrieval(connection,scope).get(evidence_id=row["id"])
-        if found.resource is None:continue
-        resource=found.resource;item=found.evidence.model_dump(mode="json")
+        # This human-only reader may inspect superseded/invalid stored documents.
+        # Their state is explicit; the M08 tools still withhold unavailable content.
+        resource=found.resource or row["resource"];item=found.evidence.model_dump(mode="json")
         attachment=resource["content"][0]["attachment"]
         text=base64.b64decode(attachment["data"],validate=True).decode("utf-8")
         links=[]
@@ -49,7 +50,7 @@ def list_documents(connection,actor,patient_id):
                 links.append({"candidate_id":candidate["id"],"excerpt":finding if finding in text else None,"url":"/passport?candidate="+candidate["id"]+"&patient="+patient_id})
         facility=item["provenance"].get("facility",{}).get("origin") or next((a.get("display") for a in resource.get("author",[]) if a.get("display")),"Source facility unavailable")
         answer.append({"id":item["id"],"title":"Adolescent clinic note" if row["source"]==history.SOURCE else resource.get("description","Source document"),
-            "facility":facility,"date":item["clinical_time"],"version":item["version"],"digest":item["digest"],"status":item["quality"]["state"],
+            "facility":facility,"date":item["clinical_time"],"version":item["version"],"digest":item["digest"],"status":item["quality"]["state"],"source_state":row["status"],
             "simulated":facility=="Hospital A","text":text,"citations":links})
     audit_access(connection,scope,"source_documents_viewed")
     return answer

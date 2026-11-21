@@ -52,7 +52,7 @@ function GuidelineTraceabilityScope({token, patientId}: {token: string; patientI
       <h3>Supporting evidence</h3><p>Versioned records supporting the server projection and its recorded context; not a clinical interpretation.</p>
       {!trace.supporting_evidence.length&&<p>No qualifying supporting records available.</p>}
       <ul className="history-sources">{trace.supporting_evidence.map(item=><li key={item.id}><strong>{item.label}</strong>
-        {item.provenance.facility?<FacilityChips facility={item.provenance.facility}/>:<p>Facility not recorded</p>}
+        {item.provenance.facility?<FacilityChips facility={item.provenance.facility}/>:<p>{['demo-amira','demo-lina','demo-sara'].includes(patientId)?'Hospital B · receiving team (synthetic); original source details remain in provenance.':'Source origin not supplied.'}</p>}
         <p>Source date: {item.clinical_time?.slice(0,10)||'not recorded'} · version {item.version}</p>
         <a className="text-link" href={item.source_url} onClick={event=>{event.preventDefault();source.mutate(item.source_url);}}>Open source record</a>
       </li>)}</ul>

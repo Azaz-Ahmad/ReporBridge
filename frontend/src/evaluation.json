@@ -1,42 +1,14 @@
 {
-  "run": "20261120-000636-6426fc1a",
+  "run": "Dated release verification: see RELEASE_NOTES.md",
   "automated": [
     {
-      "label": "Python checks on PostgreSQL",
-      "result": "182/182 passed"
+      "label": "Current regression evidence",
+      "result": "Exact invocation counts, preserved failures and live/replay results are recorded in the release verification report."
     },
     {
-      "label": "React checks",
-      "result": "22/22 passed"
-    },
-    {
-      "label": "Duplicate transition prevention",
-      "result": "1/1 passed"
-    },
-    {
-      "label": "Reviewer authorization and verified closure",
-      "result": "1/1 passed"
-    },
-    {
-      "label": "Unsupported closure prevention",
-      "result": "6/6 passed"
-    },
-    {
-      "label": "Audit history and reset isolation",
-      "result": "1/1 passed"
-    },
-    {
-      "label": "Full browser journeys",
-      "result": "2/2 passed"
-    },
-    {
-      "label": "Validated FHIR downloads",
-      "result": "2/2 passed"
-    },
-    {
-      "label": "Production frontend build",
-      "result": "Passed"
+      "label": "Clinical safeguards",
+      "result": "Calculator ownership, patient grants, exact grounding and evidence-specific closure gates are retained."
     }
   ],
-  "synthetic": "4/4 labeled synthetic cases matched the expected detection or abstention."
+  "synthetic": "Synthetic demonstrations only. These are software verification results, not clinical performance measurements."
 }
