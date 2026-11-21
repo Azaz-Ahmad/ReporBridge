@@ -1,3 +1,4 @@
+import {ModelPayload} from './ModelPayload';
 import {SourceDocumentsLink} from './SourceDocuments';
 import { HistoricalCandidates, HistoricalDetectionTimeline, HistoricalIdentificationBadge } from './HistoricalCandidates';
 import { DemoCorrection } from './DemoCorrection';
@@ -320,6 +321,7 @@ export function Resolution({ data, role, token, busy, busyPath, action }: Screen
 }
 
 export function AuditScreen({ data, role, token, busy, action }: ScreenProps) {
+  const [payloadPatient,setPayloadPatient]=useState('');
   const [selected, setSelected] = useState('');
   const [error, setError] = useState('');
   const open = data.clinical_obligations.filter((item) => item.status === 'open');
@@ -350,6 +352,7 @@ export function AuditScreen({ data, role, token, busy, action }: ScreenProps) {
   }
   return <>
     <Heading title="Evidence & audit" subtitle="Inspect submitted evidence, verified closures, and blocked decisions." />
+    {role!=='viewer'&&data.patients[0]&&<><label>Payload patient<select aria-label="Payload patient" value={payloadPatient||data.patients[0].id} onChange={e=>setPayloadPatient(e.target.value)}>{data.patients.map(p=><option key={p.id} value={p.id}>{patientName(p)}</option>)}</select></label><ModelPayload key={payloadPatient||data.patients[0].id} token={token} role={role} patientId={payloadPatient||data.patients[0].id}/></>}
     {error && <Feedback message={error} error />}
     {inspected && <Panel title="Closure evidence review" action={<label className="field-inline">Inspect obligation <select value={inspected.id}
       onChange={(event) => setInspectedId(event.target.value)}>

@@ -74,6 +74,7 @@ def reserve(connection, actor, request, settings, availability, binding=None, wo
                                 "retries": 0, "usage_complete": True}, "duration_ms": 0,
                       "submitted": False, "source_snapshot": tooling.fingerprint(connection, context),
                       "decision_context": binding, "window_context": window_context, "workflow": workflow}}
+    settings._payload_scope={"run_id":run["id"],"actor":actor,"patient_id":request.patient_id}
     connection.execute(runs.insert().values(**run))
     audit_access(connection, context, "investigation_started")
     return run, True, tooling.fingerprint(connection, context)

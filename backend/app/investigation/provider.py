@@ -6,7 +6,7 @@ from typing import Protocol, Literal
 from urllib.parse import urlsplit
 
 import openai
-from pydantic import BaseModel, Field, ValidationError, field_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator, PrivateAttr
 
 from app.investigation.contracts import Draft
 
@@ -15,6 +15,7 @@ DEFAULT_BASE_URL = "https://api.openai.com/v1"
 
 
 class Settings(BaseModel):
+    _payload_scope: dict | None = PrivateAttr(default=None)
     llm_mode: Literal["live", "replay"] = "live"
     base_url: str = Field(default=DEFAULT_BASE_URL, max_length=2048)
     model: str = Field(default="", max_length=100)
@@ -102,6 +103,7 @@ class Turn:
     usage_complete: bool = True
     model_name: str | None = None
     response_id: str | None = None
+    payloads: list[dict] = field(default_factory=list)
 
 
 class Provider(Protocol):
@@ -136,8 +138,14 @@ def provider_schema(schema, profile):
 class OpenAIProvider:
     def __init__(self, settings):
         self.settings = settings
+        from app.model_payloads import Capture
+        self.capture = Capture(settings)
         self.client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"], base_url=settings.base_url,
                                     timeout=settings.timeout, max_retries=0)
+        hooks=getattr(getattr(self.client,"_client",None),"event_hooks",None)
+        if hooks is not None:
+            hooks.setdefault("request",[]).append(self.capture.request)
+            hooks.setdefault("response",[]).append(self.capture.response)
 
     def close(self):
         self.client.close()
@@ -149,6 +157,7 @@ class OpenAIProvider:
         return self._invoke(messages, [], True, contract)
 
     def _invoke(self, messages, tools, final, contract):
+        payload_start=len(self.capture.records)
         for attempt in range(getattr(self, 'retry_attempts', 2)):
             try:
                 response = self.client.responses.create(
@@ -188,7 +197,7 @@ class OpenAIProvider:
                             input_tokens=usage.input_tokens if usage else 0,
                             output_tokens=usage.output_tokens if usage else 0, retries=attempt,
                             usage_complete=bool(usage) and attempt == 0,
-                            model_name=response.model, response_id=response.id)
+                            model_name=response.model, response_id=response.id, payloads=self.capture.records[payload_start:])
             except (openai.RateLimitError, openai.InternalServerError) as error:
                 if attempt + 1 >= getattr(self, 'retry_attempts', 2):
                     raise ProviderFailure("rate_limit_or_provider_unavailable", attempt,

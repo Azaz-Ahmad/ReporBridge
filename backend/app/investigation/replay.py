@@ -191,7 +191,8 @@ class RecordingProvider:
         payload=asdict(turn);payload["draft"]=turn.draft.model_dump(mode="json") if turn.draft else None
         payload["messages"]=[m for m in payload["messages"] if m.get("type")!="reasoning"]
         # Live continuation retains original reasoning; recording omits opaque encrypted content.
-        self.frames.append({"key":key,"turn":self.binding.encode(scrub(payload))})
+        original_payloads=payload.pop("payloads",[])
+        self.frames.append({"key":key,"turn":self.binding.encode(scrub(payload)),"original_payloads":original_payloads})
         return turn
     def finish_run(self,run):
         target=Path(os.environ["LLM_RECORD_DIR"]);target.mkdir(parents=True,exist_ok=True)
@@ -240,6 +241,8 @@ class ReplayProvider:
             raise ProviderFailure("replay_recording_exhausted") from None
         if not self.binding.match_request(frame["key"],messages,tools,final,self.record.get("context_descriptor")):
             error=ProviderFailure("replay_request_mismatch");error.not_sent=True;error.telemetry={"llm_mode":"replay"};raise error
+        from app.model_payloads import replay as record_replay
+        record_replay(self.settings,frame.get("original_payloads",[]))
         self.index+=1;payload=self.binding.decode(frame["turn"])
         draft=Draft.model_validate(payload["draft"]) if payload.get("draft") else None
         turn=Turn(**{**payload,"draft":draft,"input_tokens":0,"output_tokens":0,"retries":0})

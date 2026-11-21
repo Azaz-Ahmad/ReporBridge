@@ -198,9 +198,12 @@ class SingleCall:
         if self.settings.llm_mode=="replay":
             try:
                 candidates=[json.loads(p.read_text(encoding="utf-8")) for p in replay_directory().glob("*.json")]
+                candidates.sort(key=lambda r:not bool(r.get("model_payloads")))
                 record=next(r for r in candidates if r.get("format")=="explanation-v1" and r.get("accepted") is True and r.get("model")==self.settings.model and r.get("context_hash")==digest(self.expected.model_dump()) and r.get("schema_hash")==schema_hash())
                 fields=ExplanationFields.model_validate(record["fields"])
-                turn=provider.Turn(draft=fields,model_name=record["reported_model"],response_id=record.get("response_id"))
+                turn=provider.Turn(draft=fields,model_name=record["reported_model"],response_id=record.get("response_id"),payloads=record.get("model_payloads",[]))
+                from app.model_payloads import replay as record_replay
+                record_replay(self.settings,turn.payloads)
                 turn.telemetry={"llm_mode":"replay","recorded_input_tokens":record["input_tokens"],"recorded_output_tokens":record["output_tokens"]}
             except (OSError,ValueError,KeyError,StopIteration):
                 error=provider.ProviderFailure("explanation_replay_context_mismatch");error.not_sent=True;raise error from None
@@ -261,7 +264,7 @@ def run(actor,request,write,binding):
         from app.investigation.replay import scrub
         destination=Path(target);destination.mkdir(parents=True,exist_ok=True)
         case=("history-" if binding.get("history") else "tsp-")+request.patient_id
-        body={"format":"explanation-v1","accepted":True,"model":settings.model,"reported_model":adapter.raw_turn.model_name,"response_id":adapter.raw_turn.response_id,"context":expected.model_dump(),"context_hash":digest(expected.model_dump()),"schema_hash":schema_hash(),"fields":adapter.fields.model_dump(),"input_tokens":adapter.raw_turn.input_tokens,"output_tokens":adapter.raw_turn.output_tokens,"duration_ms":result["detail"]["duration_ms"],"validation":result["detail"]["validation"]}
+        body={"model_payloads":adapter.raw_turn.payloads,"format":"explanation-v1","accepted":True,"model":settings.model,"reported_model":adapter.raw_turn.model_name,"response_id":adapter.raw_turn.response_id,"context":expected.model_dump(),"context_hash":digest(expected.model_dump()),"schema_hash":schema_hash(),"fields":adapter.fields.model_dump(),"input_tokens":adapter.raw_turn.input_tokens,"output_tokens":adapter.raw_turn.output_tokens,"duration_ms":result["detail"]["duration_ms"],"validation":result["detail"]["validation"]}
         path=destination/(case+".json")
         if path.exists():raise ValueError("Accepted recording exists; choose a new recording directory.")
         path.write_text(json.dumps(scrub(body),indent=2),encoding="utf-8")

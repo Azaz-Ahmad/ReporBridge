@@ -1,3 +1,4 @@
+from app.model_payloads import router as payload_router
 from app.source_documents import router as source_documents_router
 from app.historical_candidates_api import router as historical_candidates_router
 import os
@@ -82,6 +83,7 @@ app.include_router(handoff_router(Reader, Coordinator, write))
 app.include_router(history_router(Reader, Coordinator, write))
 app.include_router(historical_candidates_router(Reader, Reviewer, write))
 app.include_router(source_documents_router(Reader, write))
+app.include_router(payload_router(Reader, write))
 
 
 @app.exception_handler(HTTPException)
@@ -132,7 +134,7 @@ def health():
     try:
         with db.engine.connect() as connection:
             revision = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-            if revision != "0010":
+            if revision != "0011":
                 raise HTTPException(503, "Run the clinical foundation database migration.")
     except SQLAlchemyError as error:
         raise HTTPException(503, "Database or migrations unavailable") from error
