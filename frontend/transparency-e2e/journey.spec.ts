@@ -64,7 +64,7 @@ test('transparent synthetic journey: detect, documents, draft, edit, approve, cl
  await page.getByRole('button',{name:'Sign out',exact:true}).click();await signIn(page,'coordinator');
  await page.goto('/audit');await page.getByLabel('Completion evidence obligation',{exact:true}).selectOption(obligation);
  await page.getByRole('button',{name:'Add verified evidence',exact:true}).click();await expect(page.getByRole('status')).toContainText('Verified fixture submitted');
- await page.goto('/passport?obligation='+obligation);await page.getByRole('button',{name:'Run care-resolution agent',exact:true}).click();await expect(page.getByRole('status')).toContainText('Coordination action routed for review');
+ await page.goto('/passport?obligation='+obligation);const routed=page.waitForResponse(r=>r.request().method()==='POST'&&new URL(r.url()).pathname==='/api/obligations/'+obligation+'/agent');await page.getByRole('button',{name:'Run care-resolution agent',exact:true}).click();expect((await routed).ok()).toBeTruthy();await expect(page.getByRole('status')).toContainText('Coordination action routed for review');
  await page.getByRole('button',{name:'Sign out',exact:true}).click();await signIn(page,'reviewer');await page.goto('/resolution?obligation='+obligation);
  await page.getByLabel('Review note',{exact:true}).fill('Synthetic final reconciliation evidence reviewed separately from the clinician-authored draft.');
  const clinicalApproval=page.waitForResponse(r=>r.request().method()==='POST'&&/\/api\/tasks\/[^/]+\/review$/.test(new URL(r.url()).pathname));
