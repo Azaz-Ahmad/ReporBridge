@@ -30,7 +30,7 @@ export default defineConfig({
   testDir: './e2e',
   workers: 1,
   timeout: 45_000,
-  use: { actionTimeout: 15_000, baseURL: `http://127.0.0.1:${webPort}`, channel: process.env.E2E_BROWSER_CHANNEL || undefined, trace: 'retain-on-failure' },
+  use: { actionTimeout: 15_000, baseURL: `http://127.0.0.1:${webPort}`, channel: process.env.E2E_BROWSER_CHANNEL || undefined, trace: process.env.REPROBRIDGE_NO_MEDIA === 'true' ? {mode:'retain-on-failure',screenshots:false,snapshots:true,sources:true} : 'retain-on-failure' },
   webServer: [
     { command: `..\\.venv\\Scripts\\python.exe -m uvicorn app.main:app --port ${apiPort}`, cwd: backend,
       url: `http://127.0.0.1:${apiPort}/api/health`, env: serverEnv, timeout: 40_000 },

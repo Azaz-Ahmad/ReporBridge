@@ -15,7 +15,7 @@ test('completes the patient journey through all five screens', async ({ page, br
   test.setTimeout(210_000);
   const timings: Record<string, number> = {};
   await page.setViewportSize({ width: 1440, height: 1000 });
-  const captureDir = process.env.REPROBRIDGE_CAPTURE_DIR;
+  const captureDir = process.env.REPROBRIDGE_NO_MEDIA === "true" ? undefined : process.env.REPROBRIDGE_CAPTURE_DIR;
   async function capture(name: string, region?: Locator) {
     if (!captureDir) return;
     await mkdir(captureDir, { recursive: true });
@@ -420,7 +420,7 @@ test('completes the patient journey through all five screens', async ({ page, br
   await mkdir('../demo-assets',{recursive:true});
   for(const [width,height] of [[1366,768],[1920,1080]]) {
     await page.setViewportSize({width,height});
-    await page.screenshot({path:`../demo-assets/dashboard-${width}x${height}.png`,fullPage:false,animations:'disabled'});
+    if(process.env.REPROBRIDGE_NO_MEDIA !== "true") await page.screenshot({path:`../demo-assets/dashboard-${width}x${height}.png`,fullPage:false,animations:'disabled'});
   }
   await page.getByText('Switch demo role', {exact:true}).click();
   await page.getByRole('combobox',{name:'Demo role',exact:true}).selectOption('reviewer');
