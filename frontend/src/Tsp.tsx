@@ -26,7 +26,7 @@ export function DemoClock({ token, role }: { token: string; role: Role }) {
   const [date, setDate] = useState('');
   const current = useQuery({ queryKey: ['tsp', 'clock', token], queryFn: () => api<Clock>(token, '/v1/tsp/clock') });
   const change = useMutation({ mutationFn: (reset: boolean) => api<Clock>(token, '/v1/tsp/clock' + (reset ? '/reset' : ''), 'POST', reset ? undefined : { as_of: date }),
-    onSuccess: () => { setDate(''); cache.invalidateQueries({ queryKey: ['tsp'] }); cache.invalidateQueries({ queryKey: ['history'] }); } });
+    onSuccess: () => { setDate(''); cache.invalidateQueries({ queryKey: ['tsp'] }); cache.invalidateQueries({ queryKey: ['historical-candidates'] }); cache.invalidateQueries({ queryKey: ['history'] }); } });
   if (current.error) return <Feedback message={current.error.message} error />;
   if (!current.data?.demo_mode) return null;
   return <aside className="tsp-clock" aria-label="Demo clock banner"><div><strong>DEMO CLOCK — synthetic dates</strong>
@@ -43,7 +43,7 @@ export function TspQueue({ token, role }: { token: string; role?: Role }) {
   const cache = useQueryClient();
   const clock = useQuery({ queryKey: ['tsp', 'clock', token], queryFn: () => api<Clock>(token, '/v1/tsp/clock') });
   const fixture = useMutation({ mutationFn: (reset: boolean) => api(token, '/v1/tsp/demo/' + (reset ? 'reset' : 'seed'), 'POST'),
-    onSuccess: () => { cache.invalidateQueries({ queryKey: ['tsp'] }); cache.invalidateQueries({ queryKey: ['snapshot'] }); cache.invalidateQueries({ queryKey: ['prevention'] }); } });
+    onSuccess: () => { cache.invalidateQueries({ queryKey: ['tsp'] }); cache.invalidateQueries({ queryKey: ['historical-candidates'] }); cache.invalidateQueries({ queryKey: ['snapshot'] }); cache.invalidateQueries({ queryKey: ['prevention'] }); } });
   const query = useQuery({ queryKey: ['tsp', 'queue', token], queryFn: () => api<WindowResult[]>(token, '/v1/tsp/queue') });
   return <Panel title="Time-Sensitive Prevention Windows"><p className="muted">Illustrative policy · pending clinical confirmation</p>
     {clock.data?.demo_mode && role === 'coordinator' && <div className="actions">
@@ -64,7 +64,7 @@ export function TspWindow({ token, patientId, timeline = false, role }: { token:
   const query = useQuery({ queryKey: ['tsp', 'patient', patientId, token], queryFn: () => api<WindowResult>(token, '/v1/tsp/patients/' + patientId + '/window') });
   const cache = useQueryClient();
   const fixture = useMutation({ mutationFn: (action: string) => api(token, '/v1/tsp/demo/obligations/' + query.data?.obligation_ids[0] + '/' + action, 'POST'),
-    onSuccess: () => { cache.invalidateQueries({ queryKey: ['tsp'] }); cache.invalidateQueries({ queryKey: ['snapshot'] }); cache.invalidateQueries({ queryKey: ['prevention'] }); } });
+    onSuccess: () => { cache.invalidateQueries({ queryKey: ['tsp'] }); cache.invalidateQueries({ queryKey: ['historical-candidates'] }); cache.invalidateQueries({ queryKey: ['snapshot'] }); cache.invalidateQueries({ queryKey: ['prevention'] }); } });
   const explain = useMutation({ mutationFn: () => api<{ id: string; detail: { explanation?:ExplanationProjection;trace?:string[];error?: string | null; packet: { summary: string; abstained: boolean } | null } }>(token, '/v1/tsp/patients/' + patientId + '/explanations', 'POST', { request_id: crypto.randomUUID() }) });
   const item = query.data;
   return <Panel title={timeline ? 'Prevention window timeline' : 'Time-Sensitive Prevention Window'}>

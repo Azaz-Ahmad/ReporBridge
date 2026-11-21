@@ -59,6 +59,7 @@ export function App() {
       cache.invalidateQueries({ queryKey: ['tsp'] });
       cache.invalidateQueries({ queryKey: ['handoff'] });
       cache.invalidateQueries({ queryKey: ['history'] });
+      cache.invalidateQueries({ queryKey: ['historical-candidates'] });
     },
   });
 

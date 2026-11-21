@@ -6,12 +6,12 @@ export type Resource = {
 };
 export type Patient = { id: string; stage: string; resource: Resource };
 export type Rule = { id: string; rule_id: string; version: string; pathway_id: string;
-  definition: { description: string; closure: string; trigger: string; source: string } };
+  definition: { title?: string; description: string; closure: string; trigger: string; source: string } };
 export type CaseContext = { title: string; finding: string; rationale: string; next_action: string; completion: string };
 export type Obligation = { id: string; patient_id: string; rule_key: string; source_id: string;
   owner: string; status: 'open' | 'closed'; created: string };
 export type Audit = { sequence: number; recorded: string; actor: string; action: string; patient_id: string;
-  obligation_id: string | null; rule_key: string; evidence_refs: string[]; detail: { reason?: string; evaluated_rule?: string } };
+  obligation_id: string | null; rule_key: string; evidence_refs: string[]; detail: { reason?: string; evaluated_rule?: string; candidate_title?: string; candidate_id?: string; demo_date?: string | null } };
 export type Task = { id: string; obligation_id: string; execution_id: string; action: string; status: string };
 export type Snapshot = {
   patients: Patient[];

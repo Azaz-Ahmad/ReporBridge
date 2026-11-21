@@ -10,7 +10,7 @@ const system = 'https://reprobridge.example/fhir/CodeSystem/demo';
 
 export function obligationTitle(data: Snapshot, item: Obligation) {
   const rule = data.rule_versions.find((entry) => entry.id === item.rule_key);
-  return data.case_context?.[item.id]?.title || label(rule?.rule_id || item.rule_key);
+  return data.case_context?.[item.id]?.title || rule?.definition.title || label(rule?.rule_id || item.rule_key);
 }
 
 export function closureMessage(data: Snapshot, item: Obligation) {

@@ -1,3 +1,4 @@
+import { HistoricalCandidates, HistoricalDetectionTimeline, HistoricalIdentificationBadge } from './HistoricalCandidates';
 import { DemoCorrection } from './DemoCorrection';
 import { CoordinationNextAction, GuidelineTraceability } from './Coordination';
 import { useState, type ReactNode } from 'react';
@@ -39,6 +40,7 @@ export function Dashboard({ data, role, token, busy, action }: ScreenProps) {
   return <>
     <div className="hero jury-hero"><div><h1>{PRODUCT_NAME}</h1><p>Keep unfinished care visible across pregnancy and care teams.</p></div>
     {amira ? <Button asChild><Link to="/workspace?patient=demo-amira">Open Amira’s journey</Link></Button> : <Button disabled={busy} onClick={()=>action('/demo/seed','Synthetic patients are ready.')}>Open Amira’s journey</Button>}</div>
+    <HistoricalIdentificationBadge token={token}/>
     <JuryOverview data={data} token={token} />
     <DemoAdmin token={token}>
     {!amira && <Button disabled={busy} onClick={()=>action('/demo/seed','Synthetic patient and obligation are ready.')}>Load demo patient</Button>}
@@ -120,6 +122,8 @@ export function Workspace({ data, role, token, busy, action }: ScreenProps) {
           {!obligations.length && <Empty>No obligations recorded.</Empty>}
         </Panel>
       </div>
+      <HistoricalDetectionTimeline token={token} patientId={patient.id}/>
+      <HistoricalCandidates token={token} role={role} patientId={patient.id}/>
       <EarlierRecords token={token} role={role} patientId={patient.id} />
       <HandoffPanel token={token} role={role} patientId={patient.id} />
       <HandoffTimeline token={token} patientId={patient.id} />
@@ -142,7 +146,9 @@ export function Workspace({ data, role, token, busy, action }: ScreenProps) {
 export function Passport({ data, role, token, busy, action }: ScreenProps) {
   const [params, setParams] = useSearchParams();
   const obligationId = params.get('obligation');
-  const item = obligationId ? data.clinical_obligations.find((entry) => entry.id === obligationId) : data.clinical_obligations[0];
+  const candidateId = params.get('candidate');
+  const candidatePatient = params.get('patient');
+  const item = candidateId ? undefined : obligationId ? data.clinical_obligations.find((entry) => entry.id === obligationId) : data.clinical_obligations[0];
   const rule = data.rule_versions.find((entry) => entry.id === item?.rule_key);
   const source = data.clinical_evidence.find((entry) => entry.id === item?.source_id)?.resource;
   const scenario = item && data.case_context?.[item.id];
@@ -155,7 +161,8 @@ export function Passport({ data, role, token, busy, action }: ScreenProps) {
         {data.clinical_obligations.map((entry) => <option key={entry.id} value={entry.id}>{titleFor(data, entry)} · {demoPatient(entry.patient_id)}</option>)}
       </select></label>}
     </Heading>
-    {!item || !rule || !source ? <Empty>{obligationId ? 'This obligation is unavailable in the current run. ' : 'Evaluate a synthetic patient to create an obligation. '}
+    {candidateId && candidatePatient && <HistoricalCandidates token={token} role={role} patientId={candidatePatient} candidateId={candidateId}/>}
+    {!item || !rule || !source ? <Empty>{candidateId ? 'A candidate requires clinician confirmation before it becomes an active obligation. ' : obligationId ? 'This obligation is unavailable in the current run. ' : 'Evaluate a synthetic patient to create an obligation. '}
       <Link className="text-link" to="/workspace">Open patient workspace</Link></Empty> : <>
       <section className="passport-cover">
         <span className="passport-icon"><ClipboardList size={25} /></span>
@@ -163,6 +170,7 @@ export function Passport({ data, role, token, busy, action }: ScreenProps) {
           <p>{patient ? patientName(patient) : demoPatient(item.patient_id)} · {label(rule.pathway_id)} pathway</p></div>
         <Status value={item.status} />
       </section>
+      <HistoricalCandidates token={token} role={role} patientId={item.patient_id}/>
       <EarlierRecords token={token} role={role} patientId={item.patient_id} />
       <HandoffPanel token={token} role={role} patientId={item.patient_id} />
       <PreventionPassport obligationId={item.id} token={token} role={role} />
@@ -397,6 +405,6 @@ function AuditTable({ events }: { events: Audit[] }) {
   if (!events.length) return <Empty>No events recorded yet.</Empty>;
   return <div className="table-wrap audit-table" role="region" aria-label="Scrollable audit table" tabIndex={0}><table><thead><tr><th>Action</th><th>Actor</th><th>Time</th><th>Evidence</th><th>Rule version</th></tr></thead>
     <tbody>{events.map((event) => <tr key={event.sequence}><td><strong>{label(event.action)}</strong>
-      <small>{displayText(event.detail.reason || demoPatient(event.patient_id))}</small></td><td>{label(event.actor)}</td><td>{moment(event.recorded)}</td>
+      <small>{displayText(event.detail.reason || event.detail.candidate_title || demoPatient(event.patient_id))}{event.detail.demo_date && <span> · {event.detail.demo_date} · demo calendar</span>}</small></td><td>{label(event.actor)}</td><td>{moment(event.recorded)}</td>
       <td>{event.evidence_refs.length ? <details><summary>Source references ({event.evidence_refs.length})</summary>{event.evidence_refs.join(', ')}</details> : '—'}</td><td><details><summary>Rule details</summary>{event.rule_key || event.detail.evaluated_rule || '—'}</details></td></tr>)}</tbody></table></div>;
 }
