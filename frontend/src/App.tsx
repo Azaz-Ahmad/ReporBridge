@@ -5,8 +5,8 @@ import { Activity, ArrowRight, ClipboardList, HeartPulse, LayoutDashboard, LogOu
 import { Link, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { PRODUCT_NAME } from './presentation';
 import { api } from './api';
-import { RoleSwitcher } from './Jury';
-import { AuditScreen, Dashboard, Passport, Resolution, Workspace, type ScreenProps } from './screens';
+import { DemoToolsLink, RoleSwitcher } from './Jury';
+import { AuditScreen, Dashboard, DemoTools, Passport, Resolution, Workspace, type ScreenProps } from './screens';
 import { type Role, type Snapshot, label } from './types';
 import { Button, Feedback } from './ui';
 
@@ -107,7 +107,8 @@ export function App() {
         </NavLink>,
       )}</nav>
       {snapshot.data?.patients.some((patient) => patient.id === 'demo-amira') && <Link className="rail-journey" to="/workspace?patient=demo-amira"><HeartPulse size={17} /> Amira’s journey <ArrowRight size={15} /></Link>}
-      <div className="rail-note"><Network size={18} /><span>HealthX Ajyal Hackathon<small>22 November 2026</small></span></div>
+      <footer className="rail-footer">{role && <DemoToolsLink token={token} />}
+      <div className="rail-note"><Network size={18} /><span>HealthX Ajyal Hackathon<small>22 November 2026</small></span></div></footer>
     </aside>
     <div className="content">
       <header className="app-header"><div className="topbar"><span className="demo-mark"><ShieldCheck size={17} /> SYNTHETIC DATA — DEMONSTRATION ONLY</span>
@@ -120,6 +121,7 @@ export function App() {
         {snapshot.error ? <Feedback message={snapshot.error.message} error /> : !props ? <p role="status">Loading workspace…</p> :
           <Routes>
             <Route path="/" element={<Dashboard {...props} />} />
+            <Route path="/admin" element={<DemoTools {...props} />} />
             <Route path="/workspace" element={<Workspace {...props} />} />
             <Route path="/passport" element={<Passport {...props} />} />
             <Route path="/resolution" element={<Resolution {...props} />} />

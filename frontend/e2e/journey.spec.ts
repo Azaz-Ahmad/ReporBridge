@@ -9,6 +9,11 @@ async function signIn(page: Page, role: 'coordinator' | 'reviewer') {
   await expect(page.getByRole('navigation')).toBeVisible();
 }
 
+async function openDemoTools(page: Page) {
+  if (new URL(page.url()).pathname !== '/admin') await page.getByRole('link', { name: 'Demo tools', exact: true }).click();
+  if (!(await page.locator('.admin-drawer').evaluate(el => (el as HTMLDetailsElement).open))) await page.getByText('Admin', { exact: true }).click();
+}
+
 const preconception = 'Preconception metabolic assessment review · Amira Haddad';
 
 test('completes the patient journey through all five screens', async ({ page, browser }, testInfo) => {
@@ -32,9 +37,13 @@ test('completes the patient journey through all five screens', async ({ page, br
   await signIn(page, 'coordinator');
   await expect(page.getByRole('heading', { name: 'Ajyra AI - ReproBridge', exact: true })).toBeVisible();
   timings.dashboardLoadAndSignInMs = Math.round(performance.now() - started);
-  if (!(await page.locator('.admin-drawer').evaluate(el => (el as HTMLDetailsElement).open))) await page.getByText('Admin', { exact: true }).click();
+  await expect(page.locator('.admin-drawer')).toHaveCount(0);
+  await expect(page.locator('main > section').last().getByRole('heading')).toHaveText('Recent activity');
+  await openDemoTools(page);
   await page.getByRole('button', { name: 'Load demo patient' }).click();
+  await page.getByRole('link', { name: 'Population', exact: true }).click();
   await expect(page.getByRole('link', { name: 'Open Amira’s journey' })).toBeVisible();
+  await openDemoTools(page);
   await expect(page.getByRole('link', { name: /1 Open obligations/ })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Prevention Decision Queue' })).toBeVisible();
   await expect(page.locator('.decision-counts button').filter({ hasText: 'Awaiting evidence' }).locator('strong')).toHaveText('1');
@@ -160,10 +169,10 @@ test('completes the patient journey through all five screens', async ({ page, br
   await testInfo.attach('UI timings', { body: JSON.stringify(timings), contentType: 'application/json' });
   console.log('UI timings', JSON.stringify(timings));
   await page.reload();
-  if(new URL(page.url()).pathname==='/') await page.locator('.admin-drawer').evaluate(el => (el as HTMLDetailsElement).open=true);
+  if(new URL(page.url()).pathname==='/admin') await openDemoTools(page);
   await expect(verification.getByText('Closure verified')).toBeVisible();
   await page.getByRole('link', { name: 'Population' }).click();
-  await page.locator('.admin-drawer').evaluate(el => (el as HTMLDetailsElement).open=true);
+  await openDemoTools(page);
   await expect(page.getByRole('link', { name: /1 Verified closures/ })).toBeVisible();
   const otherPatient = {
     resourceType: 'Patient', id: 'demo-other', name: [{ given: ['Noor'], family: 'Demo' }],
@@ -177,7 +186,7 @@ test('completes the patient journey through all five screens', async ({ page, br
   });
   expect(imported.ok()).toBeTruthy();
   await page.reload();
-  if(new URL(page.url()).pathname==='/') await page.locator('.admin-drawer').evaluate(el => (el as HTMLDetailsElement).open=true);
+  if(new URL(page.url()).pathname==='/admin') await openDemoTools(page);
   await expect(page.getByRole('link', { name: /2 Synthetic patients/ })).toBeVisible();
   await page.getByRole('row', { name: /Noor Demo/ }).getByRole('link', { name: 'Open workspace' }).click();
   await expect(page.getByRole('heading', { name: 'Noor Demo' })).toBeVisible();
@@ -204,19 +213,19 @@ test('completes the patient journey through all five screens', async ({ page, br
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
     'Expanded clinical explorer fits at 390 px').toBe(true);
   await expect(stages.locator('[aria-current="step"]')).toContainText('Pregnancy');
-  for (const route of ['/workspace?patient=demo-amira', '/passport', '/resolution', '/audit', '/']) {
+  for (const route of ['/workspace?patient=demo-amira', '/passport', '/resolution', '/audit', '/', '/admin']) {
     await page.goto(route);
-    if(route==='/') await page.locator('.admin-drawer').evaluate(el => (el as HTMLDetailsElement).open=true);
+    if(route==='/admin') await openDemoTools(page);
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     await expect(page.getByLabel('Demo clock banner')).toHaveCount(0);
     await expect(page.locator('.app-header').getByLabel('Demo as-of date')).toHaveCount(0);
     if (route.startsWith('/workspace')) await expect(page.getByLabel('Demo as-of date')).toHaveCount(0);
-    if (route === '/passport' || route === '/') await expect(page.getByLabel('Demo as-of date')).toBeVisible();
+    if (route === '/passport' || route === '/admin') await expect(page.getByLabel('Demo as-of date')).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), route + ' fits at 390 px').toBe(true);
     if (route.startsWith('/workspace')) await capture('08-mobile-workspace');
   }
 
-  if (!(await page.locator('.admin-drawer').evaluate(el => (el as HTMLDetailsElement).open))) await page.getByText('Admin', { exact: true }).click();
+  await openDemoTools(page);
   await page.getByText('Reset Amira demo', { exact: true }).click();
   const amiraResetResponse = page.waitForResponse(response => response.url().endsWith('/api/demo/reset-amira') && response.request().method()==='POST');
   await page.getByRole('button', { name: 'Confirm reset' }).click();
@@ -226,6 +235,7 @@ test('completes the patient journey through all five screens', async ({ page, br
   await expect(page.getByRole('link', { name: /1 Open obligations/ })).toBeVisible();
   await expect(page.getByRole('link', { name: /0 Verified closures/ })).toBeVisible();
   await expect(page.getByRole('link', { name: /0 Active transitions/ })).toBeVisible();
+  await page.getByRole('link', { name: 'Population', exact: true }).click();
   await page.getByRole('link', { name: 'Open Amira’s journey' }).click();
   await expect(stages.locator('[aria-current="step"]')).toContainText('Preconception');
   await page.getByRole('link', { name: 'Evidence & audit', exact: true }).click();
@@ -261,7 +271,7 @@ test('completes the patient journey through all five screens', async ({ page, br
   await expect(decisionHistory.getByText('Decision recorded', { exact: true })).toBeVisible();
   await expect(decisionHistory.getByText('Follow up initiated', { exact: true })).toBeVisible();
   await page.goto('/');
-  if (!(await page.locator('.admin-drawer').evaluate(el => (el as HTMLDetailsElement).open))) await page.getByText('Admin', { exact: true }).click();
+  await openDemoTools(page);
   const timingSeed=page.waitForResponse(response=>response.request().method()==='POST'&&new URL(response.url()).pathname==='/api/v1/prevention/demo/timing');
   const timedCounts=page.waitForResponse(async response=>response.request().method()==='GET'&&new URL(response.url()).pathname==='/api/v1/prevention/snapshot'&&!new URL(response.url()).search&&response.ok()&&(await response.json()).counts.due_soon===1);
   await page.getByRole('button', { name: 'Load illustrative timing scenario' }).click();
@@ -278,7 +288,9 @@ test('completes the patient journey through all five screens', async ({ page, br
   await expect(amiraWindow.getByText('IN WINDOW', { exact: true })).toBeVisible();
   const coordinationQueue = page.locator('section').filter({has:page.getByRole('heading',{name:'Review first',exact:true})});
   const amiraCoordination = coordinationQueue.getByRole('row').filter({has:page.getByRole('cell',{name:/Amira Haddad/})});
+  await page.getByRole('link', { name: 'Population', exact: true }).click();
   await expect(amiraCoordination.getByRole('link',{name:'Send to reviewer (Coordinator)',exact:true})).toBeVisible();
+  await openDemoTools(page);
   const uncertain = tspQueue.getByRole('row').filter({ has: page.getByRole('cell', { name: 'Uncertain dating patient', exact: true }) });
   await expect(uncertain.getByText('HOLD DATING UNCERTAIN')).toBeVisible();
   await expect(uncertain.getByText('No established window')).toBeVisible();
@@ -289,8 +301,11 @@ test('completes the patient journey through all five screens', async ({ page, br
   await page.getByLabel('Demo as-of date').fill(upcoming.toISOString().slice(0, 10));
   await page.getByRole('button', { name: 'Apply demo date' }).click();
   await expect(amiraWindow.getByText('DUE SOON', { exact: true })).toBeVisible();
+  await expect(page.getByText(/future[- ]dated|date is in the future/i)).toHaveCount(0);
+  await page.getByRole('link', { name: 'Population', exact: true }).click();
   await expect(amiraCoordination.getByRole('link',{name:'Schedule assessment (Coordinator)',exact:true})).toBeVisible();
   await expect(page.getByText(/future[- ]dated|date is in the future/i)).toHaveCount(0);
+  await openDemoTools(page);
   await page.getByRole('button', { name: 'Reset demo date', exact: true }).click();
   await expect(amiraWindow.getByText('IN WINDOW', { exact: true })).toBeVisible();
   const tspObligation = initial.obligation_ids[0];
@@ -309,7 +324,7 @@ test('completes the patient journey through all five screens', async ({ page, br
   expect(afterApproval.clinical_obligations.find((o: { id: string }) => o.id === tspObligation).status).toBe('open');
   expect((await page.request.post('/api/obligations/' + tspObligation + '/close', { headers: auth })).ok()).toBeTruthy();
   await page.reload();
-  if(new URL(page.url()).pathname==='/') await page.locator('.admin-drawer').evaluate(el => (el as HTMLDetailsElement).open=true);
+  if(new URL(page.url()).pathname==='/admin') await openDemoTools(page);
   await expect(windowPanel.getByText(/Closure verified through existing gates/)).toBeVisible();
   // The actual Evidence & audit demo control corrects the closing source through M08.
   const originalOwner = afterApproval.clinical_obligations.find((o: {id:string})=>o.id===tspObligation).owner;
@@ -347,7 +362,7 @@ test('completes the patient journey through all five screens', async ({ page, br
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'TSP passport fits at 390 px').toBe(true);
   await capture('09-tsp-passport');
   await page.goto('/');
-  if (!(await page.locator('.admin-drawer').evaluate(el => (el as HTMLDetailsElement).open))) await page.getByText('Admin', { exact: true }).click();
+  await openDemoTools(page);
   await page.getByRole('button', { name: 'Reset TSP demo', exact: true }).click();
   const tspResetResponse=page.waitForResponse(response=>response.request().method()==='POST'&&new URL(response.url()).pathname==='/api/v1/tsp/demo/reset');
   await page.getByRole('button', { name: 'Confirm reset TSP demo', exact: true }).click();
@@ -358,7 +373,7 @@ test('completes the patient journey through all five screens', async ({ page, br
   const freshProfile=await browser.newContext();
   try {
     const freshPage=await freshProfile.newPage();
-    await freshPage.goto(new URL('/',page.url()).href);
+    await freshPage.goto(new URL('/admin',page.url()).href);
     await signIn(freshPage,'coordinator');
     await expect(freshPage.getByLabel('Demo clock banner')).toHaveCount(0);
     await freshPage.getByText('Admin', { exact: true }).click();

@@ -349,3 +349,7 @@ body { font-size: 18px; color: #17213a; } .jury-hero { padding: 24px; min-height
 .latest-source-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;list-style:none;padding:0}.latest-source-list li{display:grid;gap:5px;padding:12px;border:1px solid #e3dfe9;border-radius:10px;min-width:0}@media(max-width:800px){.latest-source-list{grid-template-columns:1fr}}
 
 .tsp-clock-chip { display: inline-block; white-space: nowrap; background: #f2edf9; color: #49305e; border: 1px solid #bda4df; border-radius: 999px; padding: 5px 12px; font-size: 14px; line-height: 1.4; }
+
+.rail-footer { margin-top: auto; }
+.demo-tools-link { display: block; padding: 10px; border-radius: 8px; color: #f2f9fb; font-size: 14px; font-weight: 600; }
+.demo-tools-link:hover, .demo-tools-link:focus-visible { background: #4a2a48; }

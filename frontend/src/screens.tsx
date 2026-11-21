@@ -28,7 +28,17 @@ function Heading({ title, subtitle, children }: { title: string; subtitle: strin
   return <div className="page-heading"><div><h1>{title}</h1><p>{subtitle}</p></div>{children}</div>;
 }
 
-export function Dashboard({ data, role, token, busy, action }: ScreenProps) {
+export function Dashboard({ data, token, busy, action }: ScreenProps) {
+  const amira = data.patients.find((patient) => patient.id === 'demo-amira');
+  return <>
+    <div className="hero jury-hero"><div><h1>{PRODUCT_NAME}</h1><p>Keep unfinished care visible across pregnancy and care teams.</p></div>
+    {amira ? <Button asChild><Link to="/workspace?patient=demo-amira">Open Amira’s journey</Link></Button> : <Button disabled={busy} onClick={()=>action('/demo/seed','Synthetic patients are ready.')}>Open Amira’s journey</Button>}</div>
+    <HistoricalIdentificationBadge token={token}/>
+    <JuryOverview data={data} token={token} />
+  </>;
+}
+
+export function DemoTools({ data, role, token, busy, action }: ScreenProps) {
   const amira = data.patients.find((patient) => patient.id === 'demo-amira');
   const counts = populationCounts(data);
   const metrics = [
@@ -40,10 +50,7 @@ export function Dashboard({ data, role, token, busy, action }: ScreenProps) {
     { title: 'Blocked or escalated', value: counts.blocked, icon: CircleAlert, path: '/audit', tone: 'rose' },
   ];
   return <>
-    <div className="hero jury-hero"><div><h1>{PRODUCT_NAME}</h1><p>Keep unfinished care visible across pregnancy and care teams.</p></div>
-    {amira ? <Button asChild><Link to="/workspace?patient=demo-amira">Open Amira’s journey</Link></Button> : <Button disabled={busy} onClick={()=>action('/demo/seed','Synthetic patients are ready.')}>Open Amira’s journey</Button>}</div>
-    <HistoricalIdentificationBadge token={token}/>
-    <JuryOverview data={data} token={token} />
+    <Heading title="Demo tools" subtitle="Synthetic demonstration controls and technical panels." />
     <DemoAdmin token={token}>
     <DemoClock token={token} role={role} controls />
     {!amira && <Button disabled={busy} onClick={()=>action('/demo/seed','Synthetic patient and obligation are ready.')}>Load demo patient</Button>}
