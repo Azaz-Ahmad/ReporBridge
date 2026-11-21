@@ -58,3 +58,21 @@ def test_schema_definitions_are_not_misreported_as_transmitted_source_records():
     actual={'input':[{'content':json.dumps({'cited_records':[{'reference':'hospital-a|Observation/2011','excerpt':'documented finding','version':1}]})}]}
     records=payloads.manifest(actual,{'name':[]})['records']
     assert len(records)==1 and records[0]['record']=='hospital-a|Observation/2011'
+
+
+@pytest.mark.parametrize("failure,code",[(httpx.ConnectError,"provider_connection"),(httpx.ReadTimeout,"provider_timeout")])
+def test_no_response_transport_failures_retain_prepared_body_without_fabricated_usage(client,monkeypatch,failure,code):
+    seed(client);monkeypatch.setenv("OPENAI_API_KEY","synthetic-private-provider-key")
+    sent=[]
+    def handler(request):
+        sent.append(json.loads(request.content));raise failure("secret-transport-diagnostic-must-not-be-recorded",request=request)
+    original=openai.OpenAI
+    monkeypatch.setattr(provider.openai,"OpenAI",lambda **kw:original(**kw,http_client=httpx.Client(transport=httpx.MockTransport(handler))))
+    settings=provider.Settings(model="requested-model");settings._payload_scope={"run_id":"failed-synthetic-run","actor":"coordinator","patient_id":"demo-amira"}
+    adapter=provider.OpenAIProvider(settings)
+    with pytest.raises(provider.ProviderFailure) as caught:adapter.invoke([{"role":"user","content":"synthetic source context"}],[],final=True)
+    adapter.close();assert caught.value.code==code and len(sent)==1
+    with db.engine.begin() as c:detail=c.execute(select(calls)).mappings().one()["detail"]
+    assert detail["request_payload"]==sent[0] and detail["raw_response"] is None
+    assert detail["error"]==code and detail["usage"] is None and detail["reported_model"] is None
+    assert "secret-transport-diagnostic" not in json.dumps(detail) and "synthetic-private-provider-key" not in json.dumps(detail)

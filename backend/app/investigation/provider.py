@@ -205,10 +205,12 @@ class OpenAIProvider:
                 time.sleep(0.25)
             except openai.APITimeoutError:
                 # An unknown remote completion may have consumed tokens. Avoid replaying it.
+                self.capture.failed("provider_timeout")
                 raise ProviderFailure("provider_timeout", attempt) from None
             except openai.AuthenticationError as error:
                 raise ProviderFailure("provider_authentication", attempt, http_status=error.status_code) from None
             except openai.APIConnectionError:
+                self.capture.failed("provider_connection")
                 raise ProviderFailure("provider_connection", attempt) from None
             except openai.APIError as error:
                 body = str(getattr(error, "body", "")).lower()

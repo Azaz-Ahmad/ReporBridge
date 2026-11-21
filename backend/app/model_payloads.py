@@ -77,9 +77,16 @@ class Capture:
         try:body=json.loads(request.content)
         except (ValueError,UnicodeError):body=request.content.decode("utf-8",errors="replace")
         self.pending[id(request)]=(time.perf_counter(),body)
+    def failed(self,code):
+        # No provider response exists. Preserve the actual prepared body, never invent usage.
+        pending,self.pending=self.pending,{}
+        for started,request in pending.values():
+            stored=save(self.settings._payload_scope,{"mode":"live","replayed":False,"original_capture_available":True,"requested_model":self.settings.model,"reported_model":None,"provider_request_id":None,"http_status":None,"latency_ms":round((time.perf_counter()-started)*1000),"usage":None,"request_payload":request,"raw_response":None,"error":code,"capture_note":"Request prepared for transport; no provider response received. Remote delivery and usage are unknown."})
+            if stored:self.records.append(stored)
     def response(self,response):
-        started,request=self.pending.pop(id(response.request),(time.perf_counter(),None))
+        started,request=self.pending.get(id(response.request),(time.perf_counter(),None))
         response.read()
+        self.pending.pop(id(response.request),None)
         try:body=response.json()
         except ValueError:body=response.text
         detail={"mode":"live","replayed":False,"original_capture_available":True,"requested_model":self.settings.model,

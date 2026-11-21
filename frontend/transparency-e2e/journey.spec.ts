@@ -13,6 +13,7 @@ test('transparent synthetic journey: detect, documents, draft, edit, approve, cl
  const hold=async(second:number)=>{if(recording){const remaining=began+second*1000-Date.now();if(remaining>0)await page.waitForTimeout(remaining);}};
  if(recording)await page.addInitScript(token=>{if(!sessionStorage.getItem('reprobridge-token'))sessionStorage.setItem('reprobridge-token',token);},process.env.E2E_COORDINATOR_TOKEN!);
  async function capture(name:string){if(!captures)return;await mkdir(captures,{recursive:true});
+ const visible=await page.locator('body').innerText();expect(visible).not.toMatch(/2017|Age 22|six innovations|seven innovations|182\/182|Facility not recorded/i);if(!name.includes('payload'))expect(visible).not.toContain('CITATION_PENDING_CLINICAL_CONFIRMATION');
  for(const width of (recording?[1920]:[1366,1920])){await page.setViewportSize({width,height:width===1366?768:1080});await page.evaluate(()=>document.fonts.ready.then(()=>undefined));
  if(name.includes('draft')||name.includes('clinician-review'))await page.getByRole('heading',{name:'Original and clinician-authored draft',exact:true}).scrollIntoViewIfNeeded();
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'No horizontal page overflow at '+width).toBe(true);
@@ -22,7 +23,7 @@ test('transparent synthetic journey: detect, documents, draft, edit, approve, cl
  async function post(path:string,data:unknown={},headers=coordinator){const response=await page.request.post('/api'+path,{headers,data});expect(response.ok(),path+' '+response.status()).toBeTruthy();return response.json();}
  await post('/v1/tsp/demo/reset');await post('/demo/jury-seed');
  const windowBefore=await(await page.request.get('/api/v1/tsp/patients/demo-amira/window',{headers:coordinator})).json();expect(windowBefore.status).toBe('IN_WINDOW');
- await page.goto('/');await signIn(page,'coordinator');await expect(page.getByLabel('Demo clock banner')).toContainText('As of 2026-11-22');await expect(page.getByLabel('Demo as-of date',{exact:true})).toHaveValue('2026-11-22');if(recording){trimStartSeconds=(Date.now()-began)/1000;began=Date.now();}await capture('01-population');await hold(8);
+ await page.goto('/');await signIn(page,'coordinator');await expect(page.getByLabel('Demo clock banner')).toContainText('As of 2026-11-22');await expect(page.getByLabel('Demo as-of date',{exact:true})).toHaveValue('2026-11-22');await expect(page.locator('.jury-kpis > div').nth(1).locator('strong')).toHaveText('3');await expect(page.getByRole('cell',{name:/Lina Omar/})).toBeVisible();if(recording){trimStartSeconds=(Date.now()-began)/1000;began=Date.now();}await capture('01-population');await hold(8);
  await page.goto('/workspace?patient=demo-amira');
  const receive=page.waitForResponse(r=>r.request().method()==='POST'&&new URL(r.url()).pathname==='/api/v1/history-handoff/patients/demo-amira/receive');
  await page.getByRole('button',{name:'Receive earlier Hospital A records',exact:true}).click();expect((await receive).ok()).toBeTruthy();
@@ -31,7 +32,7 @@ test('transparent synthetic journey: detect, documents, draft, edit, approve, cl
  await page.getByRole('link',{name:'Read source documents',exact:true}).click();
  await expect(page.getByRole('heading',{name:'Source documents',exact:true})).toBeVisible();await page.getByRole('button',{name:/Adolescent clinic note/}).click();
  await expect(page.locator('.stored-document mark')).toHaveText('documented PCOS diagnosis');
- const docs=await(await page.request.get('/api/v1/source-documents/patients/demo-amira',{headers:coordinator})).json();expect(docs).toHaveLength(4);
+ const docs=await(await page.request.get('/api/v1/source-documents/patients/demo-amira',{headers:coordinator})).json();expect(docs).toHaveLength(4);expect(docs.every((d:{date:string})=>!!d.date)).toBe(true);
  expect((await page.getByLabel('Full stored document text').textContent())).toBe(docs.find((d:{simulated:boolean})=>d.simulated).text);
  await expect(page.locator('nav a[aria-current="page"]')).toContainText('05');await capture('05-source-documents');
  for(const width of (recording?[1920]:[1366,1920])){await page.setViewportSize({width,height:width===1366?768:1080});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await capture('05-source-documents-'+width);}
@@ -81,6 +82,7 @@ test('transparent synthetic journey: detect, documents, draft, edit, approve, cl
  const body=await page.getByLabel('Captured request payload').textContent();expect(body).not.toMatch(/sk-[A-Za-z0-9_-]{8,}|Bearer\s+\S+/);expect(body?.toLowerCase()).not.toContain('authorization');
  await expect(page.locator('nav a[aria-current="page"]')).toContainText('06');await capture('06-model-payload');
  for(const width of (recording?[1920]:[1366,1920])){await page.setViewportSize({width,height:width===1366?768:1080});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await capture('06-model-payload-'+width);}
+ if(captures&&!recording){await page.getByLabel('Captured request payload').scrollIntoViewIfNeeded();await capture('06-actual-request-response');}
  if(recording){expect(Date.now()-began,'Storyboard reaches payload view before the final hold').toBeLessThan(89000);await hold(93);}
  if(recording)await testInfo.attach('storyboard timing',{body:JSON.stringify({trim_start_seconds:trimStartSeconds,story_seconds:93}),contentType:'application/json'});
  await testInfo.attach('transparent synthetic journey',{body:JSON.stringify({run_id:run.id,candidate_id:candidate.id,obligation_id:obligation,mode:'replay',live_model_calls:0}),contentType:'application/json'});
