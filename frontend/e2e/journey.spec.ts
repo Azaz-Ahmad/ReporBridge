@@ -258,12 +258,17 @@ test('completes the patient journey through all five screens', async ({ page, br
   await expect(decisionHistory.getByText('Follow up initiated', { exact: true })).toBeVisible();
   await page.goto('/');
   if (!(await page.locator('.admin-drawer').evaluate(el => (el as HTMLDetailsElement).open))) await page.getByText('Admin', { exact: true }).click();
+  const timingSeed=page.waitForResponse(response=>response.request().method()==='POST'&&new URL(response.url()).pathname==='/api/v1/prevention/demo/timing');
+  const timedCounts=page.waitForResponse(async response=>response.request().method()==='GET'&&new URL(response.url()).pathname==='/api/v1/prevention/snapshot'&&!new URL(response.url()).search&&response.ok()&&(await response.json()).counts.due_soon===1);
   await page.getByRole('button', { name: 'Load illustrative timing scenario' }).click();
+  expect((await timingSeed).ok()).toBeTruthy();expect((await timedCounts).ok()).toBeTruthy();
   await expect(page.locator('.decision-counts button').filter({ hasText: 'Due soon' }).locator('strong')).toHaveText('1');
   await expect(page.locator('.decision-counts button').filter({ hasText: 'Overdue' }).locator('strong')).toHaveText('1');
 
   // TSP extension uses the same real backend and existing clinical gates; no model calls.
+  const initialTspSeed=page.waitForResponse(response=>response.request().method()==='POST'&&new URL(response.url()).pathname==='/api/v1/tsp/demo/seed');
   await page.getByRole('button', { name: 'Load TSP demo', exact: true }).click();
+  expect((await initialTspSeed).ok()).toBeTruthy();
   const tspQueue = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Time-Sensitive Prevention Windows', exact: true }) });
   const amiraWindow = tspQueue.getByRole('row').filter({ has: page.getByRole('cell', { name: 'Amira Haddad', exact: true }) });
   await expect(amiraWindow.getByText('IN WINDOW', { exact: true })).toBeVisible();
@@ -356,7 +361,9 @@ test('completes the patient journey through all five screens', async ({ page, br
   } finally {await freshProfile.close();}
 
   // SIMULATED inter-facility handoff: genuine local feed/receipts and unchanged clinical gates.
+  const simulatedSeed=page.waitForResponse(response=>response.request().method()==='POST'&&new URL(response.url()).pathname==='/api/v1/simulated-handoff/demo/seed');
   await page.getByRole('button', { name: 'Load simulated handoff demo' }).click();
+  expect((await simulatedSeed).ok()).toBeTruthy();
   await page.getByRole('link', { name: 'Open simulated handoff workspace' }).click();
   const receivingView = page.locator('section').filter({ has: page.getByRole('heading', { name: 'SIMULATED Hospital B receiving view', exact: true }) });
   await expect(receivingView.getByText('Hospital A — SIMULATED originating care team', { exact: true }).first()).toBeVisible();
@@ -366,7 +373,9 @@ test('completes the patient journey through all five screens', async ({ page, br
   await page.getByRole('button', { name: 'Register pregnancy', exact: true }).click();
   expect((await simulatedRegistration).ok()).toBeTruthy();expect((await receivingState).ok()).toBeTruthy();
   await expect(receivingView.getByRole('button', { name: 'Receive records from Hospital A' })).toBeEnabled();
+  const simulatedReceipt=page.waitForResponse(response=>response.request().method()==='POST'&&new URL(response.url()).pathname==='/api/v1/simulated-handoff/patients/demo-handoff/receive');
   await receivingView.getByRole('button', { name: 'Receive records from Hospital A' }).click();
+  expect((await simulatedReceipt).ok()).toBeTruthy();
   await expect(receivingView.getByText('Hospital B — SIMULATED receiving care team', { exact: true })).toBeVisible();
   await expect(receivingView.getByText(/Origin: Hospital A, received/)).toBeVisible();
   await receivingView.getByText('SIMULATED owner history', { exact: true }).click();
