@@ -1,3 +1,4 @@
+from app.source_documents import router as source_documents_router
 from app.historical_candidates_api import router as historical_candidates_router
 import os
 from contextlib import nullcontext
@@ -80,6 +81,7 @@ app.include_router(tsp_router(Reader, Coordinator, write))
 app.include_router(handoff_router(Reader, Coordinator, write))
 app.include_router(history_router(Reader, Coordinator, write))
 app.include_router(historical_candidates_router(Reader, Reviewer, write))
+app.include_router(source_documents_router(Reader, write))
 
 
 @app.exception_handler(HTTPException)

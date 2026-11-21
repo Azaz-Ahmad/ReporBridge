@@ -1,3 +1,4 @@
+import {SourceDocuments} from './SourceDocuments';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Activity, ArrowRight, ClipboardList, HeartPulse, LayoutDashboard, LogOut, Network, ShieldCheck, Users, Workflow } from 'lucide-react';
@@ -11,10 +12,11 @@ import { type Role, type Snapshot, label } from './types';
 import { Button, Feedback } from './ui';
 
 const links = [
-  { path: '/', text: 'Population dashboard', icon: LayoutDashboard },
-  { path: '/workspace', text: 'Women’s health workspace', icon: Users },
+  { path: '/', text: 'Population', icon: LayoutDashboard },
+  { path: '/workspace', text: 'Workspace', icon: Users },
   { path: '/passport', text: 'Obligation passport', icon: ClipboardList },
-  { path: '/resolution', text: 'Care-resolution center', icon: Workflow },
+  { path: '/resolution', text: 'Care resolution', icon: Workflow },
+  { path: '/documents', text: 'Source documents', icon: ClipboardList },
   { path: '/audit', text: 'Evidence & audit', icon: ShieldCheck },
 ];
 
@@ -100,9 +102,9 @@ export function App() {
   return <div className="shell">
     <aside className="rail">
       <Brand />
-      <nav aria-label="Main navigation">{links.map(({ path, text, icon: Icon }) =>
+      <nav aria-label="Main navigation">{links.map(({ path, text, icon: Icon }, index) =>
         <NavLink key={path} to={path} end={path === '/'} onClick={() => setFeedback(undefined)}>
-          <Icon size={18} />{text}
+          <Icon size={18} /><span aria-hidden="true">{String(index+1).padStart(2,'0')} </span>{text}
         </NavLink>,
       )}</nav>
       {snapshot.data?.patients.some((patient) => patient.id === 'demo-amira') && <Link className="rail-journey" to="/workspace?patient=demo-amira"><HeartPulse size={17} /> Amira’s journey <ArrowRight size={15} /></Link>}
@@ -123,6 +125,7 @@ export function App() {
             <Route path="/workspace" element={<Workspace {...props} />} />
             <Route path="/passport" element={<Passport {...props} />} />
             <Route path="/resolution" element={<Resolution {...props} />} />
+            <Route path="/documents" element={<SourceDocuments {...props} />} />
             <Route path="/audit" element={<AuditScreen {...props} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>}

@@ -1,3 +1,4 @@
+import {SourceDocumentsLink} from './SourceDocuments';
 import { HistoricalCandidates, HistoricalDetectionTimeline, HistoricalIdentificationBadge } from './HistoricalCandidates';
 import { DemoCorrection } from './DemoCorrection';
 import { CoordinationNextAction, GuidelineTraceability } from './Coordination';
@@ -162,6 +163,7 @@ export function Passport({ data, role, token, busy, action }: ScreenProps) {
       </select></label>}
     </Heading>
     {candidateId && candidatePatient && <HistoricalCandidates token={token} role={role} patientId={candidatePatient} candidateId={candidateId}/>}
+    {(patient||candidatePatient) && <SourceDocumentsLink patientId={patient?.id||candidatePatient!}/> }
     {!item || !rule || !source ? <Empty>{candidateId ? 'A candidate requires clinician confirmation before it becomes an active obligation. ' : obligationId ? 'This obligation is unavailable in the current run. ' : 'Evaluate a synthetic patient to create an obligation. '}
       <Link className="text-link" to="/workspace">Open patient workspace</Link></Empty> : <>
       <section className="passport-cover">

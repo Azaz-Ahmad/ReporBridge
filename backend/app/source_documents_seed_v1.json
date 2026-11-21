@@ -1,0 +1,23 @@
+[
+  {
+    "id": "preconception",
+    "title": "Preconception visit note",
+    "date": "2026-03-12T09:00:00+00:00",
+    "type": "clinical-note",
+    "text": "# Preconception visit note\nSynthetic patient: {name}. Facility: Hospital B.\nThe coordination record lists an outstanding preconception assessment. This note records a visit and a request to reconcile prior documentation. It does not contain a completed screening result or a treatment recommendation.\nClinical interpretation and policy confirmation remain with the clinician."
+  },
+  {
+    "id": "laboratory",
+    "title": "Laboratory report",
+    "date": "2026-03-12T10:00:00+00:00",
+    "type": "diagnostic-report",
+    "text": "# Laboratory report - synthetic coordination copy\nPatient: {name}. Facility: Hospital B.\nReport status: no completed screening result is included in this demonstration copy. No glucose values are supplied. This document is not qualifying completion evidence.\nPlease inspect the structured evidence registry and clinician review separately."
+  },
+  {
+    "id": "registration",
+    "title": "Pregnancy registration form",
+    "date": "2026-11-14T09:00:00+00:00",
+    "type": "clinical-note",
+    "text": "# Pregnancy registration form - synthetic copy\nPatient: {name}. Receiving facility: Hospital B.\nThis is the source-document copy for the pregnancy registration journey. Gestational dating and window dates must be read from the server calculator, not inferred from this document.\nEarlier Hospital A records are available only after the clearly labelled simulated exchange. This form neither confirms nor closes any obligation."
+  }
+]

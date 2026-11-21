@@ -31,4 +31,6 @@ def seed(connection, actor):
         for resource in dating_resources(identifier, anchor):
             process(connection, scope, Event(source="synthetic-jury",event_id=resource["id"]+"-v1",event_time="2026-01-01T00:00:00+00:00",resource=resource,version=1))
         service.audit(connection,actor,"jury_demo_reason",identifier,reason=reason)
+    from app.source_documents import seed as seed_documents
+    for patient_id in COHORT:seed_documents(connection,actor,patient_id)
     return {"patient_id":"demo-amira","patient_ids":list(COHORT),"synthetic_only":True}

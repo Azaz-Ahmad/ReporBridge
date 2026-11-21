@@ -58,7 +58,7 @@ test('completes the patient journey through all five screens', async ({ page, br
     await page.getByText('Source evidence and provenance', { exact: true }).click();
   await expect(page.locator('#provenance')).toContainText('Observation/demo-initial-flag');
   await expect(page.locator('#provenance')).toContainText('preconception-follow-up@1.0.0');
-  await page.getByRole('link', { name: 'Women’s health workspace' }).click();
+  await page.getByRole('link', { name: 'Workspace' }).click();
   await page.getByRole('button', { name: 'Register pregnancy' }).click();
   await expect(page.getByText('Pregnancy handoff review').first()).toBeVisible();
   const stages = page.getByRole('list', { name: 'Reproductive life stages' });
@@ -72,7 +72,7 @@ test('completes the patient journey through all five screens', async ({ page, br
   await page.locator('.dependency-node').filter({hasText:'Pregnancy handoff review'}).click();
   await expect(page.locator('#provenance')).toHaveAttribute('open', '');
   await expect(page.locator('#provenance')).toContainText('Observation/demo-amira-pregnancy');
-  await page.getByRole('link', { name: 'Women’s health workspace' }).click();
+  await page.getByRole('link', { name: 'Workspace' }).click();
   await page.getByRole('link', { name: /Preconception metabolic assessment review/ }).first().click();
   await expect(page.getByRole('heading', { name: 'Clinical obligation passport' })).toBeVisible();
   await expect(page.getByText('must close before')).toBeVisible();
@@ -126,7 +126,7 @@ test('completes the patient journey through all five screens', async ({ page, br
   await page.getByRole('button', { name: 'Verify closure' }).click();
   await expect(page.getByRole('alert')).toContainText('Reviewer approval');
   await page.getByRole('button', { name: 'Run care-resolution agent' }).click();
-  await page.getByRole('link', { name: 'Care-resolution center' }).click();
+  await page.getByRole('link', { name: 'Care resolution' }).click();
   await expect(page.getByText('Evidence available')).toBeVisible();
   await page.getByRole('button', { name: 'Sign out' }).click();
   await signIn(page, 'reviewer');
@@ -162,7 +162,7 @@ test('completes the patient journey through all five screens', async ({ page, br
   await page.reload();
   if(new URL(page.url()).pathname==='/') await page.locator('.admin-drawer').evaluate(el => (el as HTMLDetailsElement).open=true);
   await expect(verification.getByText('Closure verified')).toBeVisible();
-  await page.getByRole('link', { name: 'Population dashboard' }).click();
+  await page.getByRole('link', { name: 'Population' }).click();
   await page.locator('.admin-drawer').evaluate(el => (el as HTMLDetailsElement).open=true);
   await expect(page.getByRole('link', { name: /1 Verified closures/ })).toBeVisible();
   const otherPatient = {
@@ -448,6 +448,18 @@ test('completes the patient journey through all five screens', async ({ page, br
   await identifiedBadge.click();
   await expect(page.getByText('Candidate: needs clinician confirmation',{exact:true})).toBeVisible();
   await expect(page.getByRole('heading',{name:'Early-pregnancy glycemic screening review - identified from earlier record',exact:true})).toBeVisible();
+  await page.getByRole('link',{name:'Read source documents',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Source documents',exact:true})).toBeVisible();
+  await expect(page.locator('nav a[aria-current="page"]')).toContainText('Source documents');
+  await page.getByRole('button',{name:/Adolescent clinic note/}).click();
+  await expect(page.getByLabel('Full stored document text')).toContainText('Hospital A recorded:');
+  await expect(page.locator('.stored-document mark')).toHaveText('documented PCOS diagnosis');
+  await expect(page.getByText('Accepted formats today: plain text and Markdown. PDF and scanned documents are on the roadmap.',{exact:true})).toBeVisible();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Read-only documents fit the viewport').toBe(true);
+  await capture('11-source-documents');
+  await page.getByRole('link',{name:'View where it is cited',exact:true}).click();
+  await expect(page.getByText('Candidate: needs clinician confirmation',{exact:true})).toBeVisible();
+
   await expect(page.getByRole('button',{name:'Confirm historical candidate',exact:true})).toHaveCount(0);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Candidate passport fits at 390 px').toBe(true);
   await page.goto('/workspace?patient=demo-amira');

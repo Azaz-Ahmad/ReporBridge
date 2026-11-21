@@ -1,3 +1,4 @@
+import {SourceDocumentsLink} from './SourceDocuments';
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { api } from './api';
@@ -67,7 +68,7 @@ export function ClinicalExplorer({ patientId, token, coordinator }: { patientId:
   }
 
   return <details className="panel expandable clinical-explorer" onToggle={(event) => setExpanded(event.currentTarget.open)}>
-    <summary>Clinical evidence explorer</summary>
+    <summary>Clinical evidence explorer</summary><SourceDocumentsLink patientId={patientId}/>
     <div className="inset">
       <form className="clinical-search" onSubmit={search}>
         <label>Search evidence <input value={draft} onChange={(event) => setDraft(event.target.value)} maxLength={160} /></label>
