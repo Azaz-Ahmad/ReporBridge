@@ -18,7 +18,7 @@ export function CoordinationNextAction({ token, patientId }: { token: string; pa
   const query = useQuery({ queryKey: ['tsp', 'coordination', patientId, token],
     queryFn: () => api<CoordinationResult>(token, '/v1/tsp/patients/' + patientId + '/coordination') });
   if (query.error) return <Feedback message={query.error.message} error />;
-  if (!query.data) return <span role="status">Loading coordination action…</span>;
+  if (!query.data) return <span aria-live="polite">Loading coordination action…</span>;
   return <div><ActionText result={query.data} /><p className="muted">Coordination only. No automatic action or owner change. Based on {query.data.status.replaceAll('_', ' ')} as of {query.data.as_of}.</p></div>;
 }
 
@@ -37,7 +37,7 @@ export function GuidelineTraceability({token, patientId}: {token: string; patien
   const trace=query.data;
   return <Panel title="Guideline traceability">
     {query.error&&<Feedback message={query.error.message} error/>}
-    {!trace&&!query.error&&<p role="status">Loading policy and supporting evidence…</p>}
+    {!trace&&!query.error&&<p aria-live="polite">Loading policy and supporting evidence…</p>}
     {trace&&<><dl className="details"><div><dt>Source guideline</dt><dd>pending clinical confirmation</dd></div>
       <div><dt>Policy ID and version</dt><dd>{trace.policy_id||'No active policy'} · version {trace.policy_version||'not established'}</dd></div></dl>
       <h3>Eligibility criteria from policy data</h3>
@@ -51,7 +51,7 @@ export function GuidelineTraceability({token, patientId}: {token: string; patien
         <p>Source date: {item.clinical_time?.slice(0,10)||'not recorded'} · version {item.version}</p>
         <a className="text-link" href={item.source_url} onClick={event=>{event.preventDefault();source.mutate(item.source_url);}}>Open source record</a>
       </li>)}</ul>
-      {source.isPending&&<p role="status">Loading source record…</p>}
+      {source.isPending&&<p aria-live="polite">Loading source record…</p>}
       {source.error&&<Feedback message={source.error.message} error/>}
       {source.data&&<div className="inset" aria-label="Guideline source viewer"><h3>Source record · untrusted data</h3><pre className="history-document">{displayText(JSON.stringify(source.data.resource,null,2))}</pre></div>}
     </>}

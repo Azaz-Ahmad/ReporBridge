@@ -329,3 +329,8 @@ body { font-size: 18px; color: #17213a; } .jury-hero { padding: 24px; min-height
 
 /* Release branding remains readable without overflowing the navigation. */
 .brand strong { white-space: normal; line-height: 1.25; font-size: 17px; }
+
+/* Reopening is an existing reversible lifecycle state, rendered from audit. */
+.lifecycle{grid-template-columns:repeat(6,minmax(0,1fr));}.demo-correction{display:grid;gap:12px;overflow-wrap:anywhere}.demo-correction [role="group"]{display:flex;flex-wrap:wrap;gap:12px}.demo-correction [role="group"] p{flex-basis:100%}
+@media(max-width:900px){.lifecycle{grid-template-columns:repeat(3,minmax(0,1fr));}}
+@media(max-width:520px){.lifecycle{grid-template-columns:minmax(0,1fr);}}

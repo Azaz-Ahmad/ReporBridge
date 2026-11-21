@@ -1,3 +1,4 @@
+import { DemoCorrection } from './DemoCorrection';
 import { CoordinationNextAction, GuidelineTraceability } from './Coordination';
 import { useState, type ReactNode } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
@@ -358,6 +359,12 @@ export function AuditScreen({ data, role, token, busy, action }: ScreenProps) {
         <div><dt>Supporting records</dt><dd>{completionEvidence(data, inspected).map(({ resource }) =>
           (resource.code?.text || resource.resourceType) + ' · ' + resource.status).join(', ') || 'No completion evidence submitted'}</dd></div>
         <div><dt>Reviewer evidence references</dt><dd><details><summary>Reviewed source references</summary>{review?.evidence_refs.join(', ') || 'None recorded'}</details></dd></div></dl>
+    </Panel>}
+    {inspected && <Panel title="Correction and reopening"><Lifecycle data={data} item={inspected}/>
+      <p>Assigned owner: {inspected.owner}</p>
+      <DemoCorrection key={inspected.id} token={token} role={role} obligation={inspected}
+        evidenceId={data.closure_evidence.find(row=>row.obligation_id===inspected.id)?.evidence_id}
+        evidenceLabel={completionEvidence(data,inspected)[0]?.resource.code?.text}/>
     </Panel>}
     {role === 'coordinator' && current && <Panel title="Submit synthetic completion evidence">
       <div className="inset"><label className="field-inline">Completion evidence obligation <select aria-label="Completion evidence obligation" value={current.id} onChange={(event) => setSelected(event.target.value)}>

@@ -105,6 +105,7 @@ export function Lifecycle({ data, item }: { data: Snapshot; item: Obligation }) 
     { title: 'Human review', active: approvals.length > 0, detail: approvals.length ? 'Decision recorded' : tasks.length ? 'Review pending' : 'Awaiting proposal' },
     { title: 'Evidence received', active: completionEvidence(data, item).length > 0, detail: completionEvidence(data, item).length ? 'Records submitted' : 'Evidence pending' },
     { title: 'Verified closure', active: item.status === 'closed', detail: item.status === 'closed' ? 'Obligation resolved' : 'Closure gate pending' },
+    { title: 'Reopened', active: data.audit_events.some(event=>event.obligation_id===item.id&&event.action==='closure_reopened'), detail: data.audit_events.some(event=>event.obligation_id===item.id&&event.action==='closure_reopened') ? (item.status==='open'?'Correction recorded; returned to '+item.owner:'Reopening recorded in history') : 'If closing evidence is corrected' },
   ];
   return <ol className="lifecycle" aria-label="Obligation checkpoints">
     {stages.map((stage) => <li key={stage.title} className={stage.active ? 'done' : ''}>

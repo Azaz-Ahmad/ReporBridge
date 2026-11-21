@@ -1,3 +1,5 @@
+from typing import Literal
+from app.clinical.contracts import Identifier
 import re
 from datetime import date
 from uuid import uuid4
@@ -9,6 +11,11 @@ from app.prevention.contracts import InvestigationRequest
 
 class ClockDate(Contract):
     as_of: date
+
+
+class DemoCorrection(Contract):
+    evidence_id: Identifier
+    confirmation: Literal["invalidate closing synthetic evidence"]
 
 
 def router(Reader, Coordinator, write):
@@ -89,6 +96,11 @@ def router(Reader, Coordinator, write):
     def completion(obligation_id: str, request: Request, response: Response, actor: Coordinator):
         from app.prevention.tsp_demo import completion
         return write(completion, actor, obligation_id, session(request, response))
+
+    @api.post("/demo/obligations/{obligation_id}/correct-closing-evidence")
+    def correct_closing_evidence(obligation_id: str, body: DemoCorrection, actor: Coordinator):
+        from app.prevention.demo_corrections import correct_closing_evidence
+        return write(correct_closing_evidence, actor, obligation_id, body.evidence_id)
 
     @api.post("/demo/obligations/{obligation_id}/invalidate")
     def invalidate(obligation_id: str, actor: Coordinator):
