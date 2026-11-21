@@ -137,13 +137,39 @@ def window_text(fields):
     return window_grounding.explanation({"windows":[w.model_dump() for w in fields.windows],"status":fields.status,"policy_id":fields.policy_id,"policy_version":fields.policy_version,"citation":fields.citation})
 
 
+def readable_date(value):
+    from datetime import date
+    day=date.fromisoformat(value[:10])
+    return f"{day.day} {day.strftime('%B %Y')}"
+
+
 def render(fields):
-    text=window_text(fields)
+    """Presentation only: render locally validated fields; never change calculator results."""
+    from datetime import date
+    if not fields.windows:
+        return ("Dating sources need clinician confirmation before a review window can be established. "
+                if fields.status=="HOLD_DATING_UNCERTAIN" else "No review window is established in the current calculator result. ")+"Clinical policy confirmation is pending."
+    parts=[]
+    for window in fields.windows:
+        name="The early-pregnancy review window" if window.id=="W1" else "The later-pregnancy review window"
+        start,end=readable_date(window.window_start),readable_date(window.window_end)
+        if window.status=="IN_WINDOW":
+            remaining=(date.fromisoformat(window.window_end[:10])-date.fromisoformat(fields.as_of[:10])).days
+            parts.append(f"{name} is open until {end}, {remaining} days from today.")
+        elif window.status in {"NOT_YET_DUE","DUE_SOON"}:parts.append(f"{name} opens on {start} and ends on {end}.")
+        elif window.status=="WINDOW_PASSED":parts.append(f"{name} ended on {end}.")
+        elif window.completion_date:parts.append(f"{name} has a verified completion dated {readable_date(window.completion_date)}.")
+        else:parts.append(f"{name} runs from {start} to {end}.")
+        if window.status in {"IN_WINDOW","WINDOW_PASSED"} and not window.completion_date:parts.append("No verified completion is recorded for this window.")
     if fields.rules:
-        historical=[r for r in fields.cited_records if r.facility]
-        text+=" "+" ".join(f"Earlier source: {r.facility}, recorded {r.source_date}: {r.excerpt}" for r in historical)
-        text+=" "+" ".join(f"Pending rule {r.rule_id}, policy {r.policy_id} version {r.policy_version}: documented-finding link to {r.target_window} is {str(r.triggered).lower()}; clinical confirmation required." for r in fields.rules)
-    return text
+        # Quote source statements; do not assert that a finding is clinically relevant.
+        seen=set()
+        for record in fields.cited_records:
+            if record.facility and record.excerpt and (record.facility,record.source_date) not in seen:
+                seen.add((record.facility,record.source_date))
+                parts.append(f"An earlier {record.facility} record, dated {readable_date(record.source_date) if record.source_date else 'date unavailable'}, states: “{record.excerpt}”.")
+    parts.append("Source interpretation and clinical policy confirmation remain with the clinician.")
+    return " ".join(parts)
 
 
 def to_draft(fields,supports):
@@ -199,7 +225,7 @@ class SingleCall:
 def finish(connection,actor,identifier,adapter,expected,binding):
     run=service.get(connection,actor,identifier);detail=run["detail"];packet=detail.get("packet") or {}
     accepted=bool(adapter and adapter.fields and not adapter.field_errors and packet.get("origin")=="model" and packet.get("grounding_status")!="validation_failed" and not detail.get("error") and not packet.get("abstained"))
-    extra={"accepted":accepted,"agent_abstained":not accepted,"label":"Model-validated fields; server-rendered explanation" if accepted else LABEL,"fields":adapter.fields.model_dump() if adapter and adapter.fields else None,"field_mismatches":adapter.field_errors if adapter else [],"tools_sent":0,"rendered_by":"server","text":render(adapter.fields) if accepted else None,"fallback":None}
+    extra={"accepted":accepted,"agent_abstained":not accepted,"label":"Model-validated fields; server-rendered explanation" if accepted else LABEL,"fields":adapter.fields.model_dump() if adapter and adapter.fields else None,"field_mismatches":adapter.field_errors if adapter else [],"technical_fields":expected.model_dump(),"tools_sent":0,"rendered_by":"server","text":render(adapter.fields) if accepted else None,"fallback":None}
     if not accepted:
         try:
             service.sources_current(connection,actor,run)

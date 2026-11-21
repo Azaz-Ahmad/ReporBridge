@@ -43,7 +43,7 @@ def test_one_call_no_tools_exact_fields_and_original_grounding(client,monkeypatc
     assert d["validation"]["status"]!="validation_failed"
     assert d["packet"]["requires_human_review"] and d["packet"]["findings"]
     assert calls[0][0].output_tokens==6000
-    if kind=="history":assert 'Hospital A' in d['explanation']['text'] and '2011-07-10' in d['explanation']['text']
+    if kind=="history":assert 'Hospital A' in d['explanation']['text'] and '10 July 2011' in d['explanation']['text']
     assert request(client,kind).json()["id"]==r["id"] and len(calls)==1
 
 
@@ -193,3 +193,13 @@ def test_shipped_accepted_capsules_preserve_exact_context_and_schema():
         assert record["context_hash"]==digest(record["context"])
         assert not ex.mismatches(record["context"],ex.ExplanationFields.model_validate(record["fields"]).model_dump())
         assert not record["validation"]["errors"]
+
+def test_plain_text_hides_technical_fields_without_changing_validated_context(client,monkeypatch):
+    calls=setup(client,monkeypatch);fake(monkeypatch,calls)
+    d=request(client).json()['detail'];text=d['explanation']['text']
+    assert d['explanation']['accepted']
+    assert 'days from today' in text and 'No verified completion is recorded' in text
+    for raw in ['IN_WINDOW','inclusive','W1','glycemic-assessment-pregnancy']:
+        assert raw not in text
+    assert d['explanation']['technical_fields']==d['explanation_context']
+    assert d['explanation']['technical_fields']['status']=='IN_WINDOW'

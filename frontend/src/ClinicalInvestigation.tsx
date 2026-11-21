@@ -1,3 +1,4 @@
+import {ExplanationOutput,type ExplanationProjection} from './ExplanationOutput';
 import { displayJson, displayText } from './presentation';
 import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -14,7 +15,7 @@ type Packet = { summary: string; origin: string; findings: Finding[]; grounding_
   missing_information: string[]; conflicting_evidence: string[]; uncertainty: string[];
   recommended_review_actions: string[]; source_references: Source[] };
 type Run = { id: string; status: string; created: string; review: { decision: string; note: string } | null;
-  detail: { question: string; configuration: { model: string }; packet: Packet | null; error: string | null;
+  detail: { explanation?:ExplanationProjection; question: string; configuration: { model: string }; packet: Packet | null; error: string | null;
     duration_ms: number; trace: string[]; decision_context?: { decision_id: string } | null; validation?: { errors: string[]; claim_checks?: string };
     usage: { model_calls: number; input_tokens: number; output_tokens: number; retries: number };
     tool_history: { name: string; call_id: string; status: string; duration_ms: number; evidence_ids: string[] }[] } };
@@ -99,7 +100,7 @@ export function ClinicalInvestigation({ patientId, token, role, decisionId }: {
         </details>
         {packet && <>
           <p>{packet.origin === 'model' ? 'Model-generated draft' : 'System-recorded abstention'} · <Status value={packet.grounding_status} /></p>
-          <p>{displayText(packet.summary)}</p>
+          {run.detail.explanation?<ExplanationOutput detail={run.detail}/>:<p>{displayText(packet.summary)}</p>}
           <details><summary>View Findings</summary>
             {packet.findings.length ? <ul>{packet.findings.map((finding) => <li key={finding.finding_id}>
               <p>{displayText(finding.statement)}</p><small>{label(finding.evidence_status)} · {finding.requires_clinical_interpretation ? 'Clinical interpretation required' : 'Source statement'}</small>
