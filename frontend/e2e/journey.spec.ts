@@ -519,7 +519,9 @@ test('completes the patient journey through all five screens', async ({ page, br
   await page.getByRole('button',{name:'Add verified evidence',exact:true}).click();
   await expect(page.getByRole('status')).toContainText('Verified fixture submitted');
   await page.goto('/passport?obligation='+newObligationId);
+  const newRoutingResponse=page.waitForResponse(response=>response.request().method()==='POST'&&new URL(response.url()).pathname==='/api/obligations/'+newObligationId+'/agent');
   await page.getByRole('button',{name:'Run care-resolution agent',exact:true}).click();
+  expect((await newRoutingResponse).ok()).toBeTruthy();
   await expect(page.getByRole('status')).toContainText('Coordination action routed for review');
   candidateSnapshot=await (await page.request.get('/api/snapshot',{headers:auth})).json();
   const newTask=candidateSnapshot.care_coordination_tasks.find((item:{obligation_id:string;status:string})=>item.obligation_id===newObligationId&&item.status==='pending');
