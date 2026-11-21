@@ -208,7 +208,7 @@ test('completes the patient journey through all five screens', async ({ page, br
     await page.goto(route);
     if(route==='/') await page.locator('.admin-drawer').evaluate(el => (el as HTMLDetailsElement).open=true);
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-    await expect(page.getByLabel('Demo clock banner')).toContainText(/Demo date: .* · synthetic/);
+    await expect(page.getByLabel('Demo clock banner')).toHaveCount(0);
     await expect(page.locator('.app-header').getByLabel('Demo as-of date')).toHaveCount(0);
     if (route.startsWith('/workspace')) await expect(page.getByLabel('Demo as-of date')).toHaveCount(0);
     if (route === '/passport' || route === '/') await expect(page.getByLabel('Demo as-of date')).toBeVisible();
@@ -353,14 +353,16 @@ test('completes the patient journey through all five screens', async ({ page, br
   await page.getByRole('button', { name: 'Confirm reset TSP demo', exact: true }).click();
   expect((await tspResetResponse).ok()).toBeTruthy();
   await expect(amiraWindow.getByText('IN WINDOW', { exact: true })).toBeVisible();
-  await expect(page.getByLabel('Demo clock banner')).toContainText('2026-11-22');
+  await expect(page.getByLabel('Demo clock controls')).toContainText('2026-11-22');
 
   const freshProfile=await browser.newContext();
   try {
     const freshPage=await freshProfile.newPage();
     await freshPage.goto(new URL('/',page.url()).href);
     await signIn(freshPage,'coordinator');
-    await expect(freshPage.getByLabel('Demo clock banner')).toContainText('2026-11-22');
+    await expect(freshPage.getByLabel('Demo clock banner')).toHaveCount(0);
+    await freshPage.getByText('Admin', { exact: true }).click();
+    await expect(freshPage.getByLabel('Demo clock controls')).toContainText('2026-11-22');
     await expect(freshPage.getByLabel('Demo as-of date')).toHaveValue('2026-11-22');
   } finally {await freshProfile.close();}
 
