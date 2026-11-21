@@ -65,3 +65,28 @@ test('changing patient clears an opened candidate source viewer',async()=>{
  const view=render(content('demo-amira'));fireEvent.click(await screen.findByRole('link',{name:'Open candidate source'}));await screen.findByText(/Prior patient source content/);
  view.rerender(content('demo-lina'));await waitFor(()=>expect(screen.queryByLabelText('Historical trigger source viewer')).toBeNull());expect(screen.queryByText(/Prior patient source content/)).toBeNull();
 });
+
+
+test('source investigation is explicit, attested and uses the existing grounded history endpoint',async()=>{
+ vi.mocked(api).mockImplementation(async(_token,path,method)=>path.endsWith('/status')?{available:true,status:'available',configuration:{model:'configured-model'}}:method==='POST'?{id:'recorded-run',detail:{configuration:{model:'configured-model'},error:null,duration_ms:20,trace:['retrieve'],usage:{model_calls:1,input_tokens:10,output_tokens:5},tool_history:[{name:'get_patient_clinical_context',status:'ok'}],packet:{summary:'Quoted synthetic source.',grounding_status:'partially_grounded',abstained:false,findings:[]}}}:[fixture()]);
+ mount(<HistoricalCandidates token="test" role="coordinator" patientId="demo-amira"/>);
+ const button=await screen.findByRole('button',{name:'Investigate cited earlier evidence'});expect(button.hasAttribute('disabled')).toBe(true);
+ fireEvent.click(screen.getByLabelText('This earlier-source request contains synthetic data only.'));fireEvent.click(button);await screen.findByText('Quoted synthetic source.');
+ const call=vi.mocked(api).mock.calls.find(entry=>entry[2]==='POST');expect(call?.[1]).toBe('/v1/history-handoff/patients/demo-amira/investigations');
+ expect(screen.getByText('Candidate: needs clinician confirmation')).toBeTruthy();
+});
+test('unavailable agent has no silent fallback and cannot run',async()=>{
+ vi.mocked(api).mockImplementation(async(_token,path)=>path.endsWith('/status')?{available:false,status:'disabled'}:[fixture()]);mount(<HistoricalCandidates token="test" role="coordinator" patientId="demo-amira"/>);
+ await screen.findByText(/Investigation provider is unavailable: disabled/);expect(screen.getByRole('button',{name:'Investigate cited earlier evidence'}).hasAttribute('disabled')).toBe(true);
+});
+
+
+import {AuditScreen} from './screens';
+import type {Snapshot} from './types';
+test('candidate audit renders the stored relevance rule version and demo date',async()=>{
+ vi.mocked(api).mockResolvedValue([]);
+ const data={patients:[],clinical_obligations:[],clinical_evidence:[],life_stage_events:[],rule_versions:[],obligation_dependencies:[],agent_executions:[],care_coordination_tasks:[],clinical_approvals:[],closure_evidence:[],demo_run_archive:[],audit_events:[{sequence:1,recorded:'2026-11-21T11:00:00Z',actor:'coordinator',action:'historical_candidate_identified',patient_id:'demo-amira',obligation_id:null,rule_key:'',evidence_refs:[],detail:{candidate_title:'Synthetic earlier-record review',demo_date:'2026-11-22',relevance_rule_id:'earlier-documented-finding-screening-review',relevance_rule_version:'1'}}]} as Snapshot;
+ mount(<AuditScreen data={data} token="test" role="viewer" busy={false} action={vi.fn()}/>);
+ expect(screen.getByText('earlier-documented-finding-screening-review version 1')).toBeTruthy();
+ expect(screen.getByText(/2026-11-22 · demo calendar/)).toBeTruthy();
+});

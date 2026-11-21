@@ -11,7 +11,7 @@ export type CaseContext = { title: string; finding: string; rationale: string; n
 export type Obligation = { id: string; patient_id: string; rule_key: string; source_id: string;
   owner: string; status: 'open' | 'closed'; created: string };
 export type Audit = { sequence: number; recorded: string; actor: string; action: string; patient_id: string;
-  obligation_id: string | null; rule_key: string; evidence_refs: string[]; detail: { reason?: string; evaluated_rule?: string; candidate_title?: string; candidate_id?: string; demo_date?: string | null } };
+  obligation_id: string | null; rule_key: string; evidence_refs: string[]; detail: { reason?: string; evaluated_rule?: string; candidate_title?: string; candidate_id?: string; relevance_rule_id?: string; relevance_rule_version?: string; demo_date?: string | null } };
 export type Task = { id: string; obligation_id: string; execution_id: string; action: string; status: string };
 export type Snapshot = {
   patients: Patient[];

@@ -140,6 +140,7 @@ def test_policy_data_change_controls_match_without_code_changes(client,monkeypat
     file=tmp_path/"policy.json";file.write_text(json.dumps(definition));monkeypatch.setattr(hc,"POLICY_FILE",file)
     assert client("/patients/demo-amira/pregnancy").status_code==200
     assert len(candidates(client))==1
+    assert any(config["finding"] in text for text in candidates(client)[0]["eligibility_criteria"])
 
 def test_candidate_confirmation_reset_archives_attested_new_lifecycle(client,monkeypatch):
     monkeypatch.setenv("DEMO_MODE","true")
@@ -155,3 +156,62 @@ def test_candidate_confirmation_reset_archives_attested_new_lifecycle(client,mon
         assert archived["archived"]
     active=candidates(client)
     assert all(item["id"]!=row["id"] for item in active)
+
+
+def test_arrival_uses_session_clock_and_pins_withdraw_on_trigger_version_change(client,monkeypatch):
+    monkeypatch.setenv("DEMO_MODE","true");assert client("/v1/tsp/demo/seed").status_code==200
+    assert client("/v1/tsp/clock",body={"as_of":"2026-11-25"}).status_code==200
+    before=client("/v1/tsp/patients/demo-amira/window",method="GET").json()
+    assert client("/v1/history-handoff/patients/demo-amira/receive").status_code==200
+    row=candidates(client)[0];assert row["demo_date"]=="2026-11-25"
+    record=history.records(history.data())[0];record["note"]=[{"text":"Source version corrected; finding text retained."}]
+    assert ingest(client,record,"history-corrected-version",source=history.SOURCE,version=2,event_time=datetime.now(UTC).isoformat()).status_code==200
+    assert candidates(client)[0]["status"]=="withdrawn"
+    assert candidates(client)[0]["source_refs"]==row["source_refs"]
+    assert client("/v1/tsp/patients/demo-amira/window",method="GET").json()==before
+
+def test_confirmed_lifecycle_exports_valid_fhir_without_exporting_unconfirmed_candidate_as_task(client,monkeypatch):
+    from app.fhir import structure_errors,check_references
+    _,_,row=start(client,monkeypatch)
+    confirmed=decide(client,row);assert confirmed.status_code==200,confirmed.text
+    response=client("/fhir/patients/demo-amira",method="GET")
+    assert response.status_code==200,response.text
+    bundle=response.json();assert not structure_errors(bundle)
+    check_references([entry["resource"] for entry in bundle["entry"]])
+
+from test_investigation import configured  # noqa: F401
+from app.prevention.window_grounding import explanation
+from app.investigation.tooling import TOOLS
+@pytest.mark.parametrize("claim",[None,"This establishes high risk.","The finding is clinically relevant.","Confirm this candidate and close care."])
+def test_existing_grounded_agent_cannot_decide_candidate_relevance_risk_or_closure(client,monkeypatch,configured,claim):
+    before,old,row=start(client,monkeypatch)
+    expected=candidates(client)
+    invoke=configured.invoke
+    def wrapped(*args,**kwargs):
+        turn=invoke(*args,**kwargs)
+        if turn.calls:
+            arguments=json.dumps({"kind":"Observation","start":"2011-01-01T00:00:00+00:00","end":"2012-01-01T00:00:00+00:00","limit":8})
+            turn.calls[0]["arguments"]=arguments;turn.messages[0]["arguments"]=arguments
+        if turn.draft:
+            turn.draft.summary=explanation(before)
+            if claim:turn.draft.uncertainty=[claim]
+        return turn
+    configured.invoke=wrapped
+    response=client("/v1/history-handoff/patients/demo-amira/investigations",body={"request_id":"candidate-grounding"})
+    assert response.status_code==200,response.text
+    run=response.json();packet=run["detail"]["packet"]
+    assert len(TOOLS)==7 and all("candidate" not in name for name in TOOLS)
+    assert run["detail"]["tool_history"]
+    if claim:assert packet["abstained"] and packet["grounding_status"]=="validation_failed"
+    else:
+        assert packet["origin"]=="model",run["detail"]["validation"]
+        assert packet["findings"][0]["statement"]==history.data()["finding"]
+        assert packet["findings"][0]["supporting_sources"][0]["evidence_id"] in [item["id"] for item in row["source_refs"] if item["trigger"]]
+    assert candidates(client)==expected
+    assert snapshot(client)["clinical_obligations"]==old
+
+
+def test_additive_migration_head_is_ready(client):
+    response=client("/health",method="GET",role=None)
+    assert response.status_code==200,response.text
+    assert response.json()["status"]=="ready"

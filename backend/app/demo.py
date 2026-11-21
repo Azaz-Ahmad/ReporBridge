@@ -39,7 +39,9 @@ def reset_amira(connection, actor):
         if candidate:
             configured = service.find(connection, db.rules, item["rule_key"], required=True)["definition"]
             expected = {key:value for key,value in candidate["rule_snapshot"]["lifecycle_rule"].items() if key!="id"}
-            if configured != expected or candidate["confirmation_resource"] is None:
+            if (configured != expected or candidate["confirmation_resource"] is None
+                    or item["rule_key"] != candidate["rule_snapshot"]["lifecycle_rule"]["id"]
+                    or item["source_id"] != candidate["confirmation_resource"]["id"]):
                 raise HTTPException(409, "Candidate lifecycle attestation differs; records were preserved.")
             allowed[candidate["confirmation_resource"]["id"]] = candidate["confirmation_resource"]
         code = (candidate["rule_snapshot"]["lifecycle_rule"] if candidate else RULES[item["rule_key"]])["closure"]

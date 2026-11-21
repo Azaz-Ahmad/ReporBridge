@@ -123,7 +123,7 @@ def health():
     try:
         with db.engine.connect() as connection:
             revision = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-            if revision != "0009":
+            if revision != "0010":
                 raise HTTPException(503, "Run the clinical foundation database migration.")
     except SQLAlchemyError as error:
         raise HTTPException(503, "Database or migrations unavailable") from error

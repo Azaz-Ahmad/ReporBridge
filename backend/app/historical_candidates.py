@@ -19,10 +19,11 @@ def entries(connection,patient_id):
     return [dict(row) for row in connection.execute(select(candidates).where(candidates.c.patient_id==patient_id,candidates.c.archived.is_(False))).mappings()]
 def event(connection,actor,row,action,session_id=None,**detail):
     current=tsp.clock(connection,session_id)
-    obligation=service.find(connection,db.obligations,row["obligation_id"]) if row.get("obligation_id") else None
-    service.audit(connection,actor,action,row["patient_id"],obligation,
+    # Candidate events cite the M08 registry; keep them outside legacy Task provenance.
+    # The normal obligation has its own unchanged workflow-resource audit trail.
+    service.audit(connection,actor,action,row["patient_id"],None,
         [item["kind"]+"/"+item["resource_id"] for item in row["source_refs"]],
-        candidate_id=row["id"],candidate_title=row["title"],relevance_rule_id=row["rule_id"],
+        candidate_id=row["id"],candidate_title=row["title"],linked_obligation_id=row.get("obligation_id"),relevance_rule_id=row["rule_id"],
         relevance_rule_version=row["rule_version"],demo_date=current["as_of"] if current["demo_mode"] else None,**detail)
 
 def sources(connection,actor,patient_id):
@@ -62,7 +63,9 @@ def evaluate(connection,actor,patient_id,session_id=None):
         existing=next((item for item in prior if item["transition_id"]==transition and item["rule_id"]==rule["id"] and item["rule_version"]==rule["version"]),None)
         matching=matched(rule,items)
         if existing and existing["status"] in {"dismissed","withdrawn"}:continue
-        if existing and not matching:
+        valid_trigger_ids={item["id"] for item in matching}
+        pinned_trigger_changed=existing and any(pin["trigger"] and pin["id"] not in valid_trigger_ids for pin in existing["source_refs"])
+        if existing and (not matching or pinned_trigger_changed):
             withdraw(connection,actor,existing,session_id)
             continue
         if not matching:continue
@@ -146,7 +149,7 @@ def public(connection,actor,row,session_id=None,window=None):
     target=next((item for item in window["windows"] if item["id"]==row["rule_snapshot"]["target_window"]),None)
     return {key:row[key] for key in ("id","patient_id","title","owner_role","status","created","demo_date","rule_id","rule_version","source_refs","decision","obligation_id")} | {
         "status_label":LABELS[row["status"]],"clinical_confirmation":"pending clinical confirmation",
-        "eligibility_criteria":row["rule_snapshot"]["eligibility_criteria"],"target_window":row["rule_snapshot"]["target_window"],
+        "eligibility_criteria":[text.format(**row["rule_snapshot"]) for text in row["rule_snapshot"]["eligibility_criteria"]],"target_window":row["rule_snapshot"]["target_window"],
         "window":target,"calculator_status":window["status"],"as_of":window["as_of"],
         "window_policy_id":window["policy_id"],"window_policy_version":window["policy_version"]}
 

@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api } from './api';
 import { FacilityChips, type Facility } from './Handoff';
-import { displayJson } from './presentation';
+import { displayJson, displayText } from './presentation';
 import { Button, Feedback, Panel } from './ui';
 import type { Role } from './types';
 
@@ -66,8 +66,34 @@ function HistoricalCandidateScope({token,role,patientId,candidateId}:{token:stri
     {row.obligation_id&&<Link className="text-link" to={'/passport?obligation='+row.obligation_id}>Open confirmed obligation</Link>}
     {row.status==='withdrawn'&&<p>Trigger evidence is no longer valid. The original source versions and audit remain available; any active care requires reconciliation through existing gates.</p>}
   </article>)}
+  {!!rows.length&&<HistoricalSourceInvestigation token={token} role={role} patientId={patientId}/>}
   {decision.error&&<Feedback message={decision.error.message} error/>}
   {decision.data&&<Feedback message={decision.data.status==='confirmed'?'Candidate confirmed. A separate open obligation was created; care remains unclosed.':'Candidate dismissed with an audited rationale.'}/>}
   {source&&<div className="inset" aria-label="Historical trigger source viewer"><h3>Source record · untrusted data</h3>{raw.error&&<Feedback message={raw.error.message} error/>}<pre className="history-document">{raw.data?displayJson(raw.data.resource):'Loading source…'}</pre><Button variant="outline" onClick={()=>setSource(undefined)}>Close candidate source</Button></div>}
  </Panel>;
+}
+
+
+type SourceRun={id:string;detail:{configuration:{model:string};error:string|null;duration_ms:number;trace:string[];
+ usage:{model_calls:number;input_tokens:number;output_tokens:number};tool_history:{name:string;status:string}[];
+ packet:{summary:string;grounding_status:string;abstained:boolean;findings:{statement:string}[]}|null}};
+function HistoricalSourceInvestigation({token,role,patientId}:{token:string;role:Role;patientId:string}){
+ const [attested,setAttested]=useState(false);
+ const provider=useQuery({queryKey:['evidence-provider',token],queryFn:()=>api<{available:boolean;status:string;configuration?:{model:string}}>(token,'/v1/agents/clinical-evidence/status')});
+ const investigation=useMutation({mutationFn:()=>api<SourceRun>(token,'/v1/history-handoff/patients/'+patientId+'/investigations','POST',{request_id:crypto.randomUUID()})});
+ const run=investigation.data;const packet=run?.detail.packet;
+ return <section className="inset" aria-label="Grounded earlier-source investigation"><h3>Earlier-source evidence investigation</h3>
+   <p>Source summary only. The existing grounded agent may retrieve and quote records; it cannot determine relevance, risk, candidate decisions, windows or closure.</p>
+   {provider.data&&!provider.data.available&&<p>Investigation provider is unavailable: {provider.data.status||'not configured'}. No substitute model or mock will be used.</p>}
+   {provider.error&&<Feedback message={provider.error.message} error/>}
+   {role==='coordinator'&&<><label className="clinical-history"><input type="checkbox" checked={attested} onChange={event=>setAttested(event.target.checked)}/> This earlier-source request contains synthetic data only.</label>
+   <Button disabled={!attested||!provider.data?.available||patientId!=='demo-amira'||investigation.isPending} onClick={()=>investigation.mutate()}>Investigate cited earlier evidence</Button></>}
+   {investigation.error&&<Feedback message={investigation.error.message} error/>}
+   {run&&<div className="investigation-result"><p>Model: {run.detail.configuration.model} · {run.detail.usage.model_calls} requests · {run.detail.tool_history.length} tools · {run.detail.duration_ms} ms</p>
+     {run.detail.error&&<Feedback message={run.detail.error} error/>}
+     {packet&&<><p>Grounding: {packet.grounding_status}. {packet.abstained?'Agent abstained.':'Human interpretation required.'}</p><p>{displayText(packet.summary)}</p>{packet.findings.map((finding,index)=><p key={index}>{displayText(finding.statement)}</p>)}</>}
+     <details><summary>Earlier-source investigation trace</summary><pre className="history-document">{displayJson(run.detail)}</pre></details>
+     <p>The recorded investigation is also available in the care-resolution centre. It does not change the candidate.</p>
+   </div>}
+ </section>;
 }

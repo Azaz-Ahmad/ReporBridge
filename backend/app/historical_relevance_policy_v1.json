@@ -23,9 +23,9 @@
       "owner_role": "Reviewer",
       "eligibility_criteria": [
         "A pregnancy transition is recorded.",
-        "An authorized, valid final Hospital A observation documents exactly: documented PCOS diagnosis.",
+        "An authorized, valid final Hospital A observation documents exactly: {equals}.",
         "Identification is a policy-data match only; a clinician must confirm or dismiss the candidate.",
-        "Use the existing calculator's W1 result; no new window or timing inference is permitted."
+        "Use the existing calculator's {target_window} result; no new window or timing inference is permitted."
       ],
       "lifecycle_rule": {
         "id": "historical-screening-review@1.0.0",
