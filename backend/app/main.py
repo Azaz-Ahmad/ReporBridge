@@ -1,5 +1,7 @@
 from app.historical_candidates_api import router as historical_candidates_router
 import os
+from contextlib import nullcontext
+from threading import RLock
 from hmac import compare_digest
 from typing import Annotated, Literal
 
@@ -54,17 +56,22 @@ Reviewer = Annotated[str, Depends(require("reviewer"))]
 Reader = Annotated[str, Depends(identify)]
 
 
-def write(operation, *args):
-    with db.engine.begin() as connection:
-        # Serialize the small demo's write transactions across local workers.
-        if connection.dialect.name == "postgresql":
-            connection.execute(text("SELECT pg_advisory_xact_lock(4280071)"))
-        elif connection.dialect.name == "sqlite":
-            connection.exec_driver_sql("BEGIN IMMEDIATE")
-        result = operation(connection, *args)
-        prevention.synchronize(connection)
-        return result
+_sqlite_writer = RLock()
 
+
+def write(operation, *args):
+    # Queue local SQLite writers before opening a transaction. Keep database-level
+    # serialization for other processes and the existing PostgreSQL advisory lock.
+    with _sqlite_writer if db.engine.dialect.name == "sqlite" else nullcontext():
+        with db.engine.begin() as connection:
+            # Serialize the small demo's write transactions across local workers.
+            if connection.dialect.name == "postgresql":
+                connection.execute(text("SELECT pg_advisory_xact_lock(4280071)"))
+            elif connection.dialect.name == "sqlite":
+                connection.exec_driver_sql("BEGIN IMMEDIATE")
+            result = operation(connection, *args)
+            prevention.synchronize(connection)
+            return result
 
 app.include_router(clinical_router(Reader, Coordinator, write))
 app.include_router(investigation_router(Reader, Coordinator, Reviewer, write))
