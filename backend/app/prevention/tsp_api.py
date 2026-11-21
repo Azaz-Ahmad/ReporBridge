@@ -52,6 +52,11 @@ def router(Reader, Coordinator, write):
         from app.prevention import coordination
         return write(coordination.patient, actor, patient_id, session(request, response))
 
+    @api.get("/patients/{patient_id}/guideline-trace")
+    def guideline_trace(patient_id: str, request: Request, response: Response, actor: Reader):
+        from app.prevention import coordination
+        return write(coordination.traceability, actor, patient_id, session(request, response))
+
     @api.post("/patients/{patient_id}/investigations")
     def investigate(patient_id: str, body: InvestigationRequest, request: Request, response: Response, actor: Coordinator):
         from app.prevention.window_grounding import bind

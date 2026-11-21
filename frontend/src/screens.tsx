@@ -1,4 +1,4 @@
-import { CoordinationNextAction } from './Coordination';
+import { CoordinationNextAction, GuidelineTraceability } from './Coordination';
 import { useState, type ReactNode } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { ArrowDownToLine, ArrowRight, ArrowUpRight, CalendarDays, CircleAlert, ClipboardList, GitBranch, HeartPulse, Plus, RotateCcw, ShieldCheck, Users, Workflow } from 'lucide-react';
@@ -166,6 +166,7 @@ export function Passport({ data, role, token, busy, action }: ScreenProps) {
       <HandoffPanel token={token} role={role} patientId={item.patient_id} />
       <PreventionPassport obligationId={item.id} token={token} role={role} />
       <TspWindow token={token} patientId={item.patient_id} role={role} />
+      <GuidelineTraceability token={token} patientId={item.patient_id}/>
       <Panel title="Obligation checkpoints"><Lifecycle data={data} item={item} /></Panel>
       <Panel title="Care requirements" action={<span className="pill amber">Illustrative — Not Clinically Approved</span>}>
         <div className="clinical-context">

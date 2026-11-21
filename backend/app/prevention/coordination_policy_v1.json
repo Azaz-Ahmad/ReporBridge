@@ -37,5 +37,13 @@
       "action": "Ask policy administrator to confirm applicable policy",
       "owner_role": "Coordinator"
     }
+  },
+  "eligibility_text": {
+    "registration": "Pregnancy registration must be documented before a window can be established.",
+    "dating": "Verified dating sources must be available and differ by no more than {dating_conflict_threshold_days} days.",
+    "carried": "{id}: requires a carried preconception obligation.",
+    "registration_window": "{id}: from pregnancy registration through gestational day {end_ga_day}, inclusive.",
+    "day_window": "{id}: gestational days {start_ga_day} through {end_ga_day}, inclusive.",
+    "historical": "Documented source finding must exactly match “{equals}”; patient stage must be {requires_stage}; the linked obligation must be open; target is the existing {target_window}."
   }
 }
