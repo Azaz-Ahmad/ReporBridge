@@ -17,11 +17,11 @@ test('passport holds dates and discloses policy and missing evidence', async () 
   await screen.findByText('No established window'); expect(screen.getByText('pending clinical confirmation')).toBeTruthy(); expect(screen.getByText('Pregnancy dating evidence')).toBeTruthy(); expect(screen.queryByText('CITATION_PENDING_CLINICAL_CONFIRMATION')).toBeNull(); });
 test('queue links the scoped obligation and renders status', async () => { vi.mocked(api).mockResolvedValue([fixture()]); mount(<TspQueue token="test" />);
   await screen.findByText('HOLD DATING UNCERTAIN'); expect(screen.getByRole('link').getAttribute('href')).toBe('/passport?obligation=obligation-1'); });
-test('clock updates only by explicit coordinator submission', async () => { vi.mocked(api).mockResolvedValue(clock); mount(<DemoClock token="test" role="coordinator" />);
+test('clock updates only by explicit coordinator submission', async () => { vi.mocked(api).mockResolvedValue(clock); mount(<DemoClock token="test" role="coordinator" controls />);
   await screen.findByText('DEMO CLOCK — synthetic dates'); fireEvent.change(screen.getByLabelText('Demo as-of date'), { target: { value: '2027-01-01' } }); fireEvent.click(screen.getByRole('button', { name: 'Apply demo date' }));
   await waitFor(() => expect(api).toHaveBeenCalledWith('test', '/v1/tsp/clock', 'POST', { as_of: '2027-01-01' })); });
 test('viewer sees a clock banner without mutation controls', async () => { vi.mocked(api).mockResolvedValue(clock); mount(<DemoClock token="test" role="viewer" />);
-  await screen.findByText('DEMO CLOCK — synthetic dates'); expect(screen.queryByRole('button')).toBeNull(); });
+  await screen.findByText('Demo date: 2026-11-22 · synthetic'); expect(screen.queryByRole('button')).toBeNull(); });
 test('disabled demo mode hides the clock controls', async () => { vi.mocked(api).mockResolvedValue({ ...clock, demo_mode: false }); mount(<DemoClock token="test" role="coordinator" />);
   await waitFor(() => expect(api).toHaveBeenCalled()); expect(screen.queryByLabelText('Demo clock banner')).toBeNull(); });
 
@@ -60,4 +60,24 @@ test('dating evidence values are not labelled as source-record timestamps', asyn
  await screen.findByText(/^Source date value 2027-05-26 · version 1/);
  expect(screen.queryByText(/Source dated 2027/)).toBeNull();
  expect(screen.getByText('synthetic-ultrasound')).toBeTruthy();
+});
+
+test('header clock is a compact date chip with no controls for coordinators', async () => {
+ vi.mocked(api).mockResolvedValue(clock); mount(<DemoClock token="test" role="coordinator" />);
+ await screen.findByText('Demo date: 2026-11-22 · synthetic');
+ expect(screen.queryByLabelText('Demo as-of date')).toBeNull(); expect(screen.queryByRole('button')).toBeNull();
+});
+test('clock controls reset through the existing session endpoint', async () => {
+ vi.mocked(api).mockResolvedValue(clock); mount(<DemoClock token="test" role="coordinator" controls />);
+ fireEvent.click(await screen.findByRole('button', {name:'Reset demo date'}));
+ await waitFor(()=>expect(api).toHaveBeenCalledWith('test','/v1/tsp/clock/reset','POST',undefined));
+});
+test('full controls remain hidden when demo mode is off', async () => {
+ vi.mocked(api).mockResolvedValue({...clock,demo_mode:false}); mount(<DemoClock token="test" role="coordinator" controls />);
+ await waitFor(()=>expect(api).toHaveBeenCalled()); expect(screen.queryByLabelText('Demo clock controls')).toBeNull();
+});
+test('viewer cannot mutate the full clock panel', async () => {
+ vi.mocked(api).mockResolvedValue(clock); mount(<DemoClock token="test" role="viewer" controls />);
+ await screen.findByText('DEMO CLOCK — synthetic dates'); expect(screen.queryByRole('button')).toBeNull();
+ expect(screen.queryByLabelText('Demo as-of date')).toBeNull();
 });

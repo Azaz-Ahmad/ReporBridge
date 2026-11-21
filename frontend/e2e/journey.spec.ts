@@ -208,6 +208,10 @@ test('completes the patient journey through all five screens', async ({ page, br
     await page.goto(route);
     if(route==='/') await page.locator('.admin-drawer').evaluate(el => (el as HTMLDetailsElement).open=true);
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await expect(page.getByLabel('Demo clock banner')).toContainText(/Demo date: .* · synthetic/);
+    await expect(page.locator('.app-header').getByLabel('Demo as-of date')).toHaveCount(0);
+    if (route.startsWith('/workspace')) await expect(page.getByLabel('Demo as-of date')).toHaveCount(0);
+    if (route === '/passport' || route === '/') await expect(page.getByLabel('Demo as-of date')).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), route + ' fits at 390 px').toBe(true);
     if (route.startsWith('/workspace')) await capture('08-mobile-workspace');
   }

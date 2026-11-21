@@ -347,3 +347,5 @@ body { font-size: 18px; color: #17213a; } .jury-hero { padding: 24px; min-height
 :root{--deep:#2b1a2b;--brand:#6b2d5c;--stroke:#e3dfe9;background:#fbfafd;color:#251d2d}.content{background:#fbfafd}.rail nav a:hover,.rail nav a.active{background:#4a2a48;color:white}.rail nav a.active svg{color:#d6efec}.panel{border-radius:10px}.panel p,.panel li,.panel details{overflow-wrap:anywhere}.document-list,.stored-document,.draft-columns{font-size:14px}.draft-columns textarea{border-color:#1f7a7a}.rail nav a{font-size:14px}.button{font-size:14px}.payload-grid pre{font-size:13px}.content select{max-width:100%}
 
 .latest-source-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;list-style:none;padding:0}.latest-source-list li{display:grid;gap:5px;padding:12px;border:1px solid #e3dfe9;border-radius:10px;min-width:0}@media(max-width:800px){.latest-source-list{grid-template-columns:1fr}}
+
+.tsp-clock-chip { display: inline-block; white-space: nowrap; background: #f2edf9; color: #49305e; border: 1px solid #bda4df; border-radius: 999px; padding: 5px 12px; font-size: 14px; line-height: 1.4; }

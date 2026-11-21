@@ -21,7 +21,7 @@ function WindowBadge({ value }: { value: string }) {
   return <span className={'pill ' + color} data-testid="tsp-status">{value.replaceAll('_', ' ')}</span>;
 }
 
-export function DemoClock({ token, role }: { token: string; role: Role }) {
+export function DemoClock({ token, role, controls = false }: { token: string; role: Role; controls?: boolean }) {
   const cache = useQueryClient();
   const [date, setDate] = useState('');
   const current = useQuery({ queryKey: ['tsp', 'clock', token], queryFn: () => api<Clock>(token, '/v1/tsp/clock') });
@@ -29,7 +29,8 @@ export function DemoClock({ token, role }: { token: string; role: Role }) {
     onSuccess: () => { setDate(''); cache.invalidateQueries({ queryKey: ['tsp'] }); cache.invalidateQueries({ queryKey: ['historical-candidates'] }); cache.invalidateQueries({ queryKey: ['history'] }); } });
   if (current.error) return <Feedback message={current.error.message} error />;
   if (!current.data?.demo_mode) return null;
-  return <aside className="tsp-clock" aria-label="Demo clock banner"><div><strong>DEMO CLOCK — synthetic dates</strong>
+  if (!controls) return <aside className="tsp-clock-chip" aria-label="Demo clock banner">Demo date: {current.data.as_of} · synthetic</aside>;
+  return <aside className="tsp-clock" aria-label="Demo clock controls"><div><strong>DEMO CLOCK — synthetic dates</strong>
     <p>As of {current.data.as_of} · Asia/Dubai. System time is unchanged.</p></div>
     {role === 'coordinator' && <form onSubmit={(event) => { event.preventDefault(); change.mutate(false); }}>
       <label>Demo as-of date<input type="date" required value={date || current.data.as_of} onChange={(event) => setDate(event.target.value)} /></label>
@@ -68,6 +69,7 @@ export function TspWindow({ token, patientId, timeline = false, role }: { token:
   const explain = useMutation({ mutationFn: () => api<{ id: string; detail: { explanation?:ExplanationProjection;trace?:string[];error?: string | null; packet: { summary: string; abstained: boolean } | null } }>(token, '/v1/tsp/patients/' + patientId + '/explanations', 'POST', { request_id: crypto.randomUUID() }) });
   const item = query.data;
   return <Panel title={timeline ? 'Prevention window timeline' : 'Time-Sensitive Prevention Window'}>
+    {!timeline && role && <DemoClock token={token} role={role} controls />}
     {query.error && <Feedback message={query.error.message} error />}
     {role === 'coordinator' && !timeline && <Button disabled={explain.isPending} onClick={() => explain.mutate()}>Explain computed window</Button>}
     {explain.error && <Feedback message={explain.error.message} error />}

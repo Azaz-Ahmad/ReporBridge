@@ -11,7 +11,7 @@ import { api } from './api';
 import { EarlierRecords } from './History';
 import { JuryOverview, DemoAdmin, JourneyStrip } from './Jury';
 import { HANDOFF_PATIENT, HandoffSetup, HandoffPanel, HandoffTimeline } from './Handoff';
-import { TspQueue, TspWindow } from './Tsp';
+import { DemoClock, TspQueue, TspWindow } from './Tsp';
 import { ClinicalExplorer } from './ClinicalExplorer';
 import { ClinicalInvestigation } from './ClinicalInvestigation';
 import { PreventionQueue, PreventionPassport, DecisionReadiness, DecisionTimeline, DecisionHistory } from './Prevention';
@@ -45,6 +45,7 @@ export function Dashboard({ data, role, token, busy, action }: ScreenProps) {
     <HistoricalIdentificationBadge token={token}/>
     <JuryOverview data={data} token={token} />
     <DemoAdmin token={token}>
+    <DemoClock token={token} role={role} controls />
     {!amira && <Button disabled={busy} onClick={()=>action('/demo/seed','Synthetic patient and obligation are ready.')}>Load demo patient</Button>}
     <div className="metric-grid">{metrics.map(({ title, value, icon: Icon, path, tone }) => <Link key={title} className="metric" to={path}>
       <div><span className={'metric-icon ' + tone}><Icon size={19} /></span><ArrowUpRight size={15} /></div>

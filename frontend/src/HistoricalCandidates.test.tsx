@@ -54,7 +54,7 @@ test('candidate window refreshes from the server after changing the demo clock',
    if(path==='/v1/tsp/clock'){if(method==='POST')date=(body as {as_of:string}).as_of;return {demo_mode:true,as_of:date,timezone:'Asia/Dubai',label:'demo'};}
    return [{...fixture(),as_of:date}];
  });
- mount(<><DemoClock token="test" role="coordinator"/><HistoricalCandidates token="test" role="coordinator" patientId="demo-amira"/></>);
+ mount(<><DemoClock token="test" role="coordinator" controls/><HistoricalCandidates token="test" role="coordinator" patientId="demo-amira"/></>);
  await screen.findByText('Calculator window: W1');fireEvent.change(screen.getByLabelText('Demo as-of date'),{target:{value:'2026-11-25'}});fireEvent.click(screen.getByRole('button',{name:'Apply demo date'}));
  await screen.findByText(/as of 2026-11-25/);
 });
