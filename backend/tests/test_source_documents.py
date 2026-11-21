@@ -20,6 +20,8 @@ def test_documents_are_exact_scoped_audited_and_do_not_change_windows(client,mon
     assert historical["citations"][0]["candidate_id"]==candidate["id"]
     assert historical["citations"][0]["excerpt"]==history.data()["finding"]
     assert all(len(d["digest"])==64 and d["version"]==1 for d in docs)
+    assert all(d["date"] for d in docs)
+    assert {d["date"][:10] for d in docs if not d["simulated"]}=={"2026-03-12","2026-11-14"}
     with db.engine.begin() as c:
         assert c.execute(select(access_log).where(access_log.c.action=="source_documents_viewed")).first()
         c.execute(grants.delete().where(grants.c.patient_id=="demo-amira",grants.c.role=="viewer"))

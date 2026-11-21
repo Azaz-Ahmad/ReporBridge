@@ -50,7 +50,7 @@ def list_documents(connection,actor,patient_id):
                 links.append({"candidate_id":candidate["id"],"excerpt":finding if finding in text else None,"url":"/passport?candidate="+candidate["id"]+"&patient="+patient_id})
         facility=item["provenance"].get("facility",{}).get("origin") or next((a.get("display") for a in resource.get("author",[]) if a.get("display")),"Source facility unavailable")
         answer.append({"id":item["id"],"title":"Adolescent clinic note" if row["source"]==history.SOURCE else resource.get("description","Source document"),
-            "facility":facility,"date":item["clinical_time"],"version":item["version"],"digest":item["digest"],"status":item["quality"]["state"],"source_state":row["status"],
+            "facility":facility,"date":item["clinical_time"] or resource.get("date") or attachment.get("creation"),"version":item["version"],"digest":item["digest"],"status":item["quality"]["state"],"source_state":row["status"],
             "simulated":facility=="Hospital A","text":text,"citations":links})
     audit_access(connection,scope,"source_documents_viewed")
     return answer
