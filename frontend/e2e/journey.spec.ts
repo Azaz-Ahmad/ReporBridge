@@ -519,7 +519,11 @@ test('completes the patient journey through all five screens', async ({ page, br
   candidateSnapshot=await (await page.request.get('/api/snapshot',{headers:auth})).json();
   expect(candidateSnapshot.clinical_obligations.find((item:{id:string})=>item.id===newObligationId).status).toBe('open');
   await page.getByRole('button',{name:'Sign out'}).click();await signIn(page,'coordinator');await page.goto('/passport?obligation='+newObligationId);
-  await page.getByRole('button',{name:'Verify closure',exact:true}).click();await expect(page.getByRole('status')).toContainText('Closure verified');
+  // A pending write is not a closure confirmation; wait for the actual server acknowledgment.
+  const finalClosureResponse=page.waitForResponse(response=>response.request().method()==='POST'&&new URL(response.url()).pathname==='/api/obligations/'+newObligationId+'/close');
+  await page.getByRole('button',{name:'Verify closure',exact:true}).click();
+  const finalClosure=await finalClosureResponse;expect(finalClosure.ok()).toBeTruthy();expect((await finalClosure.json()).status).toBe('closed');
+  await expect(page.getByRole('status')).toContainText('Closure verified');
   expect(await (await page.request.get('/api/v1/tsp/patients/demo-amira/window',{headers:auth})).json()).toEqual(windowBeforeConfirmation);
   const trigger=candidate.source_refs.find((item:{trigger:boolean})=>item.trigger);
   const triggerResource=(await (await page.request.get(trigger.source_url,{headers:auth})).json()).resource;
