@@ -30,7 +30,12 @@ export type GuidelineTrace = { source_guideline: string; policy_id: string | nul
     provenance: {facility?: Facility}; source_url: string}[];
 };
 
-export function GuidelineTraceability({token, patientId}: {token: string; patientId: string}) {
+export function GuidelineTraceability(props: {token: string; patientId: string}) {
+  // Local source-viewer state must never carry across patient workspaces.
+  return <GuidelineTraceabilityScope key={props.patientId} {...props}/>;
+}
+
+function GuidelineTraceabilityScope({token, patientId}: {token: string; patientId: string}) {
   const query = useQuery({queryKey:['tsp','guideline-trace',patientId,token],
     queryFn:()=>api<GuidelineTrace>(token,'/v1/tsp/patients/'+patientId+'/guideline-trace')});
   const source = useMutation({mutationFn:(url:string)=>api<{resource:unknown}>(token,url.replace(/^\/api/,''))});

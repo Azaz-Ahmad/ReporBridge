@@ -36,3 +36,20 @@ test('traceability shows policy criteria facility date and an authenticated sour
   await screen.findByLabelText('Guideline source viewer');
   expect(api).toHaveBeenCalledWith('test','/v1/clinical/patients/demo-amira/evidence/source-one');
 });
+
+
+test('switching passport patient clears a previously opened source viewer',async()=>{
+  vi.mocked(api).mockImplementation(async(_token,path)=>path.includes('/evidence/')?{resource:{valueString:'Prior patient source record'}}:{
+    policy_id:'glycemic-assessment-pregnancy',policy_version:'1',policy_active:true,eligibility_criteria:[],historical_policy:{id:'history',version:'1',rules:[]},
+    supporting_evidence:[{id:'source',label:path.includes('demo-lina')?'New patient source':'Earlier patient source',clinical_time:'2026-11-22',version:1,provenance:{},
+      source_url:'/api/v1/clinical/patients/'+(path.includes('demo-lina')?'demo-lina':'demo-amira')+'/evidence/source'}]});
+  const client=new QueryClient({defaultOptions:{queries:{retry:false}}});
+  const content=(patientId:string)=><QueryClientProvider client={client}><GuidelineTraceability token="test" patientId={patientId}/></QueryClientProvider>;
+  const view=render(content('demo-amira'));
+  fireEvent.click(await screen.findByRole('link',{name:'Open source record'}));
+  await screen.findByText(/Prior patient source record/);
+  view.rerender(content('demo-lina'));
+  await screen.findByText('New patient source');
+  expect(screen.queryByLabelText('Guideline source viewer')).toBeNull();
+  expect(screen.queryByText(/Prior patient source record/)).toBeNull();
+});
