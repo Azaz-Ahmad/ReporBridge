@@ -42,6 +42,16 @@ def router(Reader, Coordinator, write):
     def queue(request: Request, response: Response, actor: Reader):
         return write(tsp.queue, actor, session(request, response))
 
+    @api.get("/coordination-queue")
+    def coordination_queue(request: Request, response: Response, actor: Reader):
+        from app.prevention import coordination
+        return write(coordination.queue, actor, session(request, response))
+
+    @api.get("/patients/{patient_id}/coordination")
+    def coordination_patient(patient_id: str, request: Request, response: Response, actor: Reader):
+        from app.prevention import coordination
+        return write(coordination.patient, actor, patient_id, session(request, response))
+
     @api.post("/patients/{patient_id}/investigations")
     def investigate(patient_id: str, body: InvestigationRequest, request: Request, response: Response, actor: Coordinator):
         from app.prevention.window_grounding import bind

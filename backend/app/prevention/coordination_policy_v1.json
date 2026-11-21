@@ -1,0 +1,41 @@
+{
+  "id": "window-coordination",
+  "version": "1",
+  "scope": "Coordination only; no clinical advice or treatment. No automatic execution or owner reassignment.",
+  "window_policy_id": "glycemic-assessment-pregnancy",
+  "window_policy_version": "1",
+  "actions": {
+    "NOT_YET_DUE": {
+      "action": "Monitor upcoming window",
+      "owner_role": "Coordinator"
+    },
+    "DUE_SOON": {
+      "action": "Schedule assessment",
+      "owner_role": "Coordinator"
+    },
+    "IN_WINDOW": {
+      "action": "Send to reviewer",
+      "owner_role": "Coordinator"
+    },
+    "WINDOW_PASSED": {
+      "action": "Escalate to responsible clinician",
+      "owner_role": "Coordinator"
+    },
+    "HOLD_DATING_UNCERTAIN": {
+      "action": "Ask clinician to confirm dating",
+      "owner_role": "Coordinator"
+    },
+    "COMPLETED_IN_WINDOW": {
+      "action": null,
+      "owner_role": null
+    },
+    "COMPLETED_LATE": {
+      "action": null,
+      "owner_role": null
+    },
+    "NO_POLICY": {
+      "action": "Ask policy administrator to confirm applicable policy",
+      "owner_role": "Coordinator"
+    }
+  }
+}

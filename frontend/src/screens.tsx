@@ -1,3 +1,4 @@
+import { CoordinationNextAction } from './Coordination';
 import { useState, type ReactNode } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { ArrowDownToLine, ArrowRight, ArrowUpRight, CalendarDays, CircleAlert, ClipboardList, GitBranch, HeartPulse, Plus, RotateCcw, ShieldCheck, Users, Workflow } from 'lucide-react';
@@ -175,7 +176,7 @@ export function Passport({ data, role, token, busy, action }: ScreenProps) {
             <p>The assessment remains open after pregnancy registration and is linked to the pregnancy handoff review.</p>}
         </div>
         <dl className="details"><div><dt>Assigned owner</dt><dd>{item.owner}</dd></div>
-          <div><dt>Next action</dt><dd>{item.status === 'closed' ? 'No follow-up remains on this obligation.' : scenario?.next_action || rule.definition.description}</dd></div>
+          <div><dt>Next action</dt><dd><CoordinationNextAction token={token} patientId={item.patient_id}/></dd></div>
           <div><dt>What is needed for closure</dt><dd>{scenario?.completion || 'A qualifying final completion record.'} Reviewer approval must cover the current evidence and any configured prerequisite must be satisfied.</dd></div>
           <div><dt>Current closure check</dt><dd>{closureMessage(data, item)}</dd></div>
           <div><dt>Last updated</dt><dd>{moment(history[0]?.recorded ?? item.created)}</dd></div></dl>
