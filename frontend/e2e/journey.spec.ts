@@ -361,7 +361,10 @@ test('completes the patient journey through all five screens', async ({ page, br
   const receivingView = page.locator('section').filter({ has: page.getByRole('heading', { name: 'SIMULATED Hospital B receiving view', exact: true }) });
   await expect(receivingView.getByText('Hospital A — SIMULATED originating care team', { exact: true }).first()).toBeVisible();
   await expect(receivingView.getByRole('button', { name: 'Receive records from Hospital A' })).toBeDisabled();
+  const simulatedRegistration=page.waitForResponse(response=>response.request().method()==='POST'&&new URL(response.url()).pathname==='/api/patients/demo-handoff/pregnancy');
+  const receivingState=page.waitForResponse(async response=>response.request().method()==='GET'&&new URL(response.url()).pathname==='/api/v1/simulated-handoff/patients/demo-handoff'&&response.ok()&&(await response.json()).stage==='pregnancy');
   await page.getByRole('button', { name: 'Register pregnancy', exact: true }).click();
+  expect((await simulatedRegistration).ok()).toBeTruthy();expect((await receivingState).ok()).toBeTruthy();
   await expect(receivingView.getByRole('button', { name: 'Receive records from Hospital A' })).toBeEnabled();
   await receivingView.getByRole('button', { name: 'Receive records from Hospital A' }).click();
   await expect(receivingView.getByText('Hospital B — SIMULATED receiving care team', { exact: true })).toBeVisible();
