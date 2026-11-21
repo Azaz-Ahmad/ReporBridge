@@ -31,9 +31,9 @@ def manifest(value,patient):
             except (ValueError,TypeError):return
             if isinstance(decoded,(dict,list)):walk(decoded,path+"/json")
         elif isinstance(v,dict):
-            if v.get("resourceType") and v.get("id"):records.append({"record":v["resourceType"]+"/"+str(v["id"]),"fields":list(v)})
-            elif v.get("kind") and v.get("resource_id") and v.get("id"):records.append({"record":v["kind"]+"/"+v["resource_id"],"evidence_id":v["id"],"version":v.get("version"),"fields":list(v)})
-            elif "reference" in v and "excerpt" in v:records.append({"record":v["reference"],"fields":list(v)})
+            if isinstance(v.get("resourceType"),str) and isinstance(v.get("id"),str):records.append({"record":v["resourceType"]+"/"+str(v["id"]),"fields":list(v)})
+            elif all(isinstance(v.get(key),str) for key in ("kind","resource_id","id")):records.append({"record":v["kind"]+"/"+v["resource_id"],"evidence_id":v["id"],"version":v.get("version"),"fields":list(v)})
+            elif isinstance(v.get("reference"),str) and isinstance(v.get("excerpt"),str):records.append({"record":v["reference"],"fields":list(v)})
             for k,x in v.items():fields.append(path+"/"+k);walk(x,path+"/"+k)
         elif isinstance(v,list):
             for i,x in enumerate(v):walk(x,path+"/"+str(i))
@@ -51,12 +51,12 @@ def persist(connection,scope,detail):
     request,rr,rt,rh=safe_body(detail.get("request_payload"));response,sr,st,sh=safe_body(detail.get("raw_response"))
     applied=detail.get("redactions",[])+rr+sr
     from app.investigation.replay import scrub
-    manifest_value=detail.get("context_manifest") or (manifest(scrub(detail.get("request_payload")),patient) if detail.get("original_capture_available") else {"available":False,"message":"Original request not recorded; fields and redactions are unknown."})
+    manifest_value=manifest(scrub(detail.get("request_payload")),patient) if detail.get("original_capture_available") else {"available":False,"message":"Original request not recorded; fields and redactions are unknown."}
     if len(json.dumps(manifest_value).encode())>MAX_BODY_BYTES:manifest_value={"manifest_truncated":True,"preview":json.dumps(manifest_value)[:MAX_BODY_BYTES]}
     value={**detail,"request_payload":request,"raw_response":response,"redactions":applied,
         "redaction_label":("None applied" if not applied else "Existing mandatory secret scrub applied") if detail.get("original_capture_available") else "Unknown: original payload not recorded",
         "request_truncated":rt or detail.get("request_truncated",False),"response_truncated":st or detail.get("response_truncated",False),"request_stored_sha256":rh,"response_stored_sha256":sh,
-        "context_manifest":manifest_value}
+        "context_manifest":manifest_value,"context_manifest_version":2}
     # Fail closed on key-like strings that the existing scrubber did not remove.
     serialized=json.dumps(value)
     if re.search(r"(?i)(?:sk-[a-z0-9_-]{8,}|Bearer\s+\S+)",serialized):

@@ -1,3 +1,4 @@
+import {DraftEditor} from './DraftEditor';
 import {ExplanationOutput,type ExplanationProjection} from './ExplanationOutput';
 import { displayJson, displayText } from './presentation';
 import { useState } from 'react';
@@ -30,6 +31,7 @@ export function ClinicalInvestigation({ patientId, token, role, decisionId }: {
   const [selected, setSelected] = useState('');
   const [requestId, setRequestId] = useState(() => crypto.randomUUID());
   const [note, setNote] = useState('');
+  const [showVersions,setShowVersions]=useState(false);
   const [source, setSource] = useState<Source | null>(null);
   const provider = useQuery({ queryKey: ['evidence-provider', token],
     queryFn: () => api<Provider>(token, base + '/status') });
@@ -59,6 +61,7 @@ export function ClinicalInvestigation({ patientId, token, role, decisionId }: {
       token, '/v1/clinical/patients/' + patientId + '/evidence/' + source!.evidence_id),
   });
   const packet = run?.detail.packet;
+  const editable=packet?.origin==='model'&&!packet.abstained&&packet.grounding_status!=='validation_failed';
   return <Panel title={decisionId ? "Decision Readiness Investigation" : "Clinical Evidence Investigation"}>
     <div className="inset investigation">
       <p><strong>AI-generated evidence summary — requires clinical review.</strong></p>
@@ -82,7 +85,7 @@ export function ClinicalInvestigation({ patientId, token, role, decisionId }: {
       {investigation.error && <Feedback message={investigation.error.message} error />}
       {runs.error && <Feedback message={runs.error.message} error />}
       {runs.data?.length ? <label>Investigation run<select value={run?.id ?? ''}
-        onChange={(event) => { setSelected(event.target.value); setSource(null); setNote(''); }}>
+        onChange={(event) => { setSelected(event.target.value); setSource(null); setNote('');setShowVersions(false); }}>
         {runs.data.map((item) => <option key={item.id} value={item.id}>{item.created} · {label(item.status)}</option>)}
       </select></label> : <Empty>No evidence investigations recorded for this patient.</Empty>}
       {run && <div className="investigation-result">
@@ -128,6 +131,8 @@ export function ClinicalInvestigation({ patientId, token, role, decisionId }: {
               <p>{evidence.data.quality.warnings.map(label).join(', ')}</p>
               <pre>{displayJson(evidence.data.normalized.values ?? {})}</pre></div>}
           </details>
+          {editable&&role!=='viewer'&&<Button variant="outline" onClick={()=>setShowVersions(!showVersions)}>{showVersions?'Close draft versions':role==='reviewer'?'Edit draft':'View draft versions'}</Button>}
+          {editable&&showVersions&&<DraftEditor key={run.id} runId={run.id} token={token} role={role} onReviewed={()=>runs.refetch()}/>}
           <p>{run.detail.validation?.claim_checks}</p>
           {run.detail.validation?.errors?.length ? <p>{run.detail.validation.errors.map(label).join(', ')}</p> : null}
           {role === 'coordinator' && ['awaiting_submission', 'abstained'].includes(run.status) &&
@@ -135,7 +140,7 @@ export function ClinicalInvestigation({ patientId, token, role, decisionId }: {
           {role === 'reviewer' && run.status === 'pending_review' && <div className="review-controls">
             <label>Evidence summary review note<textarea value={note} maxLength={500} onChange={(event) => setNote(event.target.value)} /></label>
             <div className="actions">
-              {['approve_summary', 'reject', 'request_evidence'].map((value) => <Button key={value} variant="outline"
+              {['approve_summary', 'reject', 'request_evidence'].filter(value=>!editable||!showVersions||value!=='approve_summary').map((value) => <Button key={value} variant="outline"
                 disabled={!note.trim() || decision.isPending || value === 'approve_summary' && packet.origin !== 'model'}
                 onClick={() => decision.mutate(value)}>{label(value)}</Button>)}
             </div>

@@ -51,3 +51,10 @@ def test_payload_bounds_existing_secret_scrub_and_honest_replay(client):
     assert stored[1]['detail']['redactions']==record['redactions']
     assert stored[2]['detail']['original_capture_available'] is False and stored[2]['detail']['request_payload'] is None
     assert not re.search(r'sk-[A-Za-z0-9_-]{8,}|Bearer\s+\S+',json.dumps([r['detail'] for r in stored]))
+
+def test_schema_definitions_are_not_misreported_as_transmitted_source_records():
+    schema={'text':{'schema':{'properties':{'reference':{'type':'string'},'excerpt':{'type':'string'},'kind':{'type':'string'},'resource_id':{'type':'string'},'id':{'type':'string'}}}}}
+    assert payloads.manifest(schema,{'name':[]})['records']==[]
+    actual={'input':[{'content':json.dumps({'cited_records':[{'reference':'hospital-a|Observation/2011','excerpt':'documented finding','version':1}]})}]}
+    records=payloads.manifest(actual,{'name':[]})['records']
+    assert len(records)==1 and records[0]['record']=='hospital-a|Observation/2011'

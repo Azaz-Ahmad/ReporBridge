@@ -12,3 +12,9 @@ test('payload shows actual technical JSON, original replay and real disclosure',
  expect(screen.getByLabelText('Captured request payload').textContent).toContain('CITATION_PENDING_CLINICAL_CONFIRMATION');expect(screen.getByText(/replayed — original recorded call/)).toBeTruthy();expect(screen.getByText('None applied')).toBeTruthy();expect(screen.getByLabelText('Captured raw response').textContent).toContain('actual-response');
 });
 test('Viewer never receives a payload tab or payload API query',()=>{mount('viewer');expect(screen.queryByRole('tab',{name:'Model payload'})).toBeNull();expect(api).not.toHaveBeenCalled();});
+
+test('legacy malformed manifest cannot blank the app or alter the exact payload',async()=>{
+ vi.mocked(api).mockImplementation(async(_token,path)=>path.includes('/patients/')?[{id:'legacy'}]:{detail:{original_capture_available:true,context_manifest:{records:[{record:{type:'string'},fields:['reference','excerpt']}]},request_payload:{actual:'unchanged'},raw_response:{id:'original'},redactions:[],redaction_label:'None applied'}});
+ mount();fireEvent.click(screen.getByRole('tab',{name:'Model payload'}));await screen.findByLabelText('Captured request payload');
+ expect(screen.getByText(/Unrecognized legacy manifest entry/)).toBeTruthy();expect(screen.getByLabelText('Captured request payload').textContent).toContain('unchanged');
+});

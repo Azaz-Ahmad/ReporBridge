@@ -225,8 +225,11 @@ def submit(connection, actor, run_id):
     return get(connection, actor, run_id)
 
 
-def review(connection, actor, run_id, request):
+def review(connection, actor, run_id, request, edited_version_id=None):
     run = get(connection, actor, run_id)
+    if request.decision == "approve_summary":
+        from app.drafts import validate_target
+        validate_target(connection,run,edited_version_id)
     if run["review"]:
         if run["review"]["decision"] == request.decision and run["review"]["note"] == request.note:
             return run
