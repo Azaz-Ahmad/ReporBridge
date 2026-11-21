@@ -1,6 +1,7 @@
 import base64
 from sqlalchemy import select
 from app import db,history,source_documents
+from app.rules import DEMO_TAG
 from app.clinical.schema_v1 import access_log,grants
 from test_workflow import client,seed,snapshot
 from test_historical_candidates import start,candidates
@@ -55,3 +56,23 @@ def test_human_reader_retains_invalidated_document_versions_without_changing_m08
     assert invalid['version']==2 and invalid['source_state']=='invalidated' and invalid['status']=='unavailable'
     assert invalid['text']==base64.b64decode(record['resource']['content'][0]['attachment']['data']).decode()
     assert len(docs)==4
+
+
+def test_missing_inline_document_has_explicit_unavailable_text_without_fetch_or_m08_change(client):
+    from app.clinical.events import process
+    from app.clinical.contracts import Event
+    from app.clinical.access import authorize,now
+    from app.clinical.gateway import ClinicalRetrieval
+    seed(client)
+    from app.clinical.fixtures import note
+    resource=note('reader-unavailable','clinical-note')
+    resource['author']=[{'display':'Hospital B'}]
+    with db.engine.begin() as c:
+        scope=authorize(c,'coordinator','demo-amira')
+        result=process(c,scope,Event(source='synthetic-unavailable-document',event_id='url-note-v1',event_time=now(),version=1,resource=resource))
+        before=ClinicalRetrieval(c,scope).get(evidence_id=result['evidence_id']).model_dump(mode='json')
+    response=client('/v1/source-documents/patients/demo-amira',method='GET');assert response.status_code==200
+    doc=next(x for x in response.json() if x['id']==result['evidence_id'])
+    assert doc['text_available'] is False and doc['text']=='' and 'No external URL was fetched' in doc['unavailable_reason']
+    assert doc['facility']=='Hospital B' and doc['date']==before['evidence']['clinical_time'] and len(doc['digest'])==64
+    with db.engine.begin() as c:assert ClinicalRetrieval(c,scope).get(evidence_id=result['evidence_id']).model_dump(mode='json')==before

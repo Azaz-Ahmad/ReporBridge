@@ -14,3 +14,10 @@ test('shows exact text with cited highlight and back link; no model invocation',
  expect(screen.getByText('SIMULATED')).toBeTruthy();expect(screen.getByText(/PDF and scanned documents are on the roadmap/)).toBeTruthy();
  expect(vi.mocked(api).mock.calls.every(call=>String(call[1]).includes('/source-documents/'))).toBe(true);
 });
+
+
+test('Documents without stored inline text show an explicit availability note rather than a blank or fabricated text panel',async()=>{
+ vi.mocked(api).mockResolvedValue([{id:'missing',title:'Unavailable source note',facility:'Hospital B',date:'2026-03-12',version:1,digest:'b'.repeat(64),status:'unavailable',simulated:false,text:'',text_available:false,unavailable_reason:'No supported stored inline text is available for this document. No external URL was fetched.',citations:[]}]);
+ render(<QueryClientProvider client={new QueryClient({defaultOptions:{queries:{retry:false}}})}><MemoryRouter><SourceDocuments data={{patients:[{id:'demo-amira',resource:{name:[{given:['Amira'],family:'Haddad'}]}}]} as any} token="synthetic" role="coordinator" busy={false} action={()=>{}}/></MemoryRouter></QueryClientProvider>);
+ expect((await screen.findByLabelText('Stored text availability')).textContent).toContain('No external URL was fetched');expect(screen.queryByLabelText('Full stored document text')).toBeNull();
+});

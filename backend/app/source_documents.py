@@ -41,8 +41,12 @@ def list_documents(connection,actor,patient_id):
         # This human-only reader may inspect superseded/invalid stored documents.
         # Their state is explicit; the M08 tools still withhold unavailable content.
         resource=found.resource or row["resource"];item=found.evidence.model_dump(mode="json")
-        attachment=resource["content"][0]["attachment"]
-        text=base64.b64decode(attachment["data"],validate=True).decode("utf-8")
+        attachments=[entry.get("attachment",{}) for entry in resource.get("content",[])]
+        attachment=next((a for a in attachments if a.get("data") and a.get("contentType","").split(";")[0].strip().lower() in {"text/plain","text/markdown"}),attachments[0] if attachments else {})
+        text="";text_available=False
+        if attachment.get("data") and attachment.get("contentType","").split(";")[0].strip().lower() in {"text/plain","text/markdown"}:
+            try:text=base64.b64decode(attachment["data"],validate=True).decode("utf-8");text_available=True
+            except (ValueError,UnicodeError):pass
         links=[]
         for candidate in cited:
             if any(pin["id"]==item["id"] for pin in candidate["source_refs"]):
@@ -51,7 +55,7 @@ def list_documents(connection,actor,patient_id):
         facility=item["provenance"].get("facility",{}).get("origin") or next((a.get("display") for a in resource.get("author",[]) if a.get("display")),"Source facility unavailable")
         answer.append({"id":item["id"],"title":"Adolescent clinic note" if row["source"]==history.SOURCE else resource.get("description","Source document"),
             "facility":facility,"date":item["clinical_time"] or resource.get("date") or attachment.get("creation"),"version":item["version"],"digest":item["digest"],"status":item["quality"]["state"],"source_state":row["status"],
-            "simulated":facility=="Hospital A","text":text,"citations":links})
+            "simulated":facility=="Hospital A","text":text,"text_available":text_available,"unavailable_reason":None if text_available else "No supported stored inline text is available for this document. No external URL was fetched.","citations":links})
     audit_access(connection,scope,"source_documents_viewed")
     return answer
 
