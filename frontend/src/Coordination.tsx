@@ -19,7 +19,7 @@ export function CoordinationNextAction({ token, patientId }: { token: string; pa
     queryFn: () => api<CoordinationResult>(token, '/v1/tsp/patients/' + patientId + '/coordination') });
   if (query.error) return <Feedback message={query.error.message} error />;
   if (!query.data) return <span aria-live="polite">Loading coordination action…</span>;
-  return <div><ActionText result={query.data} /><p className="muted">Coordination only. No automatic action or owner change. Based on {query.data.status.replaceAll('_', ' ')} as of {query.data.as_of}.</p></div>;
+  return <div><span className="coordination-action"><ActionText result={query.data} /></span><p className="muted">Coordination only. No automatic action or owner change. Based on {query.data.status.replaceAll('_', ' ')} as of {query.data.as_of}.</p></div>;
 }
 
 
