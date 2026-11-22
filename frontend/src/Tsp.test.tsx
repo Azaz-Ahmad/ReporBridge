@@ -81,3 +81,40 @@ test('viewer cannot mutate the full clock panel', async () => {
  await screen.findByText('DEMO CLOCK — synthetic dates'); expect(screen.queryByRole('button')).toBeNull();
  expect(screen.queryByLabelText('Demo as-of date')).toBeNull();
 });
+
+test('compact Workspace preserves the server hold without inventing dates or clock controls', async () => {
+ vi.mocked(api).mockResolvedValue(fixture()); mount(<TspWindow token="test" patientId="demo-amira" timeline compact />);
+ await screen.findByText('HOLD DATING UNCERTAIN');
+ expect(screen.getByText('No established window')).toBeTruthy();
+ expect(screen.getByText('pending clinical confirmation')).toBeTruthy();
+ expect(screen.queryByLabelText('Demo as-of date')).toBeNull();
+ expect(screen.queryByRole('button',{name:'Explain computed window'})).toBeNull();
+});
+
+test('Passport hero preserves the actual hold and missing inputs without demo-date controls', async () => {
+ vi.mocked(api).mockImplementation(async(_token,path)=>path==='/v1/tsp/clock'?clock:fixture());
+ mount(<TspWindow token="test" patientId="demo-amira" role="coordinator" passport owner="Recorded owner"/>);
+ await screen.findByText('HOLD — DATING UNCERTAIN');
+ expect(screen.getByText('Pregnancy dating evidence')).toBeTruthy();
+ expect(screen.getByText('No prevention window can be established until the required dating evidence is confirmed.')).toBeTruthy();
+ expect(screen.getByText('Recorded owner')).toBeTruthy();
+ expect(document.querySelectorAll('.passport-window-hero time')).toHaveLength(0);
+ expect(screen.queryByText('Demo Date Controls')).toBeNull();
+ expect(screen.queryByRole('button',{name:'Apply demo date'})).toBeNull();
+ expect(screen.queryByRole('button',{name:'Reset demo date'})).toBeNull();
+});
+
+test('Passport has no invented urgency or illustrative disclaimer when timing is not established', async () => {
+ vi.mocked(api).mockResolvedValue({...fixture(),status:'NO_POLICY',policy_id:null,policy_version:null});
+ mount(<TspWindow token="test" patientId="demo-amira" passport/>);
+ await screen.findByText('Timing not established');
+ expect(screen.queryByText('Illustrative policy — Pending clinical confirmation')).toBeNull();
+ expect(document.querySelectorAll('.passport-window-hero time')).toHaveLength(0);
+});
+
+test('Passport does not label an explicitly approved calculator policy as illustrative', async () => {
+ vi.mocked(api).mockResolvedValue({...fixture(),clinical_confirmation:'approved',citation:'Recorded approved guideline'});
+ mount(<TspWindow token="test" patientId="demo-amira" passport/>);
+ await screen.findByText('HOLD — DATING UNCERTAIN');
+ expect(screen.queryByText('Illustrative policy — Pending clinical confirmation')).toBeNull();
+});

@@ -30,12 +30,12 @@ export type GuidelineTrace = { source_guideline: string; policy_id: string | nul
     provenance: {facility?: Facility}; source_url: string}[];
 };
 
-export function GuidelineTraceability(props: {token: string; patientId: string}) {
+export function GuidelineTraceability(props: {token: string; patientId: string; recordedStatus?: boolean}) {
   // Local source-viewer state must never carry across patient workspaces.
   return <GuidelineTraceabilityScope key={props.patientId} {...props}/>;
 }
 
-function GuidelineTraceabilityScope({token, patientId}: {token: string; patientId: string}) {
+function GuidelineTraceabilityScope({token, patientId, recordedStatus=false}: {token: string; patientId: string; recordedStatus?: boolean}) {
   const query = useQuery({queryKey:['tsp','guideline-trace',patientId,token],
     queryFn:()=>api<GuidelineTrace>(token,'/v1/tsp/patients/'+patientId+'/guideline-trace')});
   const source = useMutation({mutationFn:(url:string)=>api<{resource:unknown}>(token,url.replace(/^\/api/,''))});
@@ -43,7 +43,7 @@ function GuidelineTraceabilityScope({token, patientId}: {token: string; patientI
   return <Panel title="Guideline traceability">
     {query.error&&<Feedback message={query.error.message} error/>}
     {!trace&&!query.error&&<p aria-live="polite">Loading policy and supporting evidence…</p>}
-    {trace&&<><dl className="details"><div><dt>Source guideline</dt><dd>pending clinical confirmation</dd></div>
+    {trace&&<><dl className="details"><div><dt>Source guideline</dt><dd>{recordedStatus?displayText(trace.source_guideline||'Guideline status not recorded'):'pending clinical confirmation'}</dd></div>
       <div><dt>Policy ID and version</dt><dd>{trace.policy_id||'No active policy'} · version {trace.policy_version||'not established'}</dd></div></dl>
       <h3>Eligibility criteria from policy data</h3>
       {trace.policy_active?<ul>{trace.eligibility_criteria.map(item=><li key={item}>{item}</li>)}</ul>:<p>No active window policy; criteria unavailable.</p>}

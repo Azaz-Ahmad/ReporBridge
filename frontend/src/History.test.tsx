@@ -16,3 +16,19 @@ test('bounded explanation displays source IDs and versions',async()=>{vi.mocked(
 
 
 test('earlier explanation displays a missing recording failure',async()=>{vi.mocked(api).mockImplementation(async(_token,path)=>path.endsWith('/explanations')?{id:'failed',detail:{packet:null,error:'replay_recording_missing_or_context_changed'}}:state);mount('coordinator');await screen.findByRole('button',{name:'Explain cited earlier record'});fireEvent.click(screen.getByRole('button',{name:'Explain cited earlier record'}));expect((await screen.findByRole('alert')).textContent).toContain('replay_recording_missing_or_context_changed');});
+
+test('compact exchange illustration requires actual received facility provenance',async()=>{
+ vi.mocked(api).mockResolvedValue({...state,findings:[]});
+ const client=new QueryClient({defaultOptions:{queries:{retry:false}}});
+ const view=render(<QueryClientProvider client={client}><EarlierRecords token="test" role="coordinator" patientId="demo-amira" compact currentCare={<p>Current authorized records</p>}/></QueryClientProvider>);
+ await screen.findByText('No earlier matching records received. This rule adds no trigger without the documented finding.');
+ expect(screen.getByRole('button',{name:'Receive earlier Hospital A records'})).toBeTruthy();
+ expect(screen.queryByText('SIMULATED EXCHANGE — No live hospital connection')).toBeNull();
+ expect(view.container.querySelector('.workspace-exchange-arrow')).toBeNull();
+ cleanup();vi.mocked(api).mockResolvedValue(state);
+ render(<QueryClientProvider client={new QueryClient()}><EarlierRecords token="test" role="viewer" patientId="demo-amira" compact currentCare={<p>Current authorized records</p>}/></QueryClientProvider>);
+ await screen.findByText('SIMULATED EXCHANGE — No live hospital connection');
+ expect(screen.getByRole('heading',{name:'Historical source — Hospital A'})).toBeTruthy();
+ expect(screen.getByRole('heading',{name:'Receiving provider — Hospital B'})).toBeTruthy();
+ expect(screen.getByLabelText('Recorded simulated exchange')).toBeTruthy();
+});

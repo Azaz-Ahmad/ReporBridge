@@ -1,5 +1,7 @@
+import { CalendarDays } from 'lucide-react';
+import { WorkspaceDetails } from './WorkspaceDetails';
 import {ExplanationOutput,type ExplanationProjection} from './ExplanationOutput';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { demoPatient } from './presentation';
@@ -61,15 +63,42 @@ export function TspQueue({ token, role }: { token: string; role?: Role }) {
   </Panel>;
 }
 
-export function TspWindow({ token, patientId, timeline = false, role }: { token: string; patientId: string; timeline?: boolean; role?: Role }) {
+export function TspWindow({ token, patientId, timeline = false, role, compact = false, passport = false, owner, nextAction }: { token: string; patientId: string; timeline?: boolean; role?: Role; compact?: boolean; passport?: boolean; owner?: string; nextAction?: ReactNode }) {
   const query = useQuery({ queryKey: ['tsp', 'patient', patientId, token], queryFn: () => api<WindowResult>(token, '/v1/tsp/patients/' + patientId + '/window') });
   const cache = useQueryClient();
   const fixture = useMutation({ mutationFn: (action: string) => api(token, '/v1/tsp/demo/obligations/' + query.data?.obligation_ids[0] + '/' + action, 'POST'),
     onSuccess: () => { cache.invalidateQueries({ queryKey: ['tsp'] }); cache.invalidateQueries({ queryKey: ['historical-candidates'] }); cache.invalidateQueries({ queryKey: ['snapshot'] }); cache.invalidateQueries({ queryKey: ['prevention'] }); } });
   const explain = useMutation({ mutationFn: () => api<{ id: string; detail: { explanation?:ExplanationProjection;trace?:string[];error?: string | null; packet: { summary: string; abstained: boolean } | null } }>(token, '/v1/tsp/patients/' + patientId + '/explanations', 'POST', { request_id: crypto.randomUUID() }) });
   const item = query.data;
-  return <Panel title={timeline ? 'Prevention window timeline' : 'Time-Sensitive Prevention Window'}>
+  if(passport)return <section className="panel passport-window-hero" aria-label="Time-Sensitive Prevention Window" id="passport-time-window">
+    <div className="panel-heading"><h2><CalendarDays size={24}/>Time-Sensitive Prevention Window</h2><span>Server-calculated timing</span></div>
+    {query.isPending&&<p role="status">Loading prevention window…</p>}{query.error&&<Feedback message={query.error.message} error/>}
+    {item&&<><div className="passport-window-headline"><div><WindowBadge value={item.status}/><h3>{item.status==='HOLD_DATING_UNCERTAIN'?'HOLD — DATING UNCERTAIN':!item.policy_id||item.status==='NO_POLICY'?'Timing not established':item.active_window?'Current window: '+item.active_window:'No window established'}</h3>
+      {item.status==='HOLD_DATING_UNCERTAIN'?<p>No prevention window can be established until the required dating evidence is confirmed.</p>:item.policy_id&&item.window_start&&item.window_end?<p className="passport-window-dates">{item.window_start} → <strong>{item.window_end}</strong> (inclusive)</p>:<p>No timing deadline is established in the current calculator result.</p>}
+      <small>As of {item.as_of} · {item.clock.demo_mode?'demo calendar':'Asia/Dubai calendar'}</small></div>
+      <div className="passport-window-owner"><span className="field-kicker">Responsible owner</span><strong>{owner||'Not recorded'}</strong>{nextAction&&<><span className="field-kicker">Configured next action</span>{nextAction}</>}</div></div>
+      {item.policy_id&&item.clinical_confirmation==='pending clinical confirmation'&&<p className="passport-policy-notice">Illustrative policy — Pending clinical confirmation</p>}
+      {item.status!=='HOLD_DATING_UNCERTAIN'&&item.policy_id&&!!item.windows.length&&<ol className="tsp-windows">{item.windows.map(window=><li key={window.id}><strong>{window.id} · {window.label}</strong><p><time>{window.window_start}</time> – <time>{window.window_end}</time> (inclusive)</p><WindowBadge value={window.status}/>
+        {window.completion_date&&<p>Qualifying evidence date: {window.completion_date}. {item.completion_verified?'Closure verified through existing gates.':'Evidence presence does not close an obligation.'}</p>}</li>)}</ol>}
+      {!!item.missing_evidence.length&&<div className="passport-window-blockers"><strong>Missing / conflicting timing inputs</strong>{item.missing_evidence.map(message=><p key={message}>{message}</p>)}</div>}
+      {item.reviewer_questions.map(question=><p key={question}>{question}</p>)}
+    </>}
+    {role==='coordinator'&&!timeline&&<Button disabled={explain.isPending} onClick={()=>explain.mutate()}>Explain computed window</Button>}
+    {explain.error&&<Feedback message={explain.error.message} error/>}{explain.data?.detail.error&&<Feedback message={'Explanation unavailable: '+explain.data.detail.error} error/>}
+    {explain.data&&<div className="inset passport-window-explanation"><p>Explanation · mandatory human review</p><ExplanationOutput detail={explain.data.detail}/>{!explain.data.detail.explanation&&<p>{explain.data.detail.packet?.summary}</p>}</div>}
+    {item?.clock.demo_mode&&role==='coordinator'&&!timeline&&patientId==='demo-amira'&&item.obligation_ids.length>0&&<details className="passport-technical"><summary>Synthetic evidence controls · demonstration only</summary><div className="actions"><Button variant="outline" disabled={fixture.isPending} onClick={()=>fixture.mutate('completion')}>Add dated synthetic result</Button><Button variant="outline" disabled={fixture.isPending} onClick={()=>fixture.mutate('invalidate')}>Invalidate TSP result</Button></div></details>}
+    {fixture.error&&<Feedback message={fixture.error.message} error/>}
+  </section>;
+  if(compact && timeline)return <Panel title="Prevention Windows"><p className="workspace-section-note">From configured policy — illustrative.</p>
+    {query.isPending&&<p role="status">Loading prevention windows…</p>}{query.error&&<Feedback message={query.error.message} error/>}
+    {item&&<>{item.windows.length?<ol className="tsp-windows">{item.windows.map(window=><li key={window.id}><strong>{window.id} · {window.label}</strong><p><time>{window.window_start}</time> – <time>{window.window_end}</time> (inclusive)</p><WindowBadge value={window.status}/>
+      {window.completion_date&&<p>Qualifying evidence date: {window.completion_date}. {item.completion_verified?'Closure verified through existing gates.':'Evidence presence does not close an obligation.'}</p>}</li>)}</ol>:<><WindowBadge value={item.status}/><p>No established window</p></>}
+      <div className="workspace-window-footer"><small>As of {item.as_of} · {item.clock.demo_mode?'DEMO CLOCK':'Asia/Dubai calendar'}</small><strong className="tsp-citation">pending clinical confirmation</strong>
+      <details><summary>Policy Details</summary><p>Policy {item.policy_id||'not established'} · version {item.policy_version||'none'}</p><p>Dates are computed by the deterministic policy service. No glucose values are interpreted. Due soon means the seven days before a window opens; window endpoints are inclusive.</p><p>Server status: {item.status.replaceAll('_',' ')}</p></details></div></>}
+  </Panel>;
+  return <Panel title={compact ? 'Prevention windows' : timeline ? 'Prevention window timeline' : 'Time-Sensitive Prevention Window'}>
     {!timeline && role && <DemoClock token={token} role={role} controls />}
+    {compact && query.isPending && <p role="status">Loading prevention windows…</p>}
     {query.error && <Feedback message={query.error.message} error />}
     {role === 'coordinator' && !timeline && <Button disabled={explain.isPending} onClick={() => explain.mutate()}>Explain computed window</Button>}
     {explain.error && <Feedback message={explain.error.message} error />}
@@ -82,7 +111,7 @@ export function TspWindow({ token, patientId, timeline = false, role }: { token:
     {item && <><WindowBadge value={item.status} /><p>As of {item.as_of} · {item.clock.demo_mode ? 'DEMO CLOCK' : 'Asia/Dubai calendar'}</p>
       <details><summary>Policy details</summary>Policy {item.policy_id || 'not established'} · version {item.policy_version || 'none'}</details>
       <p><strong className="tsp-citation">pending clinical confirmation</strong></p>
-      <p>Dates are computed by the deterministic policy service. No glucose values are interpreted. Due soon means the seven days before a window opens; window endpoints are inclusive.</p>
+      <WorkspaceDetails compact={compact} title="How to read these windows"><p>Dates are computed by the deterministic policy service. No glucose values are interpreted. Due soon means the seven days before a window opens; window endpoints are inclusive.</p></WorkspaceDetails>
       {item.windows.length ? <ol className="tsp-windows">{item.windows.map((window) => <li key={window.id}>
         <strong>{window.id} · {window.label}</strong> <WindowBadge value={window.status} />
         <p><time>{window.window_start}</time> – <time>{window.window_end}</time> (inclusive)</p>

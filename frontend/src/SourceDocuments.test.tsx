@@ -21,3 +21,62 @@ test('Documents without stored inline text show an explicit availability note ra
  render(<QueryClientProvider client={new QueryClient({defaultOptions:{queries:{retry:false}}})}><MemoryRouter><SourceDocuments data={{patients:[{id:'demo-amira',resource:{name:[{given:['Amira'],family:'Haddad'}]}}]} as any} token="synthetic" role="coordinator" busy={false} action={()=>{}}/></MemoryRouter></QueryClientProvider>);
  expect((await screen.findByLabelText('Stored text availability')).textContent).toContain('No external URL was fetched');expect(screen.queryByLabelText('Full stored document text')).toBeNull();
 });
+
+
+function source(id:string,title:string,facility:string){return {id,title,facility,date:'2026-11-22',version:2,digest:id+'-stored-hash',status:'valid',source_state:'current',simulated:facility==='Hospital A',text:'Original line one.\n\n  Indented line two. <script>untrusted</script>',citations:[]};}
+function mountDocuments(entry='/documents?patient=demo-amira'){
+ const client=new QueryClient({defaultOptions:{queries:{retry:false}}});
+ render(<QueryClientProvider client={client}><MemoryRouter initialEntries={[entry]}><SourceDocuments data={{patients:[{id:'demo-amira',resource:{name:[{given:['Amira'],family:'Haddad'}]}},{id:'demo-lina',resource:{name:[{given:['Lina'],family:'Karim'}]}}]} as any} token="synthetic" role="viewer" busy={false} action={()=>{}}/></MemoryRouter></QueryClientProvider>);
+}
+
+test('local search filters title and facility without fetching, reordering or changing the selected document',async()=>{
+ vi.mocked(api).mockResolvedValue([source('one','First note','Hospital A'),source('two','Second report','Hospital B'),source('three','Third note','Hospital A')]);
+ mountDocuments();await screen.findByRole('button',{name:/First note/});
+ const library=screen.getByRole('region',{name:'Document library'});
+ const buttons=()=>Array.from(library.querySelectorAll('button')).map(button=>button.querySelector('strong')?.textContent);
+ expect(buttons()).toEqual(['First note','Second report','Third note']);
+ const calls=vi.mocked(api).mock.calls.length;
+ fireEvent.change(screen.getByRole('searchbox',{name:'Search loaded documents'}),{target:{value:'  HOSPITAL B  '}});
+ expect(buttons()).toEqual(['Second report']);expect(screen.getByRole('heading',{name:'First note'})).toBeTruthy();
+ expect(screen.getByText(/selected document remains open/)).toBeTruthy();
+ fireEvent.change(screen.getByRole('searchbox'),{target:{value:'third'}});expect(buttons()).toEqual(['Third note']);
+ fireEvent.change(screen.getByRole('searchbox'),{target:{value:'not found'}});expect(screen.getByText('No loaded documents match this title or facility.')).toBeTruthy();
+ fireEvent.change(screen.getByRole('searchbox'),{target:{value:''}});expect(buttons()).toEqual(['First note','Second report','Third note']);
+ expect(vi.mocked(api).mock.calls).toHaveLength(calls);
+});
+
+test('document deep links and selection preserve exact multiline text and stored integrity metadata',async()=>{
+ vi.mocked(api).mockResolvedValue([source('one','First note','Hospital A'),source('two','Second report','Hospital B')]);
+ mountDocuments('/documents?patient=demo-amira&document=two');
+ const selected=await screen.findByRole('button',{name:/Second report/});expect(selected.getAttribute('aria-pressed')).toBe('true');
+ expect(screen.getByLabelText('Full stored document text').textContent).toBe(source('two','','').text);
+ expect(document.querySelector('script')).toBeNull();
+ const integrity=screen.getByText('Source integrity and provenance').closest('details')!;expect(integrity.open).toBe(false);
+ fireEvent.click(screen.getByText('Source integrity and provenance'));expect(integrity.open).toBe(true);
+ expect(screen.getByText('two-stored-hash')).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:/First note/}));expect(screen.getByRole('heading',{name:'First note'})).toBeTruthy();
+ expect(screen.getByText('one-stored-hash')).toBeTruthy();
+ expect(vi.mocked(api).mock.calls.every(call=>call[1]==='/v1/source-documents/patients/demo-amira'&&!call[2])).toBe(true);
+});
+
+test('patient change clears local search and uses the existing patient-scoped query',async()=>{
+ vi.mocked(api).mockImplementation(async(_token,path)=>path.endsWith('demo-lina')?[source('lina','Lina original note','Hospital B')]:[source('amira','Amira original note','Hospital A')]);
+ mountDocuments();await screen.findByRole('button',{name:/Amira original note/});
+ fireEvent.change(screen.getByRole('searchbox'),{target:{value:'Hospital A'}});
+ fireEvent.change(screen.getByRole('combobox',{name:'Document patient'}),{target:{value:'demo-lina'}});
+ await screen.findByRole('button',{name:/Lina original note/});expect((screen.getByRole('searchbox') as HTMLInputElement).value).toBe('');
+ expect(screen.queryByRole('button',{name:/Amira original note/})).toBeNull();
+ expect(api).toHaveBeenCalledWith('synthetic','/v1/source-documents/patients/demo-lina');
+});
+
+test('loading and empty states remain explicit in both panels',async()=>{
+ let finish!:(value:unknown[])=>void;vi.mocked(api).mockImplementation(()=>new Promise(resolve=>{finish=resolve;}));
+ mountDocuments();expect(screen.getByText('Loading documents…')).toBeTruthy();expect(screen.getByText('Loading stored document…')).toBeTruthy();
+ finish([]);await screen.findByText(/No source documents in this patient scope/);expect(screen.getByText('No stored document selected.')).toBeTruthy();
+});
+
+test('authorization errors remain visible without displaying fabricated document content',async()=>{
+ vi.mocked(api).mockRejectedValue(new Error('Patient access denied'));
+ mountDocuments();expect((await screen.findByRole('alert')).textContent).toContain('Patient access denied');
+ expect(screen.queryByLabelText('Full stored document text')).toBeNull();
+});

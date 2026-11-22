@@ -73,3 +73,22 @@ test('passport honors the selected decision in a queue link', async () => {
   await screen.findByText('Selected care team');
   expect(screen.queryByText('Synthetic care team')).toBeNull();
 });
+
+
+test('Passport empty decision is a compact line without a large empty panel',async()=>{
+ vi.mocked(api).mockResolvedValue({decisions:[],history:[],counts:{}});
+ mount(<PreventionPassport token="test" role="viewer" obligationId="obligation-test" passport/>);
+ const empty=await screen.findByText('No prevention decision is linked to this obligation.');
+ expect(empty.tagName).toBe('P');expect(empty.className).toBe('passport-decision-empty');
+});
+
+test('Passport decision keeps status owner readiness link and coordinator reasons directly accessible',async()=>{
+ vi.mocked(api).mockResolvedValue({decisions:[fixture()],history:[],counts:{}});
+ mount(<PreventionPassport token="test" role="coordinator" obligationId="obligation-test" passport/>);
+ await screen.findByText('Synthetic care team',{selector:'.passport-decision-summary strong'});
+ expect(screen.getByRole('link',{name:'Open decision readiness investigation'}).getAttribute('href')).toBe('/resolution?obligation=obligation-test&decision=decision-test');
+ expect(screen.getAllByRole('link',{name:'Open decision readiness investigation'})).toHaveLength(1);
+ expect(screen.getByLabelText('Escalation or cancellation reason').closest('details')).toBeNull();
+ expect(screen.getByRole('button',{name:'Escalate decision'})).toBeTruthy();
+ expect(screen.getByRole('button',{name:'Cancel decision'})).toBeTruthy();
+});

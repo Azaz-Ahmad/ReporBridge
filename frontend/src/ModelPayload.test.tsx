@@ -18,3 +18,18 @@ test('legacy malformed manifest cannot blank the app or alter the exact payload'
  mount();fireEvent.click(screen.getByRole('tab',{name:'Model payload'}));await screen.findByLabelText('Captured request payload');
  expect(screen.getByText(/Unrecognized legacy manifest entry/)).toBeTruthy();expect(screen.getByLabelText('Captured request payload').textContent).toContain('unchanged');
 });
+
+test('copy request uses only the exact persisted body and legacy captures offer no copy', async()=>{
+ const writeText=vi.fn().mockResolvedValue(undefined);
+ Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText}});
+ vi.mocked(api).mockImplementation(async(_token,path)=>path.includes('/patients/')?[{id:'capture'}]:{detail:{original_capture_available:true,context_manifest:{},request_payload:{actual:'[REDACTED]'},raw_response:{id:'original'},redactions:[],redaction_label:'Existing mandatory secret scrub applied'}});
+ mount();fireEvent.click(screen.getByRole('tab',{name:'Model payload'}));
+ fireEvent.click(await screen.findByRole('button',{name:'Copy request'}));
+ await screen.findByText('Request copied.');
+ expect(writeText).toHaveBeenCalledWith(JSON.stringify({actual:'[REDACTED]'},null,2));
+ cleanup();vi.mocked(api).mockImplementation(async(_token,path)=>path.includes('/patients/')?[{id:'legacy'}]:{detail:{original_capture_available:false,context_manifest:{},redactions:[],redaction_label:'Unknown: original payload not recorded'}});
+ mount();fireEvent.click(screen.getByRole('tab',{name:'Model payload'}));
+ await screen.findByText(/Original payload unavailable for this recorded run/);
+ expect(screen.queryByRole('button',{name:'Copy request'})).toBeNull();
+ expect(screen.queryByLabelText('Captured request payload')).toBeNull();
+});

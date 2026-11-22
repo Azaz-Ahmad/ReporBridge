@@ -87,6 +87,24 @@ test('candidate audit renders the stored relevance rule version and demo date',a
  vi.mocked(api).mockResolvedValue([]);
  const data={patients:[],clinical_obligations:[],clinical_evidence:[],life_stage_events:[],rule_versions:[],obligation_dependencies:[],agent_executions:[],care_coordination_tasks:[],clinical_approvals:[],closure_evidence:[],demo_run_archive:[],audit_events:[{sequence:1,recorded:'2026-11-21T11:00:00Z',actor:'coordinator',action:'historical_candidate_identified',patient_id:'demo-amira',obligation_id:null,rule_key:'',evidence_refs:[],detail:{candidate_title:'Synthetic earlier-record review',demo_date:'2026-11-22',relevance_rule_id:'earlier-documented-finding-screening-review',relevance_rule_version:'1'}}]} as Snapshot;
  mount(<AuditScreen data={data} token="test" role="viewer" busy={false} action={vi.fn()}/>);
+ fireEvent.click(screen.getByRole('tab', {name:'Audit Trail'}));
  expect(screen.getByText('earlier-documented-finding-screening-review version 1')).toBeTruthy();
  expect(screen.getByText(/2026-11-22 · demo calendar/)).toBeTruthy();
+});
+
+
+test('compact Passport candidate keeps reviewer actions visible and details expandable without duplicating workflow',async()=>{
+ vi.mocked(api).mockResolvedValue([fixture()]);mount(<HistoricalCandidates token="test" role="reviewer" patientId="demo-amira" passportSummary/>);
+ await screen.findByText('Candidate: needs clinician confirmation');
+ expect(screen.getByText('SIMULATED · Hospital A',{selector:'.passport-candidate-summary span'})).toBeTruthy();
+ const details=screen.getByText('Eligibility, source evidence and provenance').closest('details')!;
+ expect(details.open).toBe(false);
+ const confirm=screen.getByRole('button',{name:'Confirm historical candidate'});
+ expect(confirm.closest('details')).toBeNull();
+ expect(screen.getAllByLabelText('Candidate review rationale')).toHaveLength(1);
+ fireEvent.change(screen.getByLabelText('Candidate review rationale'),{target:{value:'Unsaved review reason'}});
+ fireEvent.click(screen.getByText('Eligibility, source evidence and provenance'));
+ expect((screen.getByLabelText('Candidate review rationale') as HTMLTextAreaElement).value).toBe('Unsaved review reason');
+ expect(screen.getByRole('link',{name:'Open candidate source'})).toBeTruthy();
+ expect(screen.getAllByRole('button',{name:'Dismiss historical candidate'})).toHaveLength(1);
 });

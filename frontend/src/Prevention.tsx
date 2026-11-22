@@ -165,22 +165,22 @@ function ReviewControls({ decision, token, role }: Props & { decision: Preventio
   </div>;
 }
 
-export function PreventionPassport({ token, role, obligationId }: Props & { obligationId: string }) {
+export function PreventionPassport({ token, role, obligationId, passport = false }: Props & { obligationId: string; passport?: boolean }) {
   const data = usePrevention(token);
   const [params] = useSearchParams();
   const requested = params.get("decision");
   const visible = data.data?.decisions.filter((item) => !item.archived && item.obligation_id === obligationId
     && (!requested || item.id === requested)) ?? [];
-  return <Panel title="Prevention Decision">
+  return <Panel title={passport ? "Current prevention decision" : "Prevention Decision"}>
     <div className="inset prevention">
       {data.error && <Feedback message={data.error.message} error />}
       {visible.map((decision) => <article key={decision.id} className="prevention-decision" id={'decision-' + decision.id}>
-        <DecisionFacts decision={decision} />
-        <Link className="text-link" to={'/resolution?obligation=' + obligationId + '&decision=' + decision.id}>Open decision readiness investigation</Link>
+        {passport?<><div className="passport-decision-summary"><Status value={decision.status}/><strong>{decision.owner}</strong><span>Next step: <Link className="text-link" to={'/resolution?obligation=' + obligationId + '&decision=' + decision.id}>Open decision readiness investigation</Link></span><p>{decision.timing.label}{decision.timing.due_at&&<> · {moment(decision.timing.due_at)}</>}</p></div><details className="passport-technical"><summary>Required evidence, timing policy and decision snapshot</summary><DecisionFacts decision={decision}/></details></>:<DecisionFacts decision={decision} />}
+        {!passport&&<Link className="text-link" to={'/resolution?obligation=' + obligationId + '&decision=' + decision.id}>Open decision readiness investigation</Link>}
         <ReviewControls key={decision.id} decision={decision} token={token} role={role} />
       </article>)}
       {data.isLoading && <p>Loading prevention decisions…</p>}
-      {!data.isLoading && !visible.length && <Empty>No prevention decision is linked to this obligation.</Empty>}
+      {!data.isLoading && !visible.length && <>{passport?<p className="passport-decision-empty">No prevention decision is linked to this obligation.</p>:<Empty>No prevention decision is linked to this obligation.</Empty>}</>}
     </div>
   </Panel>;
 }
